@@ -1952,9 +1952,16 @@ def build_app(token):
 
 
 def main():
-    token = os.environ.get("BOT_TOKEN")
+    token = os.environ.get("BOT_TOKEN", "").strip().strip('"').strip("'")
     if not token:
-        raise SystemExit("Set BOT_TOKEN")
+        seen = sorted(k for k in os.environ if "TOKEN" in k.upper() or k in ("GM_IDS", "DATA_DIR"))
+        raise SystemExit("BOT_TOKEN is empty or missing. Bot-related variables this process can see: "
+                         + (", ".join(repr(k) for k in seen) or "none")
+                         + ". On Railway: after adding variables, click 'Deploy' on the staged-changes banner.")
+    if ":" not in token:
+        raise SystemExit("BOT_TOKEN doesn't look like a BotFather token (it should contain ':').")
+    if not ENV_GMS:
+        logger.warning("GM_IDS is empty: the first person to send /claimgm becomes GM.")
     build_app(token).run_polling(allowed_updates=Update.ALL_TYPES)
 
 
