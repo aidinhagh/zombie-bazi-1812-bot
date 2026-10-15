@@ -22,6 +22,9 @@ from .texts import L, bi, btn, act_name, stat_name, unit_name, item_line, role_c
 
 logging.basicConfig(format="%(asctime)s %(levelname)s %(name)s: %(message)s", level=logging.INFO)
 logger = logging.getLogger("zombiebot")
+# httpx logs every request URL, and Telegram URLs contain the bot token
+for noisy in ("httpx", "httpcore", "apscheduler"):
+    logging.getLogger(noisy).setLevel(logging.WARNING)
 
 store = Store()
 TZ = ZoneInfo(os.environ.get("TZ_NAME", "Asia/Tehran"))
