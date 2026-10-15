@@ -219,11 +219,18 @@ async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         return
     u = update.effective_user
     g = G()
+    if is_gm(u.id) and not ctx.args and not g.get("as", {}).get(str(u.id)):
+        stale = pl(u.id)
+        if stale and not stale.get("role"):
+            g["players"].pop(str(u.id), None)   # GM registered before becoming GM; not a player
+            save()
+        if not pl(u.id):
+            await update.message.reply_text(gm_header() + "\n\n/help · " + L(lang_of(u.id), "برای بازی کردن به‌عنوان بازیکن: /start play",
+                                                                                    "To join as a player too: /start play"),
+                                            reply_markup=gm_panel_kb())
+            return
     p = pl(u.id)
     if not p:
-        if is_gm(u.id) and not ctx.args:
-            await update.message.reply_text("👑 GM mode. /gm for the panel, /help for commands.\n(To also join as a player send /start play)")
-            return
         p = new_player(u.id, u.full_name, u.username)
         g["players"][str(u.id)] = p
         save()
@@ -240,7 +247,11 @@ async def cmd_menu(update: Update, ctx):
     if update.effective_chat.type != "private":
         return
 
-    p = pl(acting_uid(update.effective_user.id))
+    uid = update.effective_user.id
+    p = pl(acting_uid(uid))
+    if is_gm(uid) and (not p or not p["role"]):
+        await update.message.reply_text(gm_header(), reply_markup=gm_panel_kb())
+        return
     if not p or not p["role"]:
         await update.message.reply_text(bi("اول /start بزن و منتظر نقش بمون.", "Send /start first and wait for your role."))
         return

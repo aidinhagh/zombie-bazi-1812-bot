@@ -375,3 +375,17 @@ def test_battle_and_bought_balloon_publish_choice():
         P(w, 4)["night_pos"] = "london"
         P(w, 4)["units"]["war_balloon"] = 0
     run(go())
+
+
+def test_gm_registered_before_gm_ids_gets_panel():
+    async def go():
+        w = World(seed=23)
+        w.g["players"][str(GM)] = __import__("zombiebot.state", fromlist=["new_player"]).new_player(GM, "Boss")
+        await w.cmd(GM, "start")
+        assert str(GM) not in w.g["players"]
+        assert "gday" in w.last_to(GM).buttons()
+        await w.cmd(GM, "menu")
+        assert "gnight" in w.last_to(GM).buttons()
+        await w.cmd(GM, "start", "play")
+        assert str(GM) in w.g["players"]
+    run(go())
