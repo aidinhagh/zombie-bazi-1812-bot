@@ -7,7 +7,7 @@ from .data.items import ITEMS, RARITY_WEIGHT
 from .data.locations import LOCATIONS, POWER_PRICES, UNIT_PRICES, TOLL, COINS_PER_HP, BANK_COINS
 from .data.roles import ROLES, ZOMBIE, HUMAN, INDEP, role_name
 from .engine import loc_of, flags_at
-from .state import alive_players, log, next_id, team
+from .state import alive_players, log, next_id, team, give_characters, needs_fake_char, char_of
 
 SLOT_TRIPLES = {1, 22, 43, 64}   # Telegram 🎰 values that show three of a kind
 
@@ -409,8 +409,15 @@ def lock_map(g, rng=random):
     g["locked"] = True
     night = g["phase"] == "night"
     gm_notes, private = [], []
+    give_characters(g, rng)
     for p in alive_players(g):
         p["public_pos"] = p["pos"]
+        if needs_fake_char(p):
+            if p.get("fake_pos") is None:   # never placed: the bot puts the fake character somewhere
+                p["fake_pos"] = rng.choice(list(board.SQUARES))
+                private.append((p["id"], f"🎭 شخصیت جعلی‌ات «{p['fake_char']}» را جایی نگذاشته بودی؛ ربات او را در {board.square_name(p['fake_pos'])} گذاشت.",
+                                "Your fake character was placed for you."))
+            p["fake_public_pos"] = p["fake_pos"]
         if not night:
             continue
         p["night_pos"] = p["pos"]
@@ -459,7 +466,7 @@ def lock_map(g, rng=random):
         if b["result"] is not None or b["cycle"] != g["cycle"] or b.get("phase") != g["phase"]:
             continue
         if b["kind"] == "spy":
-            seen = [p["name"] for p in alive_players(g) if p["pos"] == b["target"] and not p["flags"].get("hide")]
+            seen = sorted(char_of(p) for p in alive_players(g) if p["pos"] == b["target"] and not p["flags"].get("hide"))
             b["result"] = seen
         else:
             b["result"] = "await_pct"
@@ -567,8 +574,36 @@ def kill(g, P, cause=None, unrevivable=False):
 
 
 def death_announcement(P):
-    shown = P["fake_role"] if P["role"] == "godfather" and P.get("fake_role") else P["role"]
-    return (f"☠️ {P['name']} مُرد. نقش: {role_name(shown)}", f"☠️ {P['name']} has died. Role: {role_name(shown,'en')}")
+    """Player, character and role together. The godfather is read out with his fake character and fake role."""
+    if P["role"] == "godfather":
+        shown = P.get("fake_role") or P["role"]
+        char = P.get("fake_char") or char_of(P)
+    else:
+        shown, char = P["role"], char_of(P)
+    return (f"☠️ {P['name']} مُرد.\n🎭 شخصیت: {char}\n🎴 نقش: {role_name(shown)}",
+            f"☠️ {P['name']} has died. Character: {char}. Role: {role_name(shown,'en')}")
+
+
+def public_chars(g):
+    """{square: [character names]} as published at the last 20:00 map — real and fake characters mixed,
+    in alphabetical order so nobody can tell which is which."""
+    at = {}
+    for p in alive_players(g):
+        if p.get("public_pos"):
+            at.setdefault(p["public_pos"], []).append(char_of(p))
+        if needs_fake_char(p) and p.get("fake_char") and p.get("fake_public_pos"):
+            at.setdefault(p["fake_public_pos"], []).append(p["fake_char"])
+    return {sq: sorted(v) for sq, v in at.items()}
+
+
+def set_fake_pos(g, p, sq):
+    if not needs_fake_char(p):
+        raise GameError("تو شخصیت جعلی نداری.", "You have no fake character.")
+    if g["locked"]:
+        raise GameError("نقشه تا فاز بعد قفل است.", "The map is locked until the next phase.")
+    if sq not in board.SQUARES:
+        raise GameError("این خانه روی نقشه نیست.", "Not a square.")
+    p["fake_pos"] = sq
 
 
 def end_night(g):
@@ -589,6 +624,7 @@ def end_night(g):
 
 def start_phase(g, phase):
     g["phase"] = phase
+    give_characters(g)
     g["locked"] = False
     if phase == "night":
         g["cycle"] += 1

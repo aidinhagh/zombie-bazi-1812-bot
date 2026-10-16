@@ -47,6 +47,7 @@ def new_player(uid, name, username=None):
         "role": None, "fake_role": None, "alive": True, "hp": 0, "coins": START_COINS,
         "cult": False, "cult_lost_clown": False,
         "pos": None, "night_pos": None, "last_night_pos": None, "public_pos": None,
+        "char": None, "fake_char": None, "fake_pos": None, "fake_public_pos": None,
         "items": [], "units": {}, "charges": {}, "bullets": [],
         "boost": {}, "flags": {}, "bought": {},
         "moved": False, "move_roll": None, "darts": {"money": False, "item": False},
@@ -113,6 +114,45 @@ def assign_role(p, role, fake_role=None):
     p["units"] = dict(START_UNITS.get(role, {}))
     p["charges"] = dict(START_CHARGES.get(role, {}))
     p["unit_origin"] = {k: "start" for k in p["units"]}
+
+
+def needs_fake_char(p):
+    """Zombies and independents (everyone who isn't human) carry a fake character too."""
+    return bool(p.get("role")) and ROLES[p["role"]]["team"] != "human"
+
+
+def give_characters(g, rng=None):
+    """Hand out story characters to everyone with a role who has none yet (and fake ones to non-humans).
+    Humans lose a leftover fake character if their role changed."""
+    import random as _r
+    from .data.characters import CHARACTERS
+    rng = rng or _r
+    used = set()
+    for p in g["players"].values():
+        used.update(x for x in (p.get("char"), p.get("fake_char")) if x)
+    free = [c for c in CHARACTERS if c not in used]
+    rng.shuffle(free)
+
+    def take():
+        return free.pop() if free else f"شخصیت {len(used) + 1}"
+    for p in sorted(g["players"].values(), key=lambda x: str(x["id"])):
+        if not p.get("role"):
+            continue
+        if not p.get("char"):
+            p["char"] = take()
+            used.add(p["char"])
+        if needs_fake_char(p):
+            if not p.get("fake_char"):
+                p["fake_char"] = take()
+                used.add(p["fake_char"])
+        elif p.get("fake_char"):
+            p["fake_char"] = p["fake_pos"] = p["fake_public_pos"] = None
+        if p["role"] == "godfather" and not p.get("fake_role"):
+            p["fake_role"] = rng.choice([k for k, r in ROLES.items() if r["team"] == "human"])
+
+
+def char_of(p):
+    return p.get("char") or p["name"]
 
 
 def next_id(g, prefix):

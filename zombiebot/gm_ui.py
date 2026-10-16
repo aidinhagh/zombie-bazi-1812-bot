@@ -12,7 +12,7 @@ from .data.items import ITEMS
 from .data.locations import LOCATIONS
 from .data.roles import ROLES, role_name
 from .engine import resolve_night
-from .state import new_game, new_player, assign_role, alive_players, roster, find_player
+from .state import new_game, new_player, assign_role, alive_players, roster, find_player, give_characters, needs_fake_char, char_of
 from .texts import L, bi, role_card
 
 PAGE = 8
@@ -60,6 +60,10 @@ def make_test_game(gm_uid):
             P["fake_role"] = "doctor"
         P["pos"] = random.choice(cities)
         g["players"][str(uid)] = P
+    give_characters(g)
+    for P in g["players"].values():
+        if P.get("fake") and needs_fake_char(P):
+            P["fake_pos"] = random.choice(cities)
     g["test_mode"] = True
     save()
 
@@ -286,7 +290,8 @@ def home_btn(lang):
 def player_label(p, lang):
     icon = "☠️" if not p["alive"] else ("🧪" if p.get("fake") else "🧍")
     role = role_name(p["role"], lang) if p.get("role") else L(lang, "بدون نقش", "no role")
-    return f"{icon} {p['name']} · {role} · ❤️{num(p['hp'], lang)}"
+    char = f" · 🎭{p['char']}" if p.get("char") else ""
+    return f"{icon} {p['name']} · {role}{char} · ❤️{num(p['hp'], lang)}"
 
 
 def players_screen(lang, page):
@@ -321,6 +326,12 @@ def player_card(p, lang):
     lines = [player_label(p, lang), f"💰 {num(p['coins'], lang)} · 📍 {board.square_name(p['pos'], lang) if p['pos'] else '—'}"]
     if p.get("username"):
         lines.append(f"@{p['username']}")
+    if p.get("char"):
+        lines.append(f"🎭 شخصیت: {p['char']}")
+    if p.get("fake_char"):
+        lines.append(f"🃏 شخصیت جعلی: {p['fake_char']} · 📍 {board.square_name(p['fake_pos']) if p.get('fake_pos') else '—'}")
+    if p.get("role") == "godfather":
+        lines.append(f"🃏 نقش جعلی: {role_name(p['fake_role']) if p.get('fake_role') else '—'}")
     if p.get("nicks"):
         lines.append(L(lang, "لقب‌ها: ", "Nicknames: ") + ", ".join(p["nicks"]))
     if p["cult"]:
@@ -345,6 +356,7 @@ def player_card(p, lang):
          (L(lang, "🕯 فرقه ✓/✗", "🕯 Cult ✓/✗"), f"g:cult:{pid}")],
         [(L(lang, "☠️ کشتن", "☠️ Kill"), f"g:kill:{pid}") if p["alive"] else (L(lang, "🧍 زنده کردن", "🧍 Revive"), f"g:rev:{pid}"),
          (L(lang, "🕹 بازی به‌جای او", "🕹 Play as them"), f"g:as:{pid}")],
+        [("🎭 اسم شخصیت", f"g:chn:{pid}:char")] + ([("🃏 اسم شخصیت جعلی", f"g:chn:{pid}:fake_char")] if needs_fake_char(p) else []),
         [("🚫 اخراج از ربات", f"g:kick:{pid}")],
     ]
     if g["acts"].get(str(pid)):
@@ -555,6 +567,7 @@ async def handle(update, ctx, uid, head, args):
             return await edit_or_send(q, L(lang, f"نقش {P['name']}:", f"Role for {P['name']}:"), rows + [[(L(lang, "↩️ کارت", "↩️ Card"), f"g:pl:{P['id']}")]])
         if head == "sr":
             assign_role(P, args[1])
+            give_characters(g)
             save()
             await dm(bot, P["id"], role_card(P, "fa"), role_card(P, "en"))
         elif head == "mv":
@@ -593,6 +606,24 @@ async def handle(update, ctx, uid, head, args):
             g["acts"].pop(str(P["id"]), None)
         save()
         return await edit_or_send(q, *player_card(P, lang))
+    if head in ("chn", "chr", "chx"):
+        P = pl(args[0])
+        if not P:
+            raise GameError("بازیکن پیدا نشد.", "Player not found.")
+        field = args[1]
+        word = "شخصیت" if field == "char" else "شخصیت جعلی"
+        if head == "chn":
+            g.setdefault("gm_input", {})[str(uid)] = {"pid": str(P["id"]), "field": field}
+            save()
+            return await edit_or_send(q, f"✏️ اسم {word} {P['name']} را بفرست (الان: {P.get(field) or '—'}).",
+                                      [[("🎲 یک اسم تصادفی", f"g:chr:{P['id']}:{field}")], [("↩️ کارت", f"g:chx:{P['id']}:{field}")]])
+        g.get("gm_input", {}).pop(str(uid), None)
+        if head == "chr":
+            P[field] = None
+            give_characters(g)
+            await dm(bot, P["id"], f"🎭 گاد اسم {word} تو را عوض کرد: {P.get(field)}")
+        save()
+        return await edit_or_send(q, *player_card(P, lang))
     if head == "kick":
         P = pl(args[0])
         if not P:
@@ -607,6 +638,7 @@ async def handle(update, ctx, uid, head, args):
         random.shuffle(roles)
         for P in [p for p in roster(g) if not p.get("role")]:
             assign_role(P, roles.pop() if roles else "doctor")
+            give_characters(g)
             await dm(bot, P["id"], role_card(P, "fa"), role_card(P, "en"))
         save()
         return await edit_or_send(q, *players_screen(lang, 0))
@@ -947,3 +979,32 @@ def kick(g, pid):
         if v == pid:
             g["as"].pop(k)
     save()
+
+
+async def on_gm_text(update, ctx):
+    """The GM typing a character name after tapping «اسم شخصیت» on a player card. Returns True if handled."""
+    uid = update.effective_user.id
+    g = G()
+    want = g.get("gm_input", {}).get(str(uid))
+    if not want or not is_gm(uid):
+        return False
+    P = pl(want["pid"])
+    g["gm_input"].pop(str(uid), None)
+    name = " ".join(update.message.text.split())[:40]
+    if not P or not name:
+        save()
+        return True
+    taken = [x for x in g["players"].values() if x is not P and name in (x.get("char"), x.get("fake_char"))]
+    if taken:
+        await update.message.reply_text(f"⚠️ این اسم مال {taken[0]['name']} است؛ اسم دیگری بفرست.")
+        g["gm_input"][str(uid)] = want
+        save()
+        return True
+    P[want["field"]] = name
+    save()
+    word = "شخصیت" if want["field"] == "char" else "شخصیت جعلی"
+    await dm(ctx.bot, P["id"], f"🎭 اسم {word} تو در داستان: {name}")
+    lang = lang_of(uid)
+    text, rows = player_card(P, lang)
+    await update.message.reply_text(f"✅ {word} {P['name']}: {name}\n\n" + text, reply_markup=kb(rows))
+    return True

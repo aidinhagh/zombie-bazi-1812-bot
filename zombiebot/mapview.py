@@ -60,8 +60,20 @@ def unit_lines(g, lang, owners=False):
     return out
 
 
+def char_lines(g):
+    """Where each story character was at the last 20:00 map (real and fake characters, mixed)."""
+    at = actions.public_chars(g)
+    out = []
+    for sq in sorted(at, key=lambda s: (s not in CITIES, list(CITIES).index(s) if s in CITIES else int(s.lstrip("n")))):
+        out.append(f"{'🏙' if sq in CITIES else '◦'} {sq_name(sq, 'fa')}: {'، '.join(at[sq])}")
+    return out
+
+
 def public_list(g, lang):
     lines = [L(lang, f"🗺 نقشه — {phase_label(lang, g)}", f"🗺 Map — {phase_label(lang, g)}")]
+    chars = char_lines(g)
+    if chars:
+        lines += ["", "🎭 شخصیت‌ها (نقشه ساعت ۸):"] + chars
     units = unit_lines(g, lang)
     routes = route_lines(g, lang)
     lines.append("")
@@ -73,20 +85,24 @@ def public_list(g, lang):
     return "\n".join(lines)
 
 
-def positions(g, gm=True):
+def positions(g, gm=True, chars=False):
     at = {}
     for p in alive_players(g):
         sq = p.get("pos")
         if sq:
             label = p["name"]
+            if chars and p.get("char"):
+                label += f" ({p['char']})"
             if gm and p.get("night_pos") and p["night_pos"] != sq:
                 label += "*"
             at.setdefault(sq, []).append(label)
+        if chars and p.get("fake_char") and p.get("fake_pos"):
+            at.setdefault(p["fake_pos"], []).append(f"🃏{p['fake_char']} (جعلیِ {p['name']})")
     return at
 
 
 def gm_list(g, lang):
-    at = positions(g)
+    at = positions(g, chars=True)
     lines = [L(lang, f"🗺 همه جای بازیکن‌ها — {phase_label(lang, g)}", f"🗺 Where everyone is — {phase_label(lang, g)}"), ""]
     for c in CITIES:
         if c in at:
@@ -135,7 +151,7 @@ async def send_photo_and_list(bot, chat_or_uid, photo, text, to_player=True, rep
 async def send_player_map(bot, p, reply_markup=None):
     g = G()
     lang = lang_of(p["id"])
-    pic = render(g, title=f"{p['name']} · {phase_label('fa', g)}", you=p.get("pos"))
+    pic = render(g, title=f"{p['name']} · {phase_label('fa', g)}", you=p.get("pos"), names=actions.public_chars(g))
     await send_photo_and_list(bot, p["id"], pic, player_list(g, p, lang), reply_markup=reply_markup)
 
 
@@ -150,7 +166,7 @@ async def post_public_map(bot):
     target = g["channel_id"] or g["group_id"]
     if not target:
         return
-    pic = render(g, title=f"نقشه {phase_label('fa', g)}", reports=published_balloons(g))
+    pic = render(g, title=f"نقشه {phase_label('fa', g)}", reports=published_balloons(g), names=actions.public_chars(g))
     text = public_list(g, "fa")
     await send_photo_and_list(bot, target, pic, text, to_player=False)
 
@@ -186,7 +202,7 @@ async def send_move_map(bot, p):
     await dm(bot, p["id"], text, text, reply_markup=kb(rows))
 
 
-async def send_city_pick(bot, p, title_fa, title_en, prefix, first=False, only=None):
+async def send_city_pick(bot, p, title_fa, title_en, prefix, first=False, only=None, nodes_cb=None, back_cb="p:home"):
     """First placement / free move / taxi: the cities, numbered on the map and in the list."""
     g = G()
     lang = lang_of(p["id"])
@@ -206,7 +222,8 @@ async def send_city_pick(bot, p, title_fa, title_en, prefix, first=False, only=N
     pic = render(g, title=f"{p['name']}", highlight={c: i + 1 for i, c in enumerate(cities)}, you=p.get("pos"))
     lines = [L(lang, title_fa, title_en), ""] + [f"{num(i + 1, lang)}. {LOCATIONS[c][lang]}" for i, c in enumerate(cities)]
     buttons = [(f"{num(i + 1, lang)} {LOCATIONS[c][lang][:20]}", f"{prefix}:{c}") for i, c in enumerate(cities)]
-    rows = chunks(buttons, 2) + ([[("◦ خانه‌های خالی بین شهرها", "p:nodes")]] if first else []) + [[(L(lang, "↩️ منو", "↩️ Menu"), "p:home")]]
+    nb = nodes_cb or ("p:nodes" if first else None)
+    rows = chunks(buttons, 2) + ([[("◦ خانه‌های خالی بین شهرها", nb)]] if nb else []) + [[(L(lang, "↩️ بازگشت", "↩️ Back"), back_cb)]]
     await dm_photo(bot, p["id"], pic)
     text = "\n".join(lines)
     await dm(bot, p["id"], text, text, reply_markup=kb(rows))

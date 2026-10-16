@@ -90,7 +90,8 @@ def static_map():
     units = [{"kind": u["kind"], "type": UNIT_NAMES[u["kind"]][0], "name": u.get("name") or "", "square": u["square"]}
              for u in g["units_on_map"]]
     reports = [{"name": b.get("name") or "", "target": b["target"], "seen": b["result"]} for b in mapview.published_balloons(g)]
-    return {"squares": squares, "routes": routes, "units": units, "reports": reports, "damage": g["loc_damage"]}
+    chars = [{"square": sq, "names": names} for sq, names in actions.public_chars(g).items()]
+    return {"squares": squares, "routes": routes, "units": units, "reports": reports, "damage": g["loc_damage"], "chars": chars}
 
 
 def move_mode(g, p):
@@ -126,7 +127,7 @@ def state_for(p):
         o["tolls"] = [sq for sq in o["path"] if any(u["square"] == sq and str(u["owner"]) != str(p["id"]) for u in g["units_on_map"])]
     r = ROLES.get(p["role"] or "", {})
     return {
-        "me": {"name": p["name"], "role": r.get("fa", ""), "hp": p["hp"], "coins": p["coins"], "pos": p.get("pos"),
+        "me": {"name": p["name"], "char": p.get("char") or "", "role": r.get("fa", ""), "hp": p["hp"], "coins": p["coins"], "pos": p.get("pos"),
                "roll": p.get("move_roll"), "plus": p["flags"].get("move_plus", 0)},
         "phase": phase_label("fa", g), "mode": mode, "hint": hint, "options": options, **static_map(),
     }

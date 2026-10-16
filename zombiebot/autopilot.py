@@ -14,7 +14,7 @@ from .data.items import ITEMS
 from .data.locations import LOCATIONS, POWER_PRICES, UNIT_PRICES
 from .data.roles import ROLES, SPECIALS
 from .engine import flags_at, loc_of
-from .state import alive_players
+from .state import alive_players, needs_fake_char
 
 rng = random.Random()
 
@@ -97,6 +97,15 @@ def play_phase(g=None, r=None):
                 dest = r.choice(list(opts))
                 actions.do_move(g, p, dest, opts[dest])
                 done["moves"] += 1
+            if needs_fake_char(p):
+                # the fake character wanders like a real one would: along the roads, a die's worth of squares
+                if p.get("fake_pos") is None:
+                    p["fake_pos"] = r.choice(list(CITIES))
+                else:
+                    ghost = {**p, "pos": p["fake_pos"], "flags": {}, "last_night_pos": None}
+                    fopts = actions.move_options(g, ghost, r.randint(1, 6))
+                    if fopts:
+                        p["fake_pos"] = r.choice(list(fopts))
         if not p["darts"]["money"]:
             actions.money_dart(g, p, r.randint(1, 6))
             done["darts"] += 1

@@ -15,7 +15,7 @@ from .common import G, save, pl, is_gm, lang_of, playing_as, kb, split_text, to_
 from .data.items import ITEMS
 from .data.locations import UNIT_PRICES
 from .data.roles import ROLES, role_name
-from .state import new_player, assign_role
+from .state import new_player, assign_role, give_characters, needs_fake_char
 from .texts import L, bi, role_card, GM_HELP, help_text
 
 logging.basicConfig(format="%(asctime)s %(levelname)s %(name)s: %(message)s", level=logging.INFO)
@@ -182,9 +182,36 @@ async def cmd_assign(update, ctx):
     if ctx.args[1] not in ROLES:
         return await update.message.reply_text(", ".join(ROLES))
     assign_role(p, ctx.args[1], ctx.args[2] if len(ctx.args) > 2 and ctx.args[2] in ROLES else None)
+    give_characters(G())
     save()
     await update.message.reply_text(f"✅ {p['name']} = {role_name(p['role'])}")
     await common.dm(ctx.bot, p["id"], role_card(p, "fa"), role_card(p, "en"))
+
+
+async def _set_char(update, ctx, field):
+    p = who(ctx.args[0])
+    name = " ".join(ctx.args[1:]).strip()[:40]
+    if not name:
+        return await update.message.reply_text("/char اسم‌بازیکن اسم شخصیت")
+    if field == "fake_char" and not needs_fake_char(p):
+        return await update.message.reply_text("فقط زامبی‌ها و مستقل‌ها شخصیت جعلی دارند.")
+    p[field] = name
+    save()
+    word = "شخصیت" if field == "char" else "شخصیت جعلی"
+    await update.message.reply_text(f"✅ {word} {p['name']}: {name}")
+    await common.dm(ctx.bot, p["id"], f"🎭 اسم {word} تو در داستان: {name}")
+
+
+@gm_cmd
+async def cmd_char(update, ctx):
+    """/char <who> <character name>"""
+    await _set_char(update, ctx, "char")
+
+
+@gm_cmd
+async def cmd_fakechar(update, ctx):
+    """/fakechar <who> <fake character name>"""
+    await _set_char(update, ctx, "fake_char")
 
 
 @gm_cmd
@@ -344,7 +371,7 @@ def build_app(token):
     app = builder.concurrent_updates(True).post_init(web.start).build()
     cmds = {"start": cmd_start, "menu": player_ui.cmd_menu, "gm": cmd_gm, "lang": player_ui.cmd_lang, "help": cmd_help,
             "whoami": cmd_whoami, "setgroup": cmd_setgroup, "setchannel": cmd_setchannel, "nick": gm_ui.cmd_nick,
-            "delete": votes.cmd_delete, "assign": cmd_assign, "hp": cmd_hp, "coins": cmd_coins, "pos": cmd_pos,
+            "delete": votes.cmd_delete, "assign": cmd_assign, "char": cmd_char, "fakechar": cmd_fakechar, "hp": cmd_hp, "coins": cmd_coins, "pos": cmd_pos,
             "give": cmd_give, "unit": cmd_unit, "charge": cmd_charge, "route": cmd_route, "dig": cmd_dig,
             "damage": cmd_damage, "actadd": cmd_actadd, "story": cmd_story, "say": cmd_say, "log": cmd_log,
             "undo": cmd_undo}

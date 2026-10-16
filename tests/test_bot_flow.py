@@ -370,7 +370,8 @@ def test_test_lab_auto_run_reaches_next_night():
         await w.press(GM, "g:mk")
         await w.press(GM, "g:ff")
         assert w.g["phase"] == "night" and w.g["cycle"] == 2
-        assert sum(1 for p in w.g["players"].values() if not p["alive"]) >= 1
+        dead = sum(1 for p in w.g["players"].values() if not p["alive"])
+        assert dead >= 1 or any("لغو" in t for t in w.texts_to(GROUP))   # nobody died only if the judge cancelled
         assert any("اعدام" in t or "اعدام نشد" in t for t in w.texts_to(GROUP))
         await w.press(GM, "g:ff")
         assert w.g["cycle"] == 3

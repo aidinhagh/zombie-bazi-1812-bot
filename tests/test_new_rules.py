@@ -8,6 +8,9 @@ from tests.harness import World, run, GM, GROUP
 from tests.test_bot_flow import setup, place, next_step, P
 from zombiebot import actions, autopilot, web, events
 from zombiebot.engine import resolve_night
+import pytest
+from zombiebot.actions import GameError
+from zombiebot.data.roles import ROLES
 
 
 def test_everything_is_persian():
@@ -212,7 +215,7 @@ def test_buying_a_spy_balloon_offers_to_launch_it_right_away():
         await w.press(1, "p:ubt:spy:paris", message=m)
         await next_step(w)     # lock → result
         b = w.g["balloons"][0]
-        assert b["result"] == [P(w, 2)["name"]]
+        assert b["result"] == [P(w, 2)["char"]]      # balloons see story characters, not players
         assert any("📢" in str(x.buttons()) or "منتشر" in x.text for x in w.sent if x.chat_id == 1)
     run(go())
 
@@ -458,7 +461,8 @@ def test_spy_balloon_report_is_anonymous_named_and_on_the_map():
         A.rename(w.g, P(w, 1), "balloon", b["id"], "چشم آسمان")
         await next_step(w)      # lock → the spy's balloon is always public
         report = [t for t in w.texts_to(GROUP) if "گزارش بالن" in t]
-        assert report and "چشم آسمان" in report[0] and "مریم" not in report[0] and "علی" in report[0]
+        assert report and "چشم آسمان" in report[0] and P(w, 2)["char"] in report[0]
+        assert P(w, 1)["char"] not in report[0] and P(w, 1)["name"] not in report[0] and P(w, 2)["name"] not in report[0]
         st = web.static_map()
         assert st["reports"] and st["reports"][0]["name"] == "چشم آسمان"
         from zombiebot import mapview
@@ -640,4 +644,85 @@ def test_damaged_casino_pays_out_less():
         await w.press(2, f"x:ba:{b['id']}:1")
         await w.press(1, f"x:rp:b:{b['id']}:r"); await w.press(2, f"x:rp:b:{b['id']}:s")
         assert P(w, 2)["coins"] == 10 and P(w, 1)["coins"] == 26          # won 10, casino paid 60%
+    run(go())
+
+
+# ---------------- story characters ----------------
+
+def test_everyone_gets_a_character_and_non_humans_a_fake_one():
+    async def go():
+        w = World(seed=70)
+        await setup(w, ["godfather", "zombie", "clown", "doctor", "spy"])
+        chars = [P(w, i)["char"] for i in range(1, 6)] + [P(w, i)["fake_char"] for i in (1, 2, 3)]
+        assert all(chars) and len(set(chars)) == len(chars)        # all different
+        assert P(w, 4)["fake_char"] is None and P(w, 5)["fake_char"] is None
+        assert P(w, 1)["fake_role"] in ROLES and ROLES[P(w, 1)["fake_role"]]["team"] == "human"
+        # a human has no fake-character button; a zombie does
+        await w.press(4, "p:home")
+        assert "p:fc" not in w.last_to(4).buttons()
+        await w.press(2, "p:home")
+        assert "p:fc" in w.last_to(2).buttons()
+    run(go())
+
+
+def test_death_reads_out_player_character_and_role_but_godfather_lies():
+    async def go():
+        w = World(seed=71)
+        await setup(w, ["godfather", "zombie", "doctor"])
+        gf, z = P(w, 1), P(w, 2)
+        gf["fake_role"] = "priest"
+        fa, _ = actions.death_announcement(z)
+        assert z["name"] in fa and z["char"] in fa and "زامبی" in fa and z["fake_char"] not in fa
+        fa, _ = actions.death_announcement(gf)
+        assert gf["name"] in fa and gf["fake_char"] in fa and "کاهن" in fa
+        assert gf["char"] not in fa and "گاداف" not in fa
+    run(go())
+
+
+def test_fake_character_is_placed_by_its_owner_and_shown_on_the_8pm_map():
+    async def go():
+        w = World(seed=72)
+        await setup(w, ["zombie", "doctor", "clown"])
+        await next_step(w)
+        await place(w, 1, "paris"); await place(w, 2, "berlin"); await place(w, 3, "milan")
+        ans = await w.press(2, "p:fc")
+        assert any("شخصیت جعلی نداری" in (a or "") for a in ans)
+        await w.press(1, "p:fc")
+        assert "p:fcg:london" in w.last_to(1).buttons() and "p:fcn" in w.last_to(1).buttons()
+        await w.press(1, "p:fcg:london")
+        assert P(w, 1)["fake_pos"] == "london"
+        await next_step(w)                       # 20:00 lock → public map
+        at = actions.public_chars(w.g)
+        assert P(w, 1)["fake_char"] in at["london"] and P(w, 1)["char"] in at["paris"]
+        assert P(w, 3)["fake_char"] in sum(at.values(), [])     # never placed → the bot put it somewhere
+        posted = "\n".join(w.texts_to(GROUP))
+        assert P(w, 1)["fake_char"] in posted and P(w, 2)["char"] in posted
+        assert P(w, 1)["name"] not in posted.split("شخصیت‌ها")[-1].split("\n\n")[0]
+        st = web.static_map()
+        assert any(P(w, 1)["fake_char"] in c["names"] for c in st["chars"])
+        with pytest.raises(GameError):
+            actions.set_fake_pos(w.g, P(w, 1), "paris")          # locked
+        actions.kill(w.g, P(w, 1))
+        assert P(w, 1)["fake_char"] not in sum(actions.public_chars(w.g).values(), [])
+    run(go())
+
+
+def test_gm_renames_a_character_from_the_card():
+    async def go():
+        w = World(seed=73)
+        await setup(w, ["zombie", "doctor"])
+        await w.press(GM, "g:pl:2")
+        assert "g:chn:2:char" in w.last_to(GM).buttons() and "g:chn:2:fake_char" not in w.last_to(GM).buttons()
+        await w.press(GM, "g:chn:2:char")
+        await w.dm_text(GM, "ناپلئون بناپارت")
+        if P(w, 1)["char"] == "ناپلئون بناپارت" or P(w, 1)["fake_char"] == "ناپلئون بناپارت":
+            assert P(w, 2)["char"] != "ناپلئون بناپارت"          # taken → asked again
+            await w.dm_text(GM, "شاه عباس")
+            assert P(w, 2)["char"] == "شاه عباس"
+        else:
+            assert P(w, 2)["char"] == "ناپلئون بناپارت"
+        assert any("اسم شخصیت تو" in t for t in w.texts_to(2))
+        await w.press(GM, "g:chn:1:fake_char")
+        await w.press(GM, "g:chr:1:fake_char")
+        assert P(w, 1)["fake_char"] and P(w, 1)["fake_char"] != P(w, 1)["char"]
     run(go())

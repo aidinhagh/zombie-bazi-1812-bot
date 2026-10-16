@@ -70,6 +70,21 @@ def item_line(k, lang):
     return f"{it[lang]} — {it['desc_' + lang]}"
 
 
+def character_lines(p):
+    """The story character (shown on the map and in the death announcement) and, for non-humans, the fake one."""
+    out = []
+    if p.get("char"):
+        out.append(f"🎭 شخصیت تو در داستان: {p['char']}")
+    if p.get("fake_char"):
+        where = board.square_name(p["fake_pos"]) if p.get("fake_pos") else "هنوز جایی نگذاشتی"
+        out.append(f"🃏 شخصیت جعلی: {p['fake_char']} · 📍 {where}")
+        if p.get("role") == "godfather":
+            out.append("وقتی بمیری، این شخصیت جعلی و نقش جعلی‌ات اعلام می‌شود.")
+        else:
+            out.append("این اسم هیچ‌جا اعلام نمی‌شود؛ فقط جایش روی نقشه ساعت ۸ نشان داده می‌شود (دکمه «🃏 شخصیت جعلی»).")
+    return out
+
+
 def role_card(p, lang):
     r = ROLES[p["role"]]
     team = {"zombie": ("زامبی", "Zombie"), "human": ("انسان", "Human"), "independent": ("مستقل", "Independent")}[r["team"]]
@@ -86,6 +101,7 @@ def role_card(p, lang):
         lines.append(L(lang, "شروع با: ", "Starting with: ") + ", ".join(f"{unit_name(u, lang)}×{n}" for u, n in p["units"].items() if n))
     if p["role"] == "godfather" and p.get("fake_role"):
         lines.append(L(lang, f"نقش جعلی: {role_name(p['fake_role'])}", f"Fake role: {role_name(p['fake_role'], 'en')}"))
+    lines += [""] + character_lines(p)
     lines.append("")
     lines.append(L(lang, "منو: /menu", "Menu: /menu"))
     return "\n".join(lines)
@@ -130,7 +146,7 @@ def help_text(lang):
 GM_HELP = """👑 /gm — the control room. Everything is in there.
 
 Typed shortcuts if you want them:
-/assign <who> <role> · /nick <who> <nickname> · /pos <who> <square> · /hp <who> <n> · /coins <who> <n|+n|-n>
+/assign <who> <role> · /char <who> <name> · /fakechar <who> <name> · /nick <who> <nickname> · /pos <who> <square> · /hp <who> <n> · /coins <who> <n|+n|-n>
 /give <who> <item> · /unit <who> <unit> <n> · /charge <who> <key> <n> · /route <id> ok|broken|mined
 /dig <sqA> <sqB> · /damage <city> <pct> · /actadd <who> <type> <target> · /story <text> · /say <text>
 /delete <name> | /delete all | reply + /delete (in the group: remove votes) · /setchannel -100… · /log · /undo

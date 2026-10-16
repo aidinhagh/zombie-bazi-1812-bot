@@ -22,6 +22,7 @@ PICK, YOU = (200, 30, 40), (30, 110, 60)
 FONT_PATH = os.path.join(os.path.dirname(__file__), "Vazirmatn-Bold.ttf")
 _PERSIAN = re.compile(r"[؀-ۿ]")
 _fonts = {}
+NAMES_LEFT = {"birmingham", "vienna", "moscow"}   # name lists drawn to the left of these squares
 
 
 def font(size):
@@ -132,8 +133,12 @@ def render(g, gm=False, title=None, highlight=None, you=None, names=None, report
 
     for sq, ns in (names or {}).items():
         x, y = sq_xy(sq)
-        for i, n in enumerate(ns[:8]):
-            text(d, (x + 16, y + 8 + i * 22), n[:16], f_small, fill=(120, 20, 20), anchor="lt", stroke_width=3, stroke_fill=LAND)
+        left = sq in NAMES_LEFT or x > W - 260          # keep the list on the map and off its neighbours
+        shown = ns[:8] + ([f"+{len(ns) - 8}"] if len(ns) > 8 else [])
+        for i, n in enumerate(shown):
+            dy = 46 if sq == "vienna" else 8          # below Vienna's own label
+            pos = (x - 16, y + dy + i * 22) if left else (x + 16, y + dy + i * 22)
+            text(d, pos, n[:24], f_small, fill=(120, 20, 20), anchor="rt" if left else "lt", stroke_width=3, stroke_fill=LAND)
 
     for b in reports or []:
         if b["target"] not in SQUARES:

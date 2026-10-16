@@ -170,6 +170,16 @@ class World:
         await self.flush_jobs()
         return msg
 
+    async def dm_text(self, uid, text):
+        """Someone types a message to the bot in private."""
+        from zombiebot import player_ui
+        u = self.user(uid)
+        msg = Msg(self, uid, text, from_user=u)
+        upd = SimpleNamespace(effective_user=u, effective_chat=msg.chat, message=msg, effective_message=msg)
+        await player_ui.on_private_text(upd, self.ctx(uid))
+        await self.flush_jobs()
+        return msg
+
     async def press(self, uid, data, message=None):
         message = message or Msg(self, uid, "x")
         answers = []

@@ -8,7 +8,7 @@ from .data.items import ITEMS
 from .data.locations import LOCATIONS, POWER_PRICES, UNIT_PRICES
 from .data.roles import ROLES, SPECIALS, HUMAN, role_name
 from .engine import loc_of, flags_at
-from .state import roster
+from .state import roster, needs_fake_char
 from .texts import L, act_name, stat_name, unit_name, item_line, role_card
 
 
@@ -47,6 +47,10 @@ def home_text(p):
         f"❤️ {num(p['hp'], lang)}   💰 {num(p['coins'], lang)}",
         f"📍 {board.square_name(p['pos'], lang) if p['pos'] else L(lang, 'هنوز روی نقشه نیستی', 'not on the map yet')}",
     ]
+    if p.get("char"):
+        lines.insert(1, f"🎭 {p['char']}")
+    if p.get("fake_char") and p["alive"]:
+        lines.append(f"🃏 جعلی: {p['fake_char']} · 📍 {board.square_name(p['fake_pos']) if p.get('fake_pos') else 'جایی نگذاشتی'}")
     if p.get("night_pos") and g["locked"] and p["night_pos"] != p["pos"]:
         lines.append(L(lang, f"🌙 جای امشب: {board.square_name(p['night_pos'])}", f"🌙 Tonight's place: {board.square_name(p['night_pos'], 'en')}"))
     if g["phase"] != "lobby":
@@ -101,6 +105,8 @@ def home_rows(p):
         extra.append((L(lang, "🎭 جواب جاسوسی", "🎭 Spy answer"), "p:cd"))
     if p["role"] == "godfather":
         extra.append((L(lang, "🃏 نقش جعلی", "🃏 Fake role"), "p:fk"))
+    if needs_fake_char(p):
+        extra.append(("👤 شخصیت جعلی", "p:fc"))
     rows += chunks(extra, 2)
     rows.append([(L(lang, "🎴 نقش من", "🎴 My role"), "p:role")])
     if p.get("fake"):
@@ -191,6 +197,27 @@ async def handle(update, ctx, p, head, args):
         return await mapview.send_player_map(bot, p, reply_markup=kb(rows))
     if not p["alive"]:
         raise GameError("شما مرده‌اید.", "You are dead.")
+
+    # ----- fake character (zombies and independents) -----
+    if head in ("fc", "fcn", "fcg"):
+        if not needs_fake_char(p):
+            raise GameError("تو شخصیت جعلی نداری.", "You have no fake character.")
+        if head == "fc":
+            if g["locked"]:
+                raise GameError("نقشه تا فاز بعد قفل است.", "The map is locked until the next phase.")
+            where = board.square_name(p["fake_pos"]) if p.get("fake_pos") else "هنوز جایی نیست"
+            title = (f"👤 شخصیت جعلی تو: «{p['fake_char']}» · الان: {where}\n"
+                     f"تا ساعت {num(LOCK_HOUR)}:۰۰ هر جای نقشه که بخواهی بگذارش؛ ساعت ۸ کنار بقیه شخصیت‌ها روی نقشه نشان داده می‌شود."
+                     "\n(یادت باشد آدم‌ها دو شب پشت سر هم یک جا نمی‌مانند و با تاس جابه‌جا می‌شوند.)")
+            return await mapview.send_city_pick(bot, p, title, "", "p:fcg", nodes_cb="p:fcn")
+        if head == "fcn":
+            from .board import SQUARES
+            nodes = sorted((x for x in SQUARES if SQUARES[x]["kind"] == "node"), key=lambda x: int(x.lstrip("n")))
+            rows = chunks([(board.square_name(x)[:30], f"p:fcg:{x}") for x in nodes], 2)
+            return await edit_or_send(q, "◦ شخصیت جعلی را کدام خانه بگذارم؟", rows + [back(lang, "p:fc")])
+        actions.set_fake_pos(g, p, args[0])
+        save()
+        return await edit_or_send(q, f"👤 «{p['fake_char']}» رفت به {board.square_name(args[0])}.", [back(lang)])
 
     # ----- movement -----
     if head == "nodes":
@@ -793,6 +820,9 @@ async def ask_name(q, p, kind, obj, done_text):
 async def on_private_text(update, ctx):
     """A player typing a name for a unit or balloon they just placed or launched."""
     if update.effective_chat.type != "private" or not update.message or not update.message.text:
+        return
+    from .gm_ui import on_gm_text
+    if await on_gm_text(update, ctx):
         return
     p = pl(acting_uid(update.effective_user.id))
     if not p:

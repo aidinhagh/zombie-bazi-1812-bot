@@ -155,6 +155,14 @@ function placeUnits(S) {
     if (u.name) { const l = textSprite([u.type + " «" + u.name + "»"], "#24180e"); l.position.copy(o.position).add(new THREE.Vector3(0, .32, 0)); l.scale.multiplyScalar(.7); scene.add(l); }
   }
 }
+function placeChars(S) {
+  // where every story character stood on the last 20:00 map
+  for (const c of S.chars || []) {
+    const p = sqPos(c.square); if (!p) continue;
+    const l = textSprite(["🎭 شخصیت‌ها"].concat(c.names.slice(0, 6), c.names.length > 6 ? ["+" + FA(c.names.length - 6)] : []), "#7a1d14");
+    l.position.copy(p).add(new THREE.Vector3(.1, .15, .75)); l.scale.multiplyScalar(.85); scene.add(l);
+  }
+}
 function persianLabels(S) {
   for (const s of S.squares) {
     if (s.kind !== "city" || !cityObj.has(s.id)) continue; const lb = cityObj.get(s.id).label;
@@ -175,7 +183,7 @@ function focusOptions() {
   controls.target.set(c.x, 0, c.z); camera.position.copy(controls.target).add(off); labelsDirty = true;
 }
 function hud(S) {
-  document.getElementById("gName").textContent = S.me.name; document.getElementById("gRole").textContent = S.me.role;
+  document.getElementById("gName").textContent = S.me.name; document.getElementById("gRole").textContent = S.me.role + (S.me.char ? " · 🎭 " + S.me.char : "");
   document.getElementById("gHp").textContent = "❤️ " + FA(S.me.hp); document.getElementById("gCoins").textContent = "💰 " + FA(S.me.coins);
   document.getElementById("gPhase").textContent = S.phase;
   document.getElementById("gHintText").textContent = S.options.length ? S.hint + " روی یک شماره بزن." : S.hint;
@@ -259,7 +267,7 @@ if (TG) TG.MainButton.onClick(go);
 async function gameInit() {
   try {
     const S = await gApi("/api/state"); G.S = S;
-    hud(S); persianLabels(S); markClosedRoutes(S); placeUnits(S); placeReports(S);
+    hud(S); persianLabels(S); markClosedRoutes(S); placeUnits(S); placeReports(S); placeChars(S);
     if (S.me.pos) G.token = makePawn(sqPos(S.me.pos));
     S.options.forEach(makePin);
     renderer.shadowMap.needsUpdate = true;
