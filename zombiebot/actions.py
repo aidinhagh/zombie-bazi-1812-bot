@@ -26,7 +26,7 @@ class GameError(Exception):
 def move_options(g, p, roll):
     """Return {square: path} the player can reach with this roll."""
     if p["pos"] is None:
-        return {c: [c] for c in CITIES}
+        return {sq: [sq] for sq in SQUARES}       # first move: anywhere on the map, cities or empty squares, no dice
     if p["flags"].get("free_move"):
         return {c: [c] for c in CITIES if c != p["pos"]}
     steps = roll + p["flags"].get("move_plus", 0)

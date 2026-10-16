@@ -107,6 +107,8 @@ async def cut_wire(bot, uid, bomb_id, wire, q=None):
     await (say_to(q, text) if q else group(bot, text, None))
     for v in victims:
         await announce_death(bot, v)
+        if g["phase"] == "day":
+            await yakuza_last_act(bot, v)
     await check_win(bot)
 
 
@@ -152,6 +154,7 @@ async def resolve_poisons(bot):
             save()
             await group(bot, f"🧪 سم کار {T['name']} را ساخت.", None)
             await announce_death(bot, T)
+            await yakuza_last_act(bot, T)
         else:
             po["status"] = "void"
     save()
@@ -254,6 +257,7 @@ async def rps_pick(bot, uid, kind, gid, choice, q=None):
         game["status"] = "done"
         save()
         await announce_death(bot, lose)
+        await yakuza_last_act(bot, lose)
         await check_win(bot)
         return
     if n >= 3:
@@ -282,6 +286,7 @@ async def fire_bullet(bot, p, T):
                     po["status"] = "failed"
         save()
         await announce_death(bot, T)
+        await yakuza_last_act(bot, T)
         await check_win(bot)
     else:
         await group(bot, f"🔫 {p['name']} به {T['name']} شلیک کرد… مشقی بود.", None)
@@ -294,7 +299,7 @@ async def execute(bot, P):
     g = G()
     if not P or not P["alive"]:
         return "این بازیکن زنده نیست."
-    if P["flags"].get("hotel_immune") and g["loc_damage"].get("barcelona", 0) < 100:
+    if P["flags"].get("hotel_immune") and g["loc_damage"].get("barcelona", 0) == 0:
         await group(bot, f"🏨 {P['name']} در هتل است و اعدام نمی‌شود.", None)
         return f"{P['name']} در هتل است و اعدام نمی‌شود."
     actions.kill(g, P, "execution")
@@ -303,17 +308,27 @@ async def execute(bot, P):
     await announce_death(bot, P)
     if P["role"] == "clown" and not P.get("cult_lost_clown"):
         await group(bot, "🤡 دلقک اعدام شد و بازی را برد!", None)
-    if P["role"] == "yakuza":
-        P["flags"]["yakuza_pending"] = True
-        save()
-        await dm(bot, P["id"], "🗡 یک نفر را با خودت ببر:", reply_markup=kb(yakuza_rows()))
+    await yakuza_last_act(bot, P)
     await check_win(bot)
     return None
 
 
 def yakuza_rows():
-    targets = [x for x in alive_players(G()) if x["role"] != "cultist"]
+    targets = alive_players(G())
     return [[(x["name"][:28], f"x:yk:{x['id']}")] for x in targets]
+
+
+async def yakuza_last_act(bot, P):
+    """A yakuza who dies during the day (war bullet, poison, execution, duel, bomb) takes one player with them.
+    Choosing the cultist does nothing."""
+    if not P or P["role"] != "yakuza" or P["flags"].get("yakuza_done"):
+        return
+    P["flags"]["yakuza_pending"] = True
+    save()
+    await group(bot, f"🗡 یاکوزا افتاد… ولی پیش از مرگ یک نفر را نشانه می‌گیرد.", None)
+    await dm(bot, P["id"], "🗡 پیش از مرگ، یک نفر را با خودت ببر:", reply_markup=kb(yakuza_rows()))
+    from . import autopilot
+    await autopilot.decide_pending(bot)
 
 
 async def yakuza_take(bot, uid, target_id, q=None):
@@ -322,9 +337,15 @@ async def yakuza_take(bot, uid, target_id, q=None):
     if not Y or Y["role"] != "yakuza" or not Y["flags"].get("yakuza_pending"):
         raise GameError("این تصمیم دیگر باز نیست.")
     T = pl(target_id)
-    if not T or not T["alive"] or T["role"] == "cultist":
-        raise GameError("این نفر را نمی‌شود برد.")
+    if not T or not T["alive"]:
+        raise GameError("این نفر زنده نیست.")
     Y["flags"].pop("yakuza_pending", None)
+    Y["flags"]["yakuza_done"] = True
+    if T["role"] == "cultist" and not T.get("cult_lost_clown"):
+        save()
+        await say_to(q, f"{T['name']} را نشانه گرفتی… ولی چیزی نشد.")
+        await group(bot, f"🗡 یاکوزا {T['name']} را نشانه گرفت… ولی اتفاقی نیفتاد.", None)
+        return
     actions.kill(g, T, "yakuza")
     save()
     await say_to(q, f"{T['name']} را با خودت بردی.")

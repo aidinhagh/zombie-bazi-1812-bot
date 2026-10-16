@@ -22,8 +22,13 @@ def checklist(g, p, lang):
     parts = [f"{moved} {L(lang, 'حرکت', 'move')}", f"{'✅' if darts == 2 else '🎯'} {L(lang, 'دارت', 'darts')} {num(darts, lang)}/{num(2, lang)}"]
     if g["phase"] == "night":
         n = len(g["acts"].get(str(p["id"]), []))
-        lim = 2 if p.get("double_act") else 1
-        parts.append(f"{'✅' if n >= lim else '⬜'} {L(lang, 'اکت', 'act')} {num(n, lang)}/{num(lim, lang)}")
+        lim = act_limit(p)
+        why = []
+        if any(a["type"] == "steal" for a in g["acts"].get(str(p["id"]), [])):
+            why.append("دزدی + اکت قرضی")
+        if p.get("double_act") and "double_act_50" in flags_at(loc_of(p)):
+            why.append("زوج خانقاه")
+        parts.append(f"{'✅' if n >= lim else '⬜'} اکت {num(n, lang)} از {num(lim, lang)}" + (f" ({'، '.join(why)})" if why else ""))
     else:
         voted = g["votes"].get(str(p["id"]))
         parts.append(f"{'✅' if voted else '⬜'} {L(lang, 'رأی', 'vote')}" + (f" → {pl(voted)['name']}" if voted and pl(voted) else ""))
@@ -187,6 +192,13 @@ async def handle(update, ctx, p, head, args):
         raise GameError("شما مرده‌اید.", "You are dead.")
 
     # ----- movement -----
+    if head == "nodes":
+        if p["pos"] is not None or g["locked"]:
+            raise GameError("فقط برای اولین حرکت.")
+        from .board import SQUARES
+        nodes = sorted((x for x in SQUARES if SQUARES[x]["kind"] == "node"), key=lambda x: int(x.lstrip("n")))
+        rows = chunks([(board.square_name(x)[:30], f"p:go:{x}") for x in nodes], 2)
+        return await edit_or_send(q, "◦ خانه‌های خالی بین شهرها:", rows + [back(lang, "p:move")])
     if head == "move":
         if g["phase"] == "lobby":
             raise GameError("بازی هنوز شروع نشده.", "The game hasn't started yet.")
@@ -195,7 +207,8 @@ async def handle(update, ctx, p, head, args):
         if p["moved"]:
             raise GameError("در این فاز حرکت کردی.", "You've already moved this phase.")
         if p["pos"] is None:
-            return await mapview.send_city_pick(bot, p, "📍 اولین حرکت: هر شهری که بخوای.", "📍 First move: any city you like.", "p:go")
+            return await mapview.send_city_pick(bot, p, "📍 اولین حرکت: هر جای نقشه، بدون تاس — یک شهر، یا «خانه‌های خالی» را بزن.",
+                                                "", "p:go", first=True)
         if p["flags"].get("free_move"):
             return await mapview.send_city_pick(bot, p, "🗺 نقشه قاچاقچی: بدون تاس به هر شهری برو.", "🗺 Smuggler's chart: go to any city, no dice.", "p:go")
         if p["move_roll"] is None:
@@ -536,6 +549,9 @@ def bag_view(p, lang):
 
 # ---------------- night acts ----------------
 
+BASIC_ACTS = ("attack", "protect", "defuse", "spy")
+
+
 def act_limit(p):
     base = 2 if (p.get("double_act") and "double_act_50" in flags_at(loc_of(p))) else 1
     if any(a["type"] == "steal" for a in G()["acts"].get(str(p["id"]), [])):
@@ -578,6 +594,8 @@ def add_act(p, act):
         act["as_role"] = borrow
         p["flags"].pop("borrow", None)
         p["flags"].pop("borrow_from", None)
+    if t not in BASIC_ACTS and not act.get("as_role") and any(a["type"] not in BASIC_ACTS and not a.get("as_role") for a in lst):
+        raise GameError("در یک شب فقط یک اکت ویژه می‌شود؛ اکت دوم خانقاه باید حمله، محافظت، خنثی یا جاسوسی باشد.")
     need = {"bomb": "bomb", "poison": "poison", "guess": "guess", "cult_check": "cult_check"}.get(t)
     if need and not act.get("as_role") and p["charges"].get(need, 0) < 1:
         raise GameError("شارژ این توانایی تموم شده.", "That ability is used up.")

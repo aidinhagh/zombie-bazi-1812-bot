@@ -380,8 +380,8 @@ def acts_screen(lang):
 
 
 def results_text(res, lang):
-    lines = [L(lang, f"📜 نتایج شب {num(res['cycle'])} — هنوز اعمال نشده.", f"📜 Night {res['cycle']} results — not applied yet."),
-             L(lang, "روی شماره هر مورد بزن تا خاموش/روشن شود، بعد «اعمال».", "Tap a number to switch it off/on, then Apply."), ""]
+    lines = [f"📜 نتیجه شب {num(res['cycle'])} — هنوز اعمال نشده.",
+             "(جزئیات هر اکت در گزارش بالا.) روی شماره هر مورد بزن تا خاموش/روشن شود، بعد «اعمال».", ""]
     for e in res["effects"]:
         lines.append(f"{'✅' if e['on'] else '❌'} {num(e['id'], lang)}. {e[lang]}")
     if not res["effects"]:
@@ -393,7 +393,7 @@ def results_rows(res, lang):
     btns = [(f"{'✅' if e['on'] else '❌'}{num(e['id'], lang)}", f"g:ef:{e['id']}") for e in res["effects"]]
     rows = chunks(btns, 5)
     rows.append([(L(lang, "✔️ اعمال و اعلام", "✔️ Apply and announce"), "g:apply")])
-    rows.append([(L(lang, "🎲 تاس دوباره", "🎲 Re-roll"), "g:resolve"), (L(lang, "🔍 جزئیات تاس‌ها", "🔍 Dice details"), "g:details")])
+    rows.append([(L(lang, "🎲 تاس دوباره", "🎲 Re-roll"), "g:resolve"), ("📋 گزارش کامل دوباره", "g:details")])
     rows.append(home_btn(lang))
     return rows
 
@@ -538,7 +538,7 @@ async def handle(update, ctx, uid, head, args):
         elif action == "resolve":
             return await resolve(bot, q, lang)
         elif action == "results":
-            return await edit_or_send(q, results_text(g["pending"], lang), results_rows(g["pending"], lang))
+            return await send_results(bot, q, lang)
         elif action == "votes":
             return await edit_or_send(q, *votes_screen(lang))
         return await send_control_room(bot, uid, q)
@@ -658,8 +658,7 @@ async def handle(update, ctx, uid, head, args):
     if head == "details":
         res = g.get("pending")
         if res:
-            detail = "\n".join((fa if lang == "fa" else en) for fa, en in res["lines"]) or "—"
-            for part in split_text("🔍 " + detail):
+            for part in split_text("📋 " + report_text(res)):
                 await bot.send_message(q.message.chat_id, part)
         return
     if head == "apply":
@@ -838,7 +837,21 @@ async def resolve(bot, q, lang):
         raise GameError("فقط در شب.", "Night only.")
     g["pending"] = resolve_night(g)
     save()
-    await edit_or_send(q, results_text(g["pending"], lang), results_rows(g["pending"], lang))
+    await send_results(bot, q, lang)
+
+
+def report_text(res):
+    return "\n".join(fa for fa, _ in res["lines"]).translate(str.maketrans("0123456789", "۰۱۲۳۴۵۶۷۸۹"))
+
+
+async def send_results(bot, q, lang):
+    """The full act-by-act report (as many messages as it needs), then the effects with their on/off buttons."""
+    res = G()["pending"]
+    parts = split_text(f"📋 گزارش کامل شب {num(res['cycle'])}\n\n" + report_text(res))
+    await edit_or_send(q, parts[0])
+    for part in parts[1:]:
+        await bot.send_message(q.message.chat_id, part)
+    await bot.send_message(q.message.chat_id, results_text(res, lang), reply_markup=kb(results_rows(res, lang)))
 
 
 # ---------------- fast forward (test mode) ----------------
@@ -856,6 +869,8 @@ async def job_fast_forward(ctx):
             save()
         if g.get("pending"):
             res = g["pending"]
+            for part in split_text(f"📋 گزارش کامل شب {num(res['cycle'])}\n\n" + report_text(res)):
+                await bot.send_message(uid, part)
             await bot.send_message(uid, results_text(res, lang))
             out = actions.apply_effects(g, res)
             g["applied_cycle"] = g["cycle"]

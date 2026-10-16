@@ -91,6 +91,12 @@ def spy_view(g, target, by_spy_role, lang):
     return COLOR[c][0 if lang == "fa" else 1]
 
 
+ACT_FA = {"attack": "⚔️ حمله", "protect": "🛡 محافظت", "defuse": "🧯 خنثی", "spy": "🔍 جاسوسی", "guess": "🎭 حدس نقش",
+          "cult_check": "🕯 استعلام فرقه", "bomb": "💣 بمب", "convert": "🕯 فرقه کردن", "steal": "🦹 دزدی", "poison": "🧪 سم",
+          "bullets": "🔫 تیر", "duel": "⚖️ دوئل"}
+STAT_FA = {"attack": "حمله", "protect": "محافظت", "defuse": "خنثی", "spy": "جاسوسی", "stealth": "مخفی‌کاری"}
+
+
 class Night:
     def __init__(self, g, rng=None):
         self.g = g
@@ -137,24 +143,25 @@ class Night:
                     a["target"] = str(a["target"])
                     if a["target"] not in alive and a["type"] not in ("cult_check",):
                         a["active"] = False
-                        a["note"].append("target dead")
+                        a["note"].append("هدف قبلاً مرده")
                 st = stats[pid][0]
                 if a.get("as_role") in ROLES:
                     # the thief's borrowed act: the stolen role's stats, the thief's place and boosts
                     st = night_stats(g, {**alive[pid], "role": a["as_role"]})[0]
-                if a["type"] in ACT_STAT:
-                    base = st[ACT_STAT[a["type"]]]
-                else:
-                    base = st["stealth"]
+                stat = ACT_STAT.get(a["type"], "stealth")
+                base = st[stat]
+                a["stat"], a["stat_val"] = stat, base
+                a["stat_raw"] = ROLES[a.get("as_role") or alive[pid]["role"]][stat]
                 thrown = a.get("dice")
                 if isinstance(thrown, (list, tuple)) and len(thrown) == 2 and all(1 <= int(v) <= 6 for v in thrown):
                     d = (int(thrown[0]), int(thrown[1]))          # the player's own 2d6
                     tot = d[0] + d[1]
                 else:
                     tot, d = self.roll()                           # not thrown: the bot throws for them
-                    a["note"].append("auto dice")
+                    a["note"].append("تاس را ربات ریخت")
                 a["dice"] = d
                 a["power"] = max(0, base + tot)
+                a["power0"] = a["power"]
                 acts.append(a)
         self.acts = acts
 
@@ -168,7 +175,7 @@ class Night:
         for a in acts:
             if a["type"] == "attack" and a["active"] and at_church(a["by"]):
                 a["active"] = False
-                a["note"].append("in church")
+                a["note"].append("در کلیسا حمله ممنوع")
                 self.line(f"{self.nm(a['by'])} در کلیساست و نمی‌تونه حمله کنه.",
                           f"{self.nm(a['by'])} is in the church and cannot attack.")
 
@@ -190,7 +197,7 @@ class Night:
             for b in acts:
                 if b["by"] == tid and b["active"]:
                     b["active"] = False
-                    b["note"].append("stolen")
+                    b["note"].append("نقشش دزدیده شد")
             self.eff("stolen_role", f"دزد نقش {T['name']} ({role_name(T['role'])}) را دزدید؛ اکت {T['name']} انجام نشد.",
                      f"Thief stole {T['name']}'s role; their act is cancelled.",
                      pid=tid, by=a["by"], role=T["role"])
@@ -202,7 +209,7 @@ class Night:
         for a in acts:
             if a.get("as_role") and a["by"] not in stolen_ok and a["active"]:
                 a["active"] = False
-                a["note"].append("no theft")
+                a["note"].append("دزدی انجام نشد")
 
         # ---- 2. defuse ----
         defuses = [x for x in acts if x["type"] == "defuse" and x["active"]]
@@ -217,7 +224,7 @@ class Night:
             p = d["power"] - cut
             if p <= 0:
                 d["active"] = False
-                d["note"].append(f"defused (-{cut})")
+                d["note"].append(f"خنثی شد (−{cut})")
             else:
                 d["power"] = p
                 eff_def[d["target"]] = eff_def.get(d["target"], 0) + p
@@ -229,11 +236,11 @@ class Night:
                 continue
             if cut >= a["power"]:
                 a["active"] = False
-                a["note"].append(f"defused (-{cut})")
+                a["note"].append(f"خنثی شد (−{cut})")
                 a["defused"] = True
             else:
                 a["power"] -= cut
-                a["note"].append(f"weakened (-{cut})")
+                a["note"].append(f"ضعیف شد (−{cut})")
 
         # ---- 3. godfather ----
         for a in [x for x in acts if x["type"] == "guess"]:
@@ -278,7 +285,7 @@ class Night:
                          f"Sniper {A['name']} shot a human ({T['name']}) and dies instead.", pid=a["by"], cause="sniper")
             elif arole == "cult_hunter" and not (T["cult"] or team(T) == INDEP):
                 a["power"] = a["power"] // 3
-                a["note"].append("1/3 (not cult)")
+                a["note"].append("⅓ قدرت (هدف فرقه یا مستقل نبود)")
         self._team_rule(attacks, "attack")
         dmg = {}
         for a in [x for x in attacks if x["active"]]:
@@ -294,7 +301,9 @@ class Night:
             remaining = T["hp"] + hp_mod + sh - d
             loss = max(0, d - sh - max(0, hp_mod))
             who = ", ".join(f"{self.nm(a['by'])}:{a['power']}" for a in attacks if a["active"] and a["target"] == tid)
-            self.line(f"حمله به {T['name']}: مجموع {d} ({who}) | سپر {sh} | اچ‌پی {T['hp']}{hp_mod:+d}",
+            hp_txt = f"{T['hp']}" + (f" ({hp_mod:+d} امشب)" if hp_mod else "")
+            church = " · در کلیسا" if at_church(tid) else ""
+            self.line(f"• {T['name']}: حمله‌ها {who} = {d}{church} | سپر {sh} | اچ‌پی {hp_txt} → {'☠️ می‌میرد' if T['hp'] + hp_mod + sh - d <= 0 else 'اچ‌پی ' + str(T['hp'] - max(0, d - sh - max(0, hp_mod)))}",
                       f"Attacks on {T['name']}: total {d} ({who}) | shield {sh} | hp {T['hp']}{hp_mod:+d}")
             if remaining <= 0 and tid not in dead_now:
                 if team(T) == INDEP and at(tid, "indep_safe"):
@@ -396,13 +405,35 @@ class Night:
                 self.eff("duel", f"دوئل فردا: {self.nm(a['target'])} و {self.nm(b)}",
                          f"Duel tomorrow: {self.nm(a['target'])} vs {self.nm(b)}", a=a["target"], b=b)
 
-        # act summary for the GM
+        # act-by-act report for the GM
+        report = [("🌙 اکت‌ها، یکی‌یکی:", "")]
         for a in acts:
-            tgt = self.nm(a["target"]) if a.get("target") in self.g["players"] else "-"
-            st = "✅" if a["active"] else "❌"
-            note = ("; " + ", ".join(a["note"])) if a["note"] else ""
-            self.lines.insert(0, (f"{st} {self.nm(a['by'])} → {a['type']} → {tgt} | تاس {a['dice']} قدرت {a['power']}{note}",
-                                  f"{st} {self.nm(a['by'])} → {a['type']} → {tgt} | dice {a['dice']} power {a['power']}{note}"))
+            A = self.P(a["by"])
+            if a["type"] == "bullets":
+                tgt = "، ".join(self.nm(x) for x in a.get("extra", {}).get("targets", []) if str(x) in self.g["players"])
+            elif a["type"] == "duel":
+                ex = a.get("extra", {})
+                tgt = f"{self.nm(a['target'])} و {self.nm(ex.get('target2'))}" if ex.get("target2") in self.g["players"] or str(ex.get("target2")) in self.g["players"] else "-"
+            else:
+                tgt = self.nm(a["target"]) if a.get("target") in self.g["players"] else "—"
+            who = f"{A['name']} ({role_name(a.get('as_role') or A['role'])}{' — قرضی از دزدی' if a.get('as_role') else ''})"
+            mod = a["stat_val"] - a["stat_raw"]
+            modtxt = f" ({'+' if mod > 0 else '−'}{abs(mod)} مکان/خرید/آیتم)" if mod else ""
+            d1, d2 = a["dice"]
+            calc = f"تاس {d1}+{d2} + {STAT_FA.get(a['stat'], a['stat'])} {a['stat_raw']}{modtxt} = {a['power0']}" + (f" → {a['power']}" if a["power"] != a["power0"] else "")
+            extra = ""
+            if a["type"] == "guess":
+                extra = f" · حدس: {role_name(a.get('extra', {}).get('role', '?'))}"
+            if a["type"] == "bomb":
+                extra = f" · سیم درست: {a.get('extra', {}).get('wire')}"
+            status = "✅" if a["active"] else "❌"
+            notes = ("\n    ⚠️ " + "، ".join(a["note"])) if a["note"] else ""
+            report.append((f"{status} {ACT_FA.get(a['type'], a['type'])} · {who} ← {tgt}{extra}\n    {calc}{notes}", ""))
+        if not acts:
+            report.append(("— هیچ اکتی ثبت نشده —", ""))
+        report.append(("", ""))
+        report.append(("⚔️ حمله‌ها، سپرها و نتیجه روی هر نفر:", ""))
+        self.lines = report + (self.lines or [("— حمله‌ای نبود —", "")])
         return {"cycle": self.g["cycle"], "effects": self.effects, "lines": self.lines}
 
     def _team_rule(self, acts, kind):
@@ -418,12 +449,12 @@ class Night:
             a = lst[0]
             if T["role"] == "hero":
                 a["active"] = False
-                a["note"].append("lone zombie vs hero")
+                a["note"].append("زامبیِ تنها در برابر قهرمان")
                 self.eff("death", f"{self.nm(a['by'])} تنها به قهرمان {('حمله' if kind == 'attack' else 'خنثی')} کرد و کشته شد.",
                          f"{self.nm(a['by'])} went alone ({kind}) against the Hero and dies.", pid=a["by"], cause="hero")
             elif T["role"] == "priest":
                 a["power"] //= 2
-                a["note"].append("halved (priest)")
+                a["note"].append("نصف شد (کاهن)")
 
 
 def resolve_night(g, rng=None):

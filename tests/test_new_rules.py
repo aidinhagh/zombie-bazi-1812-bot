@@ -45,10 +45,12 @@ def test_thief_sees_role_at_once_and_acts_as_them():
         await w.press(2, "p:a:attack"); await w.press(2, "p:t:attack:4")
         res = resolve_night(w.g)
         lines = "\n".join(fa for fa, _ in res["lines"])
-        assert "stolen" in lines
+        assert "دزدیده" in lines
         # the borrowed attack used the sniper's attack stat (15), not the thief's (2)
-        borrowed = next(l for l in lines.split("\n") if "attack" in l and P(w, 1)["name"] in l.split("→")[0])
-        power = int(borrowed.split("قدرت")[1].split()[0].rstrip(";"))
+        ls = lines.split("\n")
+        i = next(k for k, l in enumerate(ls) if "قرضی" in l and "حمله" in l)
+        assert "حمله 15" in ls[i + 1]             # the sniper's attack stat, not the thief's 2
+        power = int(ls[i + 1].split("=")[1].split()[0])
         assert power >= 15 + 2
     run(go())
 
@@ -294,7 +296,7 @@ def test_web_app_auth_state_and_move():
             assert r.status == 401
             r = await client.get("/api/state", headers={"X-Init-Data": good})
             st = await r.json()
-            assert st["mode"] == "first" and len(st["options"]) == 15 and st["me"]["name"] == "مریم"
+            assert st["mode"] == "first" and len(st["options"]) == 43 and st["me"]["name"] == "مریم"
             r = await client.post("/api/move", json={"dest": "paris"}, headers={"X-Init-Data": good})
             assert (await r.json())["ok"] and P(w, 1)["pos"] == "paris"
             r = await client.post("/api/move", json={"dest": "moscow"}, headers={"X-Init-Data": good})
@@ -343,8 +345,8 @@ def test_player_throws_their_own_act_dice():
         ans = await w.press(1, "p:dice:0")
         assert ans and ans[-1]                       # only once
         res = resolve_night(w.g)
-        line = next(fa for fa, _ in res["lines"] if "attack" in fa)
-        assert "(6, 5)" in line and "قدرت 25" in line   # 14 attack + 11
+        line = next(fa for fa, _ in res["lines"] if "⚔️ حمله ·" in fa)
+        assert "تاس 6+5" in line and "= 25" in line   # 14 attack + 11
     run(go())
 
 
@@ -505,3 +507,72 @@ def test_guillotine_gif_renders():
     assert guillotine.make_gif("Ali", 1, lightning=True)[:3] == b"GIF"
     from zombiebot import votes
     assert votes.make_gif.__module__.endswith("guillotine") or "GIF89a-test" in str(votes.make_gif(""))
+
+
+
+def test_detailed_night_report_is_sent_with_the_results():
+    async def go():
+        w = World(seed=70)
+        await setup(w, ["zombie", "doctor", "saboteur"])
+        await next_step(w)
+        for i, c in zip(range(1, 4), ["berlin", "milan", "moscow"]):
+            await place(w, i, c)
+        await w.press(1, "p:a:attack"); await w.press(1, "p:t:attack:2")
+        await w.press(2, "p:a:protect"); await w.press(2, "p:t:protect:2")
+        await w.press(3, "p:a:defuse"); await w.press(3, "p:t:defuse:1")
+        await next_step(w); n = len(w.sent); await next_step(w)
+        report = "\n".join(m.text for m in w.sent[n:] if m.chat_id == GM)
+        assert "📋 گزارش کامل شب" in report and "🧯 خنثی" in report and "🛡 محافظت" in report
+        assert "تاس" in report and "حمله ۱۴" in report and ("خنثی شد" in report or "ضعیف شد" in report)
+        assert "سپر" in report
+        assert "g:apply" in w.last_to(GM).buttons()
+    run(go())
+
+
+def test_yakuza_takes_someone_after_any_day_death():
+    async def go():
+        w = World(seed=71)
+        await setup(w, ["yakuza", "musketeer", "doctor", "cultist"])
+        await next_step(w)
+        for i, c in zip(range(1, 5), ["berlin", "milan", "moscow", "warsaw"]):
+            await place(w, i, c)
+        P(w, 3)["bullets"] = ["war"]
+        await to_day(w)
+        await w.press(3, "p:shoot"); await w.press(3, "p:sh:1")      # war bullet kills the yakuza by day
+        assert not P(w, 1)["alive"] and P(w, 1)["flags"].get("yakuza_pending")
+        assert "x:yk:4" in w.last_to(1).buttons()                     # the cultist can be picked…
+        await w.press(1, "x:yk:4")
+        assert P(w, 4)["alive"]                                       # …and nothing happens
+        assert any("اتفاقی نیفتاد" in t for t in w.texts_to(GROUP))
+    run(go())
+
+
+def test_never_two_special_acts_even_with_the_monastery():
+    async def go():
+        w = World(seed=72)
+        await setup(w, ["apothecary", "doctor", "spy"])
+        await next_step(w)
+        await place(w, 1, "wagram"); await place(w, 2, "berlin"); await place(w, 3, "milan")
+        await next_step(w)
+        w.forced_dice = [6]
+        await w.press(1, "p:wroll")
+        await w.press(1, "p:a:poison"); await w.press(1, "p:t:poison:2")
+        ans = await w.press(1, "p:t:poison:3")
+        assert ans and "ویژه" in ans[-1] and len(w.g["acts"]["1"]) == 1
+        await w.press(1, "p:a:spy"); await w.press(1, "p:t:spy:3")
+        assert len(w.g["acts"]["1"]) == 2
+    run(go())
+
+
+def test_first_move_can_be_any_square():
+    async def go():
+        w = World(seed=73)
+        await setup(w, ["doctor", "spy"])
+        await next_step(w)
+        await w.press(1, "p:move")
+        assert "p:nodes" in w.last_to(1).buttons()
+        await w.press(1, "p:nodes")
+        assert "p:go:n21" in w.last_to(1).buttons()
+        await w.press(1, "p:go:n21")
+        assert P(w, 1)["pos"] == "n21"
+    run(go())

@@ -309,7 +309,7 @@ async def decide_pending(bot, r=None):
                             acted = True
             for pid, p in autos.items():
                 if p["flags"].get("yakuza_pending"):
-                    choices = [x for x in alive_players(g) if x["role"] != "cultist"]
+                    choices = [x for x in alive_players(g)]
                     if choices:
                         await events.yakuza_take(bot, pid, r.choice(choices)["id"])
                     else:

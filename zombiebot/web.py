@@ -103,7 +103,7 @@ def move_mode(g, p):
     if p["moved"]:
         return "moved", "در این فاز حرکت کرده‌ای."
     if p["pos"] is None:
-        return "first", "اولین حرکت: هر شهری که بخواهی."
+        return "first", "اولین حرکت: هر جای نقشه، شهر یا خانه خالی، بدون تاس."
     if p["flags"].get("free_move"):
         return "free", "نقشه قاچاقچی: بدون تاس به هر شهری برو."
     if p.get("move_roll") is None:
@@ -115,8 +115,11 @@ def state_for(p):
     g = G()
     mode, hint = move_mode(g, p)
     options = []
-    if mode in ("first", "free"):
-        options = [{"sq": c, "n": i + 1, "path": [c]} for i, c in enumerate(c for c in CITIES if c != p.get("pos") or mode == "first")]
+    if mode == "first":
+        order = list(CITIES) + sorted((s for s in SQUARES if s not in CITIES), key=lambda s: int(s.lstrip("n")))
+        options = [{"sq": c, "n": i + 1, "path": [c]} for i, c in enumerate(order)]
+    elif mode == "free":
+        options = [{"sq": c, "n": i + 1, "path": [c]} for i, c in enumerate(c for c in CITIES if c != p.get("pos"))]
     elif mode == "roll":
         options = [{"sq": s, "n": n, "path": path} for n, s, path in mapview.ordered_choices(g, p)]
     for o in options:
@@ -132,7 +135,11 @@ def state_for(p):
 def do_web_move(p, dest):
     g = G()
     mode, _ = move_mode(g, p)
-    if mode in ("first", "free"):
+    if mode == "first":
+        if dest not in SQUARES:
+            raise GameError("این خانه روی نقشه نیست.")
+        path = [dest]
+    elif mode == "free":
         if dest not in CITIES:
             raise GameError("فقط شهرها.")
         path = [dest]

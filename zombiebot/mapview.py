@@ -186,7 +186,7 @@ async def send_move_map(bot, p):
     await dm(bot, p["id"], text, text, reply_markup=kb(rows))
 
 
-async def send_city_pick(bot, p, title_fa, title_en, prefix):
+async def send_city_pick(bot, p, title_fa, title_en, prefix, first=False):
     """First placement / free move / taxi: the cities, numbered on the map and in the list."""
     g = G()
     lang = lang_of(p["id"])
@@ -194,14 +194,17 @@ async def send_city_pick(bot, p, title_fa, title_en, prefix):
     if url and prefix == "p:go":
         cities = [c for c in CITIES if c != p.get("pos")] if p.get("pos") else list(CITIES)
         rows = [[("🗺 باز کردن نقشه و انتخاب شهر", "webapp:" + url)]]
-        rows += chunks([(LOCATIONS[c]["fa"][:20], f"{prefix}:{c}") for c in cities], 2) + [[("↩️ منو", "p:home")]]
+        rows += chunks([(LOCATIONS[c]["fa"][:20], f"{prefix}:{c}") for c in cities], 2)
+        if first:
+            rows.append([("◦ خانه‌های خالی بین شهرها", "p:nodes")])
+        rows.append([("↩️ منو", "p:home")])
         await dm(bot, p["id"], title_fa + "\nنقشه را باز کن — یا از دکمه‌ها انتخاب کن.", reply_markup=kb(rows))
         return
     cities = [c for c in CITIES if c != p.get("pos") or prefix != "p:go"]
     pic = render(g, title=f"{p['name']}", highlight={c: i + 1 for i, c in enumerate(cities)}, you=p.get("pos"))
     lines = [L(lang, title_fa, title_en), ""] + [f"{num(i + 1, lang)}. {LOCATIONS[c][lang]}" for i, c in enumerate(cities)]
     buttons = [(f"{num(i + 1, lang)} {LOCATIONS[c][lang][:20]}", f"{prefix}:{c}") for i, c in enumerate(cities)]
-    rows = chunks(buttons, 2) + [[(L(lang, "↩️ منو", "↩️ Menu"), "p:home")]]
+    rows = chunks(buttons, 2) + ([[("◦ خانه‌های خالی بین شهرها", "p:nodes")]] if first else []) + [[(L(lang, "↩️ منو", "↩️ Menu"), "p:home")]]
     await dm_photo(bot, p["id"], pic)
     text = "\n".join(lines)
     await dm(bot, p["id"], text, text, reply_markup=kb(rows))

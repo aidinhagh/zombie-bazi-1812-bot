@@ -61,7 +61,7 @@ def test_control_room_walks_the_whole_cycle():
             await w.press(i, f"p:t:{t}:{tgt}")
         assert len(w.g["acts"]) == 4
         home = (await w.press(4, "p:home"), w.last_to(4))[1]
-        assert "1/1" in home.text or "۱/۱" in home.text
+        assert "اکت ۱ از ۱" in home.text
         # lock: public map is a picture plus a list
         await next_step(w)
         assert w.g["locked"]
@@ -233,8 +233,8 @@ def test_specials_bomb_poison_duel_bullets_yakuza():
         await w.press(GM, "g:votes")
         await w.press(GM, "g:exy:5")    # GM override: execute directly
         assert P(w, 5)["flags"].get("yakuza_pending")
-        await w.press(5, "x:yk:8")      # the cultist can't be taken
-        assert P(w, 8)["alive"]
+        await w.press(5, "x:yk:8")      # picking the cultist: nothing happens
+        assert P(w, 8)["alive"] and P(w, 5)["flags"].get("yakuza_done")
         P(w, 5)["flags"]["yakuza_pending"] = True
         await w.press(5, "x:yk:4")
         assert not P(w, 4)["alive"]
