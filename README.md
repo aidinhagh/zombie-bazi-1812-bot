@@ -15,39 +15,47 @@ A Telegram bot that runs the Napoleonic London round of Zombie Bazi: movement on
 | `GM_IDS` | your Telegram user id (several: comma-separated). Send `/whoami` to the bot to see it |
 | `DATA_DIR` | `/data` (game state survives restarts and redeploys) |
 | `LOCK_HOUR` | `20` (map lock hour, Tehran time) |
-| `VOTES_PUBLIC` | `1` to post each vote in the group, `0` to keep votes secret until you tally |
 
-5. Add the bot to the game group as admin and send `/setgroup` **inside the group**. Optionally add it as admin of the map channel and send `/setchannel -100…` to the bot in private (without a channel, maps go to the group).
+5. Add the bot to the game group **as admin** (admins see every message, which `#رای` needs). Adding it registers the group automatically; `/setgroup` inside the group does the same. Optionally `/setchannel -100…` for a separate map channel.
 
 Run locally: `pip install -r requirements.txt && BOT_TOKEN=… GM_IDS=… python -m zombiebot.bot`
 
-## Running a round
+## Running a round — the control room
 
-1. Players send `/start` to the bot in private. You see them in `/players`.
-2. `/assign <who> <role> [fake_role]` for each (role keys: `/roles`). `<who>` = roster number, @username or name. Each player gets their role card and the menu.
-3. `/gm` opens your panel:
-   - **🌙 Night** — players move (first move: any city; then 🎲 up to N squares), throw both 🎯 darts, buy powers, use items, place units, launch balloons, submit acts.
-   - **🔒 Lock** happens automatically at 20:00 Tehran (or press it). The public map (units, broken routes, damage) is posted; hotel, bank, monastery effects apply; spy balloons report; war balloons and battles wait for your minigame result under **🎈 Balloons & battles**.
-   - **🧮 Resolve** shows every act with dice and power, then the list of proposed effects. Tap a number to switch an effect off, **🎲 Re-roll** to roll the dice again, **✔️ Apply** to commit. Spy results, bombs, poison, bullets and duels go out on apply.
-   - `/story <text>` posts your story to the group and channel.
-   - **☀️ Day** — votes come in from the player menu. **🗳 Tally** → execute.
-   - **↩️ Undo** restores the state from before the last apply, execution or phase change.
-4. You get a 00:00 reminder of what's next.
+Send `/gm` (or `/start`, `/menu`). One message shows the phase, time to the 20:00 lock and who has moved/acted/voted, plus **➡️ Next step**, which always does the next thing in order:
 
-Any number can be fixed by hand: `/hp`, `/coins`, `/pos`, `/give`, `/unit`, `/charge`, `/kill`, `/revive`, `/cult`, `/route`, `/dig`, `/damage`, `/actadd`, `/actclear`. Full list: `/help`.
+start night → lock the map → resolve → review & apply → start day → close the vote & execute → next night
 
-## Testing it yourself before the round
+Screens, each with a way back: **👥 Players** (tap anyone: role, ❤️/💰 ±5, move, give item, cult, kill/revive, play as them, clear their act or vote) · **🗺 Map** (picture + list of who is where) · **🌙 Acts** · **🗳 Votes** (tally, who hasn't voted, execute, remove votes) · **🎈 Balloons & battles** (minigame results) · **🧪 Test lab** · **⚙️ Setup** (force day/night, undo, new game, language).
 
-You don't need 24 friends to try it. With only your GM account:
+On **review & apply** each proposed effect has a number: tap it to switch it off, **🎲 Re-roll** to roll again, **🔍** for every act's dice. Nothing happens until **✔️ Apply**. Post your story with `/story <text>`.
 
-1. `/fake 24` creates 24 test players with a full role spread (`/fake clear` removes them).
-2. `/as Test05` — you now *are* Test05: `/menu` shows their menu and their private messages come to you, marked `[→ Test05]`. Use this to try every role's buttons. `/as off` returns to GM.
-3. `/autoplay` makes every test player move, throw darts, and pick a random act (night) or vote (day).
-4. Then lock, resolve, apply, day, tally, execute — and repeat.
+## Players
 
-Suggested checks: one test per role's special act; a bomb in the group (the GM can cut the wire while playing as the target); poison then antidote; a judge duel; musketeer bullets then `/shoot` by day; a London taxi; slots in Vienna and Berlin; a war balloon raid; two ships on one square; a casino `/bet`; tolls from a placed cannon.
+`/start` registers; after you give a role they get their card and menu. The home screen is a checklist for the phase (move ✅ · darts 1/2 · act ⬜) with buttons for move, darts, act or vote, shop, bag (items + units), map, role. Place buttons (taxi, slots, shoot, casino bet, clown/godfather settings) appear only when they apply.
 
-Automated tests (28, including a fuzzer that presses random buttons through four full cycles of a 24-player game): `pip install pytest && python -m pytest tests`
+Maps always come as a **picture and a list**. Moving shows every reachable square with a number on the map and the same numbers on the buttons.
+
+## Voting (from the ZombieVote bot)
+
+- In the group: `#رای name` — Persian, English, @username, a nickname you set with `/nick <who> <nickname>`, or as a reply to the person. The bot answers with the sand-and-blood GIF (their avatar behind it).
+- One vote per player per day; the first counts. A vote for someone the hotel protects is struck by ⚡ lightning and doesn't count (and doesn't use up the vote).
+- Paris (+1) and St Petersburg (−1) vote weights and the Légion d'honneur item apply.
+- `#رایگیری` posts the tally. `/delete <name>`, `/delete all`, or reply + `/delete` (GM, in the group) removes votes; the Votes screen does it with buttons.
+- Players can also vote from their menu; it's announced in the group the same way.
+
+## Test lab — a fast game with 24 named test players
+
+**🧪 Test lab → Build test game**: 24 players with names (مریم, علی, سارا, رضا, …) and English usernames, covering every role, placed in random cities. Night 1 starts at once.
+
+- Fast mode: test players move, throw darts and act the moment a night starts, and vote in the group (`name: #رای …` with the GIF, ~3.5 s apart) the moment a day starts; then the tally is posted. Nothing waits for 20:00.
+- **🕹 Play as…** turns you into one of them; their menu and messages come to you with a 🕹 banner. **👑 Back to GM** returns.
+- **⏩ Auto-run to the next night** (in the control room) locks, resolves, applies, starts the day, lets everyone vote, executes the leader and starts the next night.
+- **🗑 Remove test players** when you're done.
+
+Telegram doesn't let a bot post *as* another account, so test players' votes come from the bot, labelled with their name.
+
+Automated tests (33, including whole fast games and a fuzzer): `pip install pytest && python -m pytest tests`
 
 ## How the rules were read
 
@@ -73,6 +81,7 @@ These were my interpretations where the rules left room; each one is easy to cha
 
 ## Files
 
-- `zombiebot/data/` — role stats, places, **items (`items.py` — edit freely)**, map (`map.json`, extracted from your campaign map).
-- `zombiebot/engine.py` — night resolution. `actions.py` — everything else that changes the game. `bot.py` — Telegram menus and commands. `render.py` — map image.
-- `tests/` — engine tests and the offline Telegram harness.
+- `zombiebot/data/` — role stats, places, **items (`items.py` — edit freely)**, map (`map.json`, from your campaign map).
+- `engine.py` night resolution · `actions.py` everything else that changes the game · `votes.py` #رای voting · `matching.py` + `animator.py` from the ZombieVote bot.
+- `gm_ui.py` control room and test lab · `player_ui.py` player menu · `mapview.py` + `render.py` maps · `events.py` bombs, poison, duels, executions · `bot.py` wiring.
+- `tests/` — engine tests and an offline Telegram harness that plays whole games.

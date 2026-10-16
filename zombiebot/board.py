@@ -89,22 +89,23 @@ def square_name(sq, lang="fa"):
     s = SQUARES.get(sq)
     if not s:
         return str(sq)
+    from .data.locations import LOCATIONS, CITY_SHORT
     if s["kind"] == "city":
-        from .data.locations import LOCATIONS
         return LOCATIONS[sq][lang]
     r = ROUTES[s["route"]]
-    a, b = CITIES[r["from"]]["name"], CITIES[r["to"]]["name"]
-    seq = route_sequence(r)
-    idx = seq.index(sq)
-    sea = r["kind"] == "sea"
+    i = 0 if lang == "fa" else 1
+    a, b = CITY_SHORT[r["from"]][i], CITY_SHORT[r["to"]][i]
     if lang == "fa":
-        return f"{'دریا' if sea else 'جاده'} {a}–{b} ({idx}) [{sq}]"
-    return f"{'Sea' if sea else 'Road'} {a}–{b} ({idx}) [{sq}]"
+        return f"{'دریا' if r['kind'] == 'sea' else 'جاده'} {a}–{b} · خانه {sq.lstrip('n')}"
+    return f"{'Sea' if r['kind'] == 'sea' else 'Road'} {a}–{b} · square {sq.lstrip('n')}"
 
 
 def route_name(game, rid, lang="fa"):
+    from .data.locations import CITY_SHORT
     r = all_routes(game)[rid]
-    def nm(s):
-        return CITIES[s]["name"] if s in CITIES else s
-    kind = ("دریایی" if r["kind"] == "sea" else "زمینی") if lang == "fa" else r["kind"]
+    i = 0 if lang == "fa" else 1
+
+    def nm(x):
+        return CITY_SHORT[x][i] if x in CITY_SHORT else square_name(x, lang)
+    kind = ("دریایی" if r["kind"] == "sea" else "زمینی") if lang == "fa" else ("sea" if r["kind"] == "sea" else "road")
     return f"{nm(r['from'])}–{nm(r['to'])} ({kind})"

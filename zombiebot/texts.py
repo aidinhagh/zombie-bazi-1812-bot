@@ -123,25 +123,16 @@ def status_text(g, p, lang):
 
 def help_text(lang):
     return L(lang,
-             "دستورها:\n/menu منوی بازی\n/status وضعیت\n/slots ماشین اسلات (وین/برلین)\n/taxi تاکسی لندن\n/shoot شلیک تیر در روز\n/bet شرط‌بندی در کازینو\n/lang تغییر زبان",
-             "Commands:\n/menu game menu\n/status your status\n/slots slot machine (Vienna/Berlin)\n/taxi London taxi\n/shoot fire a bullet by day\n/bet casino bet\n/lang switch language")
+             "/menu منوی بازی (همه‌چیز از همین‌جا)\n/lang تغییر زبان\nدر گروه: #رای اسم برای رأی · #رایگیری برای نتیجه",
+             "/menu the game menu (everything is there)\n/lang switch language\nIn the group: #رای name to vote · #رایگیری for the tally")
 
 
-GM_HELP = """GM commands / دستورهای گاد
+GM_HELP = """👑 /gm — the control room. Everything is in there.
 
-Setup: /setgroup (send inside the group) · /setchannel <chat_id> · /players · /roles
-/assign <who> <role> [fake_role] · /unassign <who> · /kick <who>
-
-Phases: /gm (panel) · /day · /night · /lock · /resolve · /tally · /execute <who> · /map · /publicmap
-
-Edits: /hp <who> <n> · /coins <who> <n> · /pos <who> <square> · /give <who> <item>
-/unit <who> <unit> <n> · /charge <who> <key> <n> · /kill <who> · /revive <who>
-/cult <who> on|off · /route <route_id> ok|broken|mined · /dig <sqA> <sqB> [road|sea]
-/damage <city> <pct> · /acts · /actadd <who> <type> <target> [k=v] · /actclear <who>
-
-Testing: /fake 24 · /fake clear · /as <who> · /as off · /autoplay
-
-Posting: /say <text> (group) · /story <text> (group + channel) · /win · /log · /undo · /reset
-
-<who> = roster number, @username or name. Square ids: city ids (london, paris, …) or node ids (n15 …).
+Typed shortcuts if you want them:
+/assign <who> <role> · /nick <who> <nickname> · /pos <who> <square> · /hp <who> <n> · /coins <who> <n|+n|-n>
+/give <who> <item> · /unit <who> <unit> <n> · /charge <who> <key> <n> · /route <id> ok|broken|mined
+/dig <sqA> <sqB> · /damage <city> <pct> · /actadd <who> <type> <target> · /story <text> · /say <text>
+/delete <name> | /delete all | reply + /delete (in the group: remove votes) · /setchannel -100… · /log · /undo
+<who> = name, @username or roster number.
 """

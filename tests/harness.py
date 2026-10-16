@@ -1,5 +1,6 @@
-"""Offline stand-in for Telegram: records what the bot sends and lets tests press buttons as any user."""
+"""Offline stand-in for Telegram: records what the bot sends and lets tests press buttons or post in the group."""
 import asyncio
+import datetime
 import os
 import random
 import tempfile
@@ -7,21 +8,32 @@ from types import SimpleNamespace
 
 os.environ.setdefault("DATA_DIR", tempfile.mkdtemp())
 
-from zombiebot import bot as B          # noqa: E402
-from zombiebot.state import Store       # noqa: E402
+from zombiebot import bot as B, common, votes   # noqa: E402
+from zombiebot.state import new_game            # noqa: E402
 
 GM = 1000
+GROUP = -500
+_REAL_GIF = votes.make_gif
 
 
 class Msg:
     _n = 0
 
-    def __init__(self, world, chat_id, text, markup=None, dice=None, photo=False):
+    def __init__(self, world, chat_id, text, markup=None, dice=None, photo=False, animation=False,
+                 from_user=None, reply_to=None, entities=None):
         Msg._n += 1
         self.message_id = Msg._n
         self.world, self.chat_id, self.text, self.markup = world, chat_id, text, markup
+        self.caption = None
         self.dice = SimpleNamespace(value=dice) if dice else None
-        self.photo = photo
+        self.photo, self.animation = photo, animation
+        self.from_user = from_user
+        self.reply_to_message = reply_to
+        self.entities = entities or []
+        self.date = datetime.datetime.now(datetime.timezone.utc)
+        self.edit_date = None
+        self.forward_origin = None
+        self.chat = SimpleNamespace(id=chat_id, type="private" if chat_id > 0 else "supergroup")
 
     def buttons(self):
         if not self.markup:
@@ -42,14 +54,18 @@ class FakeBot:
     def __init__(self, world, rng):
         self.world, self.rng = world, rng
 
-    async def send_message(self, chat_id, text, reply_markup=None, **kw):
-        assert isinstance(text, str) and text.strip(), "empty message"
-        assert len(text) <= 4096, f"message too long ({len(text)})"
+    def _check_markup(self, reply_markup):
         if reply_markup:
             for row in reply_markup.inline_keyboard:
                 for b in row:
                     assert len(b.callback_data.encode()) <= 64, f"callback_data too long: {b.callback_data}"
                     assert b.text, "button without text"
+
+    async def send_message(self, chat_id, text, reply_markup=None, **kw):
+        assert isinstance(text, str) and text.strip(), "empty message"
+        assert len(text) <= 4096, f"message too long ({len(text)})"
+        assert chat_id is not None
+        self._check_markup(reply_markup)
         m = Msg(self.world, chat_id, text, reply_markup)
         self.world.sent.append(m)
         return m
@@ -70,6 +86,17 @@ class FakeBot:
         self.world.sent.append(m)
         return m
 
+    async def send_animation(self, chat_id, animation=None, caption=None, **kw):
+        data = animation.read() if hasattr(animation, "read") else animation
+        assert data[:3] == b"GIF"
+        assert caption and len(caption) <= 1024, "caption too long"
+        m = Msg(self.world, chat_id, caption, animation=True)
+        self.world.sent.append(m)
+        return m
+
+    async def get_user_profile_photos(self, user_id, limit=1):
+        return SimpleNamespace(total_count=0, photos=[])
+
 
 class FakeJobQueue:
     def __init__(self, world):
@@ -83,20 +110,24 @@ class FakeJobQueue:
 
 
 class World:
-    def __init__(self, seed=1):
+    def __init__(self, seed=1, real_gifs=False):
         self.rng = random.Random(seed)
-        B.store = Store(os.path.join(tempfile.mkdtemp(), "state.json"))
-        B.ENV_GMS.clear()
-        B.ENV_GMS.add(GM)
+        random.seed(seed)
+        common.store.path = os.path.join(tempfile.mkdtemp(), "state.json")
+        common.store.g = new_game()
+        common.ENV_GMS.clear()
+        common.ENV_GMS.add(GM)
+        votes.make_gif = _REAL_GIF if real_gifs else (lambda *a, **k: b"GIF89a-test")
+        votes._seen.clear()
+        votes._last_tally.clear()
         self.sent, self.jobs, self.forced_dice = [], [], []
         self.bot = FakeBot(self, self.rng)
         self.jq = FakeJobQueue(self)
         self.user_data = {}
-        self.errors = []
 
     @property
     def g(self):
-        return B.store.g
+        return common.store.g
 
     def ctx(self, uid, args=None):
         return SimpleNamespace(bot=self.bot, job_queue=self.jq, args=args or [],
@@ -109,16 +140,27 @@ class World:
             c.job = SimpleNamespace(data=data)
             await cb(c)
 
-    def user(self, uid, name=None):
-        return SimpleNamespace(id=uid, full_name=name or f"User{uid}", username=f"u{uid}")
+    def user(self, uid, name=None, username=None):
+        return SimpleNamespace(id=uid, full_name=name or f"User{uid}", first_name=name or f"User{uid}",
+                               username=username or f"u{uid}", is_bot=False)
 
-    async def cmd(self, uid, name, *args, chat_type="private", chat_id=None, text=None):
-        handler = {**self._handlers()}[name]
+    async def cmd(self, uid, name, *args, chat_type="private", chat_id=None, user=None):
+        handler = self._handlers()[name]
         chat = SimpleNamespace(id=chat_id or uid, type=chat_type)
-        msg = Msg(self, chat.id, text or ("/" + name + (" " + " ".join(args) if args else "")))
-        upd = SimpleNamespace(effective_user=self.user(uid), effective_chat=chat, message=msg, callback_query=None)
+        msg = Msg(self, chat.id, "/" + name + (" " + " ".join(args) if args else ""), from_user=user or self.user(uid))
+        upd = SimpleNamespace(effective_user=user or self.user(uid), effective_chat=chat, message=msg,
+                              effective_message=msg, callback_query=None)
         await handler(upd, self.ctx(uid, list(args)))
         await self.flush_jobs()
+
+    async def say(self, uid, text, chat_id=GROUP, reply_to=None, user=None):
+        """Someone writes a message in the group."""
+        u = user or self.user(uid)
+        msg = Msg(self, chat_id, text, from_user=u, reply_to=reply_to)
+        upd = SimpleNamespace(effective_user=u, effective_chat=msg.chat, message=msg, effective_message=msg)
+        await votes.on_group_text(upd, self.ctx(uid))
+        await self.flush_jobs()
+        return msg
 
     async def press(self, uid, data, message=None):
         message = message or Msg(self, uid, "x")
@@ -129,7 +171,8 @@ class World:
 
         async def edit_message_text(text, reply_markup=None, **kw):
             assert isinstance(text, str) and text.strip(), "empty edit"
-            assert len(text) <= 4096
+            assert len(text) <= 4096, f"edit too long ({len(text)})"
+            FakeBot._check_markup(None, reply_markup)
             message.text, message.markup = text, reply_markup
             if message not in self.sent:
                 self.sent.append(message)
@@ -149,8 +192,8 @@ class World:
         if not hasattr(self, "_h"):
             app = B.build_app("123:TEST")
             self._h = {}
-            for group in app.handlers.values():
-                for h in group:
+            for grp in app.handlers.values():
+                for h in grp:
                     if hasattr(h, "commands"):
                         for c in h.commands:
                             self._h[c] = h.callback
@@ -164,6 +207,9 @@ class World:
 
     def texts_to(self, chat_id):
         return [m.text for m in self.sent if m.chat_id == chat_id]
+
+    def player(self, name):
+        return next(p for p in self.g["players"].values() if p["name"] == name)
 
 
 def run(coro):

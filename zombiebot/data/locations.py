@@ -111,3 +111,13 @@ UNIT_NAMES = {
 TOLL = 10            # coins paid when passing someone's cannon/ship square
 COINS_PER_HP = 5     # shortfall in a toll is taken from HP at the shop rate
 BANK_COINS = 10
+
+
+# Short city names for squares and routes.
+CITY_SHORT = {
+    "london": ("لندن", "London"), "paris": ("پاریس", "Paris"), "birmingham": ("بیرمنگام", "Birmingham"),
+    "amsterdam": ("آمستردام", "Amsterdam"), "barcelona": ("بارسلونا", "Barcelona"), "milan": ("میلان", "Milan"),
+    "vienna": ("وین", "Vienna"), "wagram": ("واگرام", "Wagram"), "berlin": ("برلین", "Berlin"), "warsaw": ("ورشو", "Warsaw"),
+    "copenhagen": ("کپنهاگ", "Copenhagen"), "stockholm": ("استکهلم", "Stockholm"), "stpetersburg": ("سن‌پترزبورگ", "St Petersburg"),
+    "moscow": ("مسکو", "Moscow"), "constantinople": ("کنستانتینوپل", "Constantinople"),
+}
