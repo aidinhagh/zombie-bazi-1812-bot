@@ -25,7 +25,8 @@ from .data.locations import LOCATIONS, UNIT_NAMES
 from .data.roles import ROLES
 
 HERE = os.path.dirname(__file__)
-PAGE = os.path.join(HERE, "webapp", "map.html")
+PAGE = os.path.join(HERE, "webapp", "map.html")        # the 3D campaign map (built by tools/build_map_webapp.py)
+PAGE_2D = os.path.join(HERE, "webapp", "map2d.html")   # flat fallback for phones without WebGL
 FONT = os.path.join(HERE, "Vazirmatn-Bold.ttf")
 _bot = None
 _token = None
@@ -162,6 +163,10 @@ async def h_page(request):
     return web.FileResponse(PAGE, headers={"Cache-Control": "no-cache"})
 
 
+async def h_page2d(request):
+    return web.FileResponse(PAGE_2D, headers={"Cache-Control": "no-cache"})
+
+
 async def h_font(request):
     return web.FileResponse(FONT, headers={"Cache-Control": "public, max-age=604800"})
 
@@ -205,6 +210,7 @@ def make_app():
     app = web.Application()
     app.router.add_get("/", h_root)
     app.router.add_get("/map", h_page)
+    app.router.add_get("/map2d", h_page2d)
     app.router.add_get("/font.ttf", h_font)
     app.router.add_get("/api/coast", h_coast)
     app.router.add_get("/api/state", h_state)

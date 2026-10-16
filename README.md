@@ -84,4 +84,5 @@ These were my interpretations where the rules left room; each one is easy to cha
 - `zombiebot/data/` — role stats, places, **items (`items.py` — edit freely)**, map (`map.json`, from your campaign map).
 - `engine.py` night resolution · `actions.py` everything else that changes the game · `votes.py` #رای voting · `matching.py` + `animator.py` from the ZombieVote bot.
 - `gm_ui.py` control room and test lab · `player_ui.py` player menu · `mapview.py` + `render.py` maps · `events.py` bombs, poison, duels, executions · `bot.py` wiring.
+- `webapp/map.html` — the map Mini App, built from your campaign map with `python tools/build_map_webapp.py` (fallback: `/map2d`).
 - `tests/` — engine tests and an offline Telegram harness that plays whole games.

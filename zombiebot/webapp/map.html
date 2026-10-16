@@ -1,251 +1,1110 @@
-<!doctype html>
-<html lang="fa" dir="rtl">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>نقشه ۱۸۱۲</title>
-<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style><script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
 @font-face{font-family:Vazir;src:url(/font.ttf) format("truetype");font-weight:400 900}
-:root{
-  --table:#100c08;--imperial:#15332a;--imperial-2:#1d4337;--imperial-3:#0e241d;
-  --gold:#c9a24a;--gold-soft:#e6cd84;--parch:#efe3c4;--parch-dim:#c9bb98;--ink:#24180e;
-  --crimson:#a3322a;--crimson-hi:#d0433a;--sea:#9fb9b3;--land:#efe3c4;--road:#8d5f31;--lane:#2c4f86;
-  --rule:rgba(201,162,74,.35);
-}
-*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{margin:0;height:100%;background:var(--table);color:var(--parch);font-family:Vazir,Tahoma,sans-serif;overflow:hidden}
-#top{position:fixed;inset:0 0 auto 0;z-index:5;padding:10px 12px 8px;
+.brand,#ledgerToggle,#panel,#hint,#tip{display:none!important}
+.lbl{font-family:Vazir,Tahoma,sans-serif!important;letter-spacing:0!important}
+.lbl .occ{display:none!important}
+#loading h2,#loading p{font-family:Vazir,Tahoma,sans-serif!important;direction:rtl}
+#gTop{position:absolute;inset:0 0 auto 0;z-index:8;direction:rtl;font-family:Vazir,Tahoma,sans-serif;padding:calc(10px + env(safe-area-inset-top,0px)) 12px 8px;
   background:linear-gradient(180deg,var(--imperial-2),var(--imperial));border-bottom:1px solid var(--gold);
   box-shadow:0 3px 0 var(--imperial-3),0 4px 0 var(--rule),0 10px 24px rgba(0,0,0,.45)}
-#who{display:flex;align-items:center;gap:8px;font-size:15px;color:var(--gold-soft)}
-#who b{font-weight:800}
-#who .role{color:var(--parch-dim);font-size:13px}
-#who .stats{margin-inline-start:auto;display:flex;gap:10px;font-size:14px;color:var(--parch)}
-#hint{margin-top:6px;display:flex;align-items:center;gap:8px;font-size:14px;color:var(--parch)}
-.die{width:30px;height:30px;flex:none;border-radius:7px;background:var(--parch);color:var(--ink);display:grid;place-items:center;
-  font-weight:900;font-size:17px;box-shadow:inset 0 -3px 0 #c9bb98,0 0 0 1px var(--gold)}
-#phase{margin-inline-start:auto;font-size:12px;color:var(--parch-dim);border:1px solid var(--rule);padding:2px 8px;border-radius:20px}
-#map{position:fixed;inset:0;touch-action:none;background:var(--sea)}
-svg{width:100%;height:100%;display:block;user-select:none}
-.city text,.lbl{font-family:Vazir,Tahoma,sans-serif;paint-order:stroke;stroke:var(--land);stroke-width:5px;stroke-linejoin:round}
-.pin{cursor:pointer;outline:none}
-.pin circle.b{fill:var(--crimson);stroke:#fff;stroke-width:3}
-.pin.sel circle.b{fill:var(--gold);stroke:var(--ink)}
-.pin text{fill:#fff;font-weight:900;font-size:20px;text-anchor:middle;dominant-baseline:central;stroke:none}
-.pin.sel text{fill:var(--ink)}
-.pulse{fill:none;stroke:var(--crimson-hi);stroke-width:3;opacity:.0;animation:pulse 1.8s ease-out infinite}
-@keyframes pulse{0%{r:16;opacity:.8}100%{r:34;opacity:0}}
-#me-ring{fill:none;stroke:#1f7a45;stroke-width:6}
-#token{fill:#1f7a45;stroke:#fff;stroke-width:4;filter:drop-shadow(0 3px 3px rgba(0,0,0,.45))}
-#sheet{position:fixed;inset:auto 0 0 0;z-index:6;transform:translateY(105%);transition:transform .25s ease;
+#gWho{display:flex;align-items:center;gap:8px;font-size:15px;color:var(--gold-soft)}
+#gWho b{font-weight:800}#gWho .role{color:var(--parch-dim);font-size:13px}
+#gWho .stats{margin-inline-start:auto;display:flex;gap:10px;font-size:14px;color:var(--parch)}
+#gHint{margin-top:6px;display:flex;align-items:center;gap:8px;font-size:14px;color:var(--parch);line-height:1.6}
+#gDie{width:30px;height:30px;flex:none;border-radius:7px;background:var(--parch);color:var(--ink);display:grid;place-items:center;font-weight:900;font-size:17px;
+  box-shadow:inset 0 -3px 0 #c9bb98,0 0 0 1px var(--gold)}
+#gPhase{margin-inline-start:auto;font-size:12px;color:var(--parch-dim);border:1px solid var(--rule);padding:2px 8px;border-radius:20px;white-space:nowrap}
+#gSheet{position:absolute;inset:auto 0 0 0;z-index:9;direction:rtl;font-family:Vazir,Tahoma,sans-serif;transform:translateY(105%);transition:transform .25s ease;
   background:linear-gradient(180deg,var(--imperial-2),var(--imperial) 40%,var(--imperial-3));border-top:1px solid var(--gold);
-  box-shadow:0 -3px 0 var(--imperial-3),0 -4px 0 var(--rule),0 -14px 30px rgba(0,0,0,.5);padding:14px 16px calc(16px + env(safe-area-inset-bottom))}
-#sheet.open{transform:none}
-#sheet h2{margin:0 0 4px;font-size:19px;color:var(--gold-soft);font-weight:800}
-#sheet .meta{font-size:13px;color:var(--parch-dim);margin-bottom:8px}
-#sheet p{margin:0 0 10px;font-size:14px;line-height:1.7;color:var(--parch)}
-#sheet .warn{color:#f1a39c}
-.row{display:flex;gap:8px}
-.btn{flex:1;appearance:none;border:1px solid var(--gold);background:rgba(0,0,0,.25);color:var(--parch);font:inherit;font-size:15px;
-  padding:11px;border-radius:8px;cursor:pointer}
-.btn.gold{background:linear-gradient(180deg,#d9b65e,#b88f37);color:var(--ink);border-color:#f0dc9c;font-weight:800}
-.btn:disabled{opacity:.5}
-#legend{position:fixed;z-index:4;inset:auto auto 12px 12px;background:rgba(14,36,29,.88);border:1px solid var(--rule);
-  border-radius:8px;padding:6px 9px;font-size:11.5px;color:var(--parch-dim);line-height:1.8}
-#legend i{display:inline-block;width:18px;height:0;border-top:4px solid var(--road);vertical-align:middle;margin-inline-end:5px}
-#legend i.sea{border-top:3px dashed var(--lane)} #legend i.bad{border-top:4px dashed var(--crimson)}
-#msg{position:fixed;inset:0;z-index:9;display:none;place-items:center;background:rgba(16,12,8,.72)}
-#msg .card{max-width:320px;margin:20px;background:var(--imperial);border:1px solid var(--gold);border-radius:12px;padding:18px;text-align:center}
-#msg h3{margin:0 0 8px;color:var(--gold-soft)}
-#msg p{margin:0 0 14px;line-height:1.7}
-#zoom{position:fixed;z-index:4;inset:auto 12px 12px auto;display:flex;flex-direction:column;gap:6px}
-#zoom button{width:40px;height:40px;border-radius:8px;border:1px solid var(--gold);background:rgba(14,36,29,.9);color:var(--gold-soft);font-size:20px}
+  box-shadow:0 -3px 0 var(--imperial-3),0 -4px 0 var(--rule),0 -14px 30px rgba(0,0,0,.5);padding:14px 16px calc(16px + env(safe-area-inset-bottom,0px))}
+#gSheet.open{transform:none}
+#gSheet h2{margin:0 0 4px;font-size:19px;color:var(--gold-soft);font-weight:800}
+#gSheet .meta{font-size:13px;color:var(--parch-dim);margin-bottom:8px}
+#gSheet p{margin:0 0 10px;font-size:14px;line-height:1.7;color:var(--parch);white-space:pre-line}
+#gSheet p.warn{color:#f1a39c}
+.gRow{display:flex;gap:8px}
+.gBtn{flex:1;appearance:none;border:1px solid var(--gold);background:rgba(0,0,0,.25);color:var(--parch);font:inherit;font-size:15px;padding:11px;border-radius:8px;cursor:pointer;font-family:Vazir,Tahoma,sans-serif}
+.gBtn.gold{background:linear-gradient(180deg,#d9b65e,#b88f37);color:var(--ink);border-color:#f0dc9c;font-weight:800}
+.gBtn:disabled{opacity:.5}
+#gMsg{position:absolute;inset:0;z-index:30;display:none;place-items:center;background:rgba(16,12,8,.6);direction:rtl;font-family:Vazir,Tahoma,sans-serif}
+#gMsg .card{max-width:320px;margin:20px;background:var(--imperial);border:1px solid var(--gold);border-radius:12px;padding:18px;text-align:center;color:var(--parch)}
+#gMsg h3{margin:0 0 8px;color:var(--gold-soft)}#gMsg p{margin:0 0 14px;line-height:1.7;white-space:pre-line}
+#gList{position:absolute;z-index:8;inset:auto 12px calc(14px + env(safe-area-inset-bottom,0px)) auto;direction:rtl;font-family:Vazir,Tahoma,sans-serif}
+#gList button{display:block;margin-top:6px;border:1px solid var(--gold);background:rgba(14,36,29,.9);color:var(--gold-soft);border-radius:8px;padding:8px 12px;font:inherit;font-size:13px}
 </style>
-</head>
-<body>
-<div id="map"><svg id="svg" xmlns="http://www.w3.org/2000/svg"></svg></div>
-<div id="top">
-  <div id="who"><b id="name">…</b><span class="role" id="role"></span><span class="stats"><span id="hp"></span><span id="coins"></span></span></div>
-  <div id="hint"><div class="die" id="die" hidden></div><span id="hinttext">در حال بارگذاری نقشه…</span><span id="phase"></span></div>
-</div>
-<div id="legend"><div><i></i>جاده</div><div><i class="sea"></i>مسیر دریایی</div><div><i class="bad"></i>خراب / مین</div></div>
-<div id="zoom"><button id="zin" aria-label="بزرگ‌نمایی">+</button><button id="zout" aria-label="کوچک‌نمایی">−</button></div>
-<div id="sheet" role="dialog" aria-live="polite">
-  <h2 id="sName"></h2><div class="meta" id="sMeta"></div><p id="sDesc"></p>
-  <div class="row"><button class="btn" id="sCancel">انصراف</button><button class="btn gold" id="sGo">حرکت به اینجا</button></div>
-</div>
-<div id="msg"><div class="card"><h3 id="mTitle"></h3><p id="mText"></p><button class="btn gold" id="mBtn">بستن</button></div></div>
-<script>
-const tg = window.Telegram && Telegram.WebApp; if (tg) { tg.ready(); tg.expand(); }
-const INIT = (tg && tg.initData) || new URLSearchParams(location.search).get("init") || "";
-const FA = n => String(n).replace(/\d/g, d => "۰۱۲۳۴۵۶۷۸۹"[d]);
-const LON0=-11.5, LON1=41.5, LAT0=37.0, LAT1=62.4, W=1800, K=Math.cos(50*Math.PI/180);
-const H = W*(LAT1-LAT0)/((LON1-LON0)*K);
-const P = (lon,lat) => [(lon-LON0)/(LON1-LON0)*W, (LAT1-lat)/(LAT1-LAT0)*H];
-const NS = "http://www.w3.org/2000/svg";
-const svg = document.getElementById("svg");
-const el = (t, a={}, parent) => { const e=document.createElementNS(NS,t); for (const k in a) e.setAttribute(k,a[k]); if(parent) parent.appendChild(e); return e; };
-let S = null, SQ = {}, chosen = null, busy = false;
-let vb = {x:0, y:0, w:W, h:H};
+</head><body>
+<title>نقشه زامبی‌بازی ۱۸۱۲</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=IM+Fell+English:ital@0;1&family=Spectral:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: full-bleed 3D relief table; brand cartouche top-left, campaign ledger on the right (drawer on phones). */
+:root{
+  --table:#100c08;
+  --imperial:#15332a;
+  --imperial-2:#1d4337;
+  --imperial-3:#0e241d;
+  --gold:#c9a24a;
+  --gold-soft:#e6cd84;
+  --parch:#efe3c4;
+  --parch-dim:#c9bb98;
+  --ink:#24180e;
+  --crimson:#a3322a;
+  --rule:rgba(201,162,74,.32);
+  --f-display:"IM Fell English SC","Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+  --f-italic:"IM Fell English","Iowan Old Style",Palatino,Georgia,serif;
+  --f-body:"Spectral","Iowan Old Style",Palatino,Georgia,serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+html,body{height:100%}
+body{background:var(--table);color:var(--parch);font-family:var(--f-body);overflow:hidden;margin:0}
+#app{position:fixed;inset:0}
+#gl{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;outline:none}
+#labels{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+#labels.off{display:none}
+.lbl{position:absolute;left:0;top:0;white-space:nowrap;font-family:var(--f-display);color:var(--ink);line-height:1;
+  text-shadow:0 0 2px #f4e8c8,0 0 3px #f4e8c8,0 0 5px #f4e8c8,0 0 9px rgba(244,232,200,.85);will-change:transform}
+.lbl.t1{font-size:16px;letter-spacing:.06em}
+.lbl.t1::before{content:"";display:inline-block;width:10px;height:10px;margin-right:4px;vertical-align:-1px;background:var(--crimson);
+  clip-path:polygon(50% 0,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%)}
+.lbl.t2{font-size:14px;letter-spacing:.04em}
+.lbl.t3{font-family:var(--f-italic);font-style:italic;font-size:13px;color:#6b1f18}
+.lbl .occ{display:block;font-family:var(--f-italic);font-style:italic;font-size:11px;letter-spacing:0;margin-top:2px;text-align:center;color:#7a1d16}
+.lbl .occ i{display:inline-block;width:14px;height:7px;margin-right:4px;background:linear-gradient(90deg,#21468b 33%,#fff 33% 66%,#c8102e 66%);border:1px solid rgba(0,0,0,.4)}
+.lbl.hl{color:#7a1d16}
+.brand{position:absolute;top:calc(12px + env(safe-area-inset-top,0px));left:max(16px,env(safe-area-inset-left,0px));display:flex;align-items:center;gap:12px;
+  padding:8px 16px 8px 8px;background:linear-gradient(180deg,var(--imperial-2),var(--imperial));border:1px solid var(--gold);
+  box-shadow:0 0 0 3px var(--imperial-3),0 0 0 4px var(--rule),0 10px 30px rgba(0,0,0,.5);z-index:5}
+.cipher{width:44px;height:44px;flex:none}
+.brand h1{margin:0;font-family:var(--f-display);font-weight:400;font-size:21px;letter-spacing:.08em;color:var(--gold-soft);line-height:1.05}
+.brand p{margin:2px 0 0;font-family:var(--f-italic);font-style:italic;font-size:13.5px;color:var(--parch-dim)}
+#ledgerToggle{display:none}
+#panel{position:absolute;top:calc(12px + env(safe-area-inset-top,0px));right:max(16px,env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));width:330px;
+  display:flex;flex-direction:column;background:linear-gradient(180deg,var(--imperial-2),var(--imperial) 30%,var(--imperial-3));
+  border:1px solid var(--gold);box-shadow:0 0 0 3px var(--imperial-3),0 0 0 4px var(--rule),0 18px 40px rgba(0,0,0,.55);z-index:6}
+#panel header{padding:14px 18px 10px;border-bottom:1px solid var(--rule);display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+#panel h2{margin:0;font-family:var(--f-display);font-weight:400;font-size:19px;letter-spacing:.1em;color:var(--gold-soft)}
+.closeP{display:none}
+.scroll{flex:1;overflow-y:auto;padding:4px 18px 18px;min-height:0}
+.sec{padding:14px 0;border-bottom:1px solid var(--rule)}
+.sec:last-child{border-bottom:0}
+.sec h3{margin:0 0 9px;font-family:var(--f-display);font-weight:400;font-size:13px;letter-spacing:.16em;color:var(--gold);text-transform:uppercase}
+.layers{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.tally{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.tally div{border:1px solid var(--rule);padding:6px 4px 5px;text-align:center;background:rgba(0,0,0,.18)}
+.tally b{display:block;font-family:var(--f-display);font-weight:400;font-size:22px;color:var(--parch);font-variant-numeric:tabular-nums;line-height:1}
+.tally span{font-size:11px;color:var(--parch-dim);letter-spacing:.05em}
+.muted{color:var(--parch-dim);font-size:14px;margin:0;line-height:1.45}
+.legend{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:5px 10px}
+.legend li{display:flex;align-items:center;gap:7px;font-size:13px;min-width:0}
+.legend li span:last-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.legend .chip{width:16px;height:12px;flex:none;border:1px solid rgba(0,0,0,.5)}
+.btn{appearance:none;font-family:var(--f-body);font-size:14px;font-weight:500;color:var(--parch);background:rgba(0,0,0,.2);border:1px solid var(--gold);padding:6px 11px;cursor:pointer}
+.btn:hover{background:var(--imperial-2)}
+.btn[aria-pressed="true"]{background:linear-gradient(180deg,#d9b65e,#b88f37);color:var(--ink);border-color:#f0dc9c}
+.btn.gold{background:linear-gradient(180deg,#d9b65e,#b88f37);color:var(--ink);border-color:#f0dc9c}
+.btn:focus-visible{outline:2px solid var(--gold-soft);outline-offset:1px}
+.row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.list li{display:flex;align-items:center;gap:8px;padding:6px;border-bottom:1px dotted var(--rule);cursor:pointer;font-size:14px}
+.list li:hover,.list li.on{background:rgba(201,162,74,.14)}
+.list .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.list .meta{font-size:12px;color:var(--parch-dim);font-variant-numeric:tabular-nums;white-space:nowrap}
+.sw{width:18px;height:4px;flex:none}
+.sw.road{background:#a8713d;box-shadow:0 0 0 1px #5a3a1e}
+.sw.sea{background:repeating-linear-gradient(90deg,#f2ead6 0 5px,#2b4f8c 5px 8px)}
+textarea{width:100%;box-sizing:border-box;font-family:var(--f-mono);font-size:11.5px;background:rgba(0,0,0,.35);color:var(--parch);border:1px solid var(--rule);padding:8px;resize:vertical;min-height:110px;margin-top:8px}
+#tip{position:absolute;left:0;top:0;pointer-events:none;z-index:7;max-width:260px;padding:8px 11px;background:#f3e7c7;color:var(--ink);border:1px solid #6b5332;
+  box-shadow:0 6px 18px rgba(0,0,0,.45);font-size:13.5px;line-height:1.35}
+#tip b{font-family:var(--f-display);font-weight:400;font-size:16px;letter-spacing:.03em;display:block}
+#tip em{color:#6b4a26}
+#hint{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(18px + env(safe-area-inset-bottom,0px));max-width:min(560px,calc(100vw - 420px));
+  padding:7px 14px;background:rgba(14,36,29,.9);border:1px solid var(--rule);font-family:var(--f-italic);font-style:italic;font-size:14.5px;color:var(--parch);text-align:center;z-index:4}
+#loading{position:absolute;inset:0;display:grid;place-items:center;background:var(--table);z-index:20;transition:opacity .6s}
+#loading div{text-align:center}
+#loading h2{font-family:var(--f-display);font-weight:400;color:var(--gold-soft);letter-spacing:.14em;font-size:26px;margin:14px 0 4px}
+#loading p{font-family:var(--f-italic);font-style:italic;color:var(--parch-dim);margin:0}
+.toast{position:absolute;left:50%;top:calc(70px + env(safe-area-inset-top,0px));transform:translateX(-50%);background:var(--gold);color:var(--ink);padding:6px 14px;font-weight:500;z-index:9;font-size:14px}
+@media (max-width:760px){
+  .brand{padding:6px 12px 6px 6px}.cipher{width:34px;height:34px}.brand h1{font-size:17px}.brand p{font-size:12px}
+  #ledgerToggle{display:inline-block;position:absolute;top:calc(14px + env(safe-area-inset-top,0px));right:max(16px,env(safe-area-inset-right,0px));z-index:5}
+  #panel{width:auto;left:max(16px,env(safe-area-inset-left,0px));top:calc(70px + env(safe-area-inset-top,0px))}
+  #panel:not(.open){display:none}
+  .closeP{display:inline-block}
+  #hint{max-width:calc(100vw - 32px);width:max-content;font-size:13px}
+}
+@media (prefers-reduced-motion:reduce){#loading{transition:none}}
+</style>
 
-async function api(path, opts={}) {
-  const r = await fetch(path, {...opts, headers:{"Content-Type":"application/json","X-Init-Data":INIT,...(opts.headers||{})}});
-  if (!r.ok) { let t = await r.text(); try { t = JSON.parse(t).error || t; } catch(e){} throw new Error(t); }
+<div id="app">
+<div id="gTop"><div id="gWho"><b id="gName">…</b><span class="role" id="gRole"></span><span class="stats"><span id="gHp"></span><span id="gCoins"></span></span></div>
+  <div id="gHint"><div id="gDie" hidden></div><span id="gHintText">در حال آماده کردن نقشه…</span><span id="gPhase"></span></div></div>
+<div id="gList"><button id="gMe">📍 جای من</button><button id="gAll">🗺 کل نقشه</button></div>
+<div id="gSheet" role="dialog" aria-live="polite"><h2 id="gSName"></h2><div class="meta" id="gSMeta"></div><p id="gSDesc"></p>
+  <div class="gRow"><button class="gBtn" id="gCancel">انصراف</button><button class="gBtn gold" id="gGo">حرکت به اینجا</button></div></div>
+<div id="gMsg"><div class="card"><h3 id="gMTitle"></h3><p id="gMText"></p><button class="gBtn gold" id="gMBtn">بستن</button></div></div>
+
+  <canvas id="gl" tabindex="0" aria-label="Three-dimensional campaign map of Europe in 1812"></canvas>
+  <div id="labels"></div>
+  <div class="brand">
+    <svg class="cipher" viewBox="0 0 48 48" aria-hidden="true">
+      <circle cx="24" cy="24" r="22" fill="none" stroke="#c9a24a" stroke-width="1.5"/>
+      <circle cx="24" cy="24" r="18.5" fill="#0e241d" stroke="#c9a24a" stroke-width=".8"/>
+      <g fill="none" stroke="#c9a24a" stroke-width="1.1"><path d="M10 33c-2-6-1-13 4-18M38 33c2-6 1-13-4-18"/><path d="M11 29l-3-1M10.5 24.5l-3-.5M12 20l-2.6-1.4M14 16l-2-2M37 29l3-1M37.5 24.5l3-.5M36 20l2.6-1.4M34 16l2-2"/></g>
+      <text x="24" y="31" text-anchor="middle" font-family="IM Fell English SC, Georgia, serif" font-size="21" fill="#e6cd84">N</text>
+    </svg>
+    <div><h1>Europe · MDCCCXII</h1><p>Zombie Bazi · the London campaign</p></div>
+  </div>
+  <button class="btn" id="ledgerToggle">Ledger</button>
+  <aside id="panel" aria-label="Campaign ledger">
+    <header><h2>Campaign Map</h2><button class="btn sm closeP" id="closePanel">Close</button></header>
+    <div class="scroll">
+      <section class="sec">
+        <h3>Layers</h3>
+        <div class="layers">
+          <button class="btn" data-layer="borders" aria-pressed="true">Borders</button>
+          <button class="btn" data-layer="labels" aria-pressed="true">Names</button>
+          <button class="btn" data-layer="trees" aria-pressed="true">Forests</button>
+          <button class="btn" data-layer="ships" aria-pressed="true">Ships</button>
+        </div>
+      </section>
+      <section class="sec">
+        <h3>Tally</h3>
+        <div class="tally">
+          <div><b id="cCities">0</b><span>cities</span></div>
+          <div><b id="cRoads">0</b><span>roads</span></div>
+          <div><b id="cSeas">0</b><span>sea lanes</span></div>
+          <div><b id="cNodes">0</b><span>nodes</span></div>
+        </div>
+        <p class="muted" id="cLen" style="margin-top:8px"></p>
+      </section>
+      <section class="sec">
+        <h3>Powers of 1812</h3>
+        <ul class="legend" id="legend"></ul>
+      </section>
+      <section class="sec">
+        <h3>Routes</h3>
+        <ul class="list" id="pathList"></ul>
+      </section>
+      <section class="sec">
+        <h3>Map data</h3>
+        <p class="muted">Copy the finished network, with the drawn road and sea-lane shapes, to bring into the game.</p>
+        <div class="row" style="margin-top:8px"><button class="btn gold" id="copyBtn">Copy map data</button><button class="btn" id="showJson" aria-pressed="false">Show JSON</button></div>
+        <textarea id="jsonOut" readonly hidden spellcheck="false" aria-label="Map data as JSON"></textarea>
+      </section>
+    </div>
+  </aside>
+  <div id="hint">Drag to pan · right-drag to turn · scroll to zoom · hover a route or node for details</div>
+  <div id="tip" hidden></div>
+  <div id="loading"><div>
+    <svg width="64" height="64" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="22" fill="none" stroke="#c9a24a" stroke-width="1.5"/><text x="24" y="31" text-anchor="middle" font-family="Georgia,serif" font-size="21" fill="#e6cd84">N</text></svg>
+    <h2>در حال کشیدن نقشه</h2><p id="loadStep">کشیدن سواحل اروپا…</p>
+  </div></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/utils/BufferGeometryUtils.js"></script>
+<script>
+"use strict";
+const LAND = [[[22.62,58.62],[22.96,58.61],[23.32,58.45],[23.13,58.44],[22.73,58.23],[22.37,58.22],[22.27,58.16],[22.15,57.97],[22,57.93],[21.99,58],[22.19,58.16],[21.88,58.26],[21.85,58.3],[21.98,58.39],[21.86,58.5],[22.27,58.51],[22.33,58.58],[22.55,58.63]],[[49.87,69],[49.62,68.86],[48.67,68.73],[48.44,68.81],[48.29,69]],[[23.85,35.53],[24.01,35.53],[24.17,35.6],[24.2,35.54],[24.11,35.49],[24.26,35.47],[24.31,35.36],[24.72,35.43],[25.48,35.31],[25.73,35.35],[25.75,35.14],[25.79,35.12],[26.17,35.22],[26.32,35.31],[26.25,35.05],[26.17,35.02],[24.8,34.93],[24.74,34.95],[24.71,35.09],[24.46,35.16],[23.59,35.26],[23.57,35.53],[23.61,35.57],[23.67,35.51],[23.74,35.65],[23.79,35.56]],[[23.42,38.96],[23.52,38.81],[24.13,38.65],[24.28,38.22],[24.36,38.16],[24.56,38.15],[24.58,38.02],[24.5,37.97],[24.36,38.02],[24.21,38.12],[24.04,38.39],[23.65,38.44],[23.62,38.55],[23.25,38.8],[22.87,38.87],[23.31,39.03]],[[34.46,35.59],[33.94,35.29],[33.91,35.2],[34.05,34.99],[33.7,34.97],[33.41,34.75],[33.06,34.68],[33.01,34.57],[32.87,34.66],[32.69,34.65],[32.45,34.73],[32.32,34.95],[32.3,35.08],[32.39,35.05],[32.65,35.18],[32.88,35.18],[32.94,35.39],[33.61,35.35],[34.55,35.66]],[[19.07,57.84],[18.82,57.71],[18.79,57.48],[18.91,57.4],[18.78,57.36],[18.7,57.24],[18.48,57.16],[18.34,56.98],[18.15,56.92],[18.29,57.08],[18.11,57.27],[18.15,57.34],[18.14,57.56],[18.54,57.83],[18.8,57.83],[18.84,57.9],[18.96,57.9]],[[12.57,55.79],[12.54,55.66],[12.32,55.59],[12.22,55.47],[12.39,55.39],[12.41,55.29],[12.09,55.19],[12.05,54.81],[11.86,54.77],[11.74,54.92],[11.66,55.19],[11.29,55.2],[11.17,55.33],[11.19,55.47],[11.12,55.6],[11.01,55.64],[10.98,55.72],[11.32,55.75],[11.48,55.94],[11.63,55.96],[11.69,55.91],[11.69,55.73],[11.82,55.7],[11.94,55.9],[11.87,55.97],[12.22,56.12],[12.58,56.06],[12.61,56.03],[12.53,55.92]],[[10.64,55.61],[10.82,55.32],[10.78,55.13],[10.63,55.05],[9.99,55.16],[9.86,55.36],[9.86,55.52],[10.29,55.61],[10.51,55.56],[10.62,55.61]],[[3.14,39.79],[3.45,39.76],[3.46,39.7],[3.25,39.39],[3.07,39.3],[2.8,39.39],[2.7,39.54],[2.5,39.48],[2.37,39.57],[2.9,39.91],[3.2,39.96],[3.16,39.84]],[[9.63,40.88],[9.8,40.5],[9.64,40.27],[9.71,40.02],[9.56,39.17],[9.49,39.14],[9.06,39.24],[8.97,38.96],[8.88,38.91],[8.65,38.93],[8.42,39.21],[8.4,39.48],[8.45,39.72],[8.54,39.73],[8.55,39.84],[8.41,39.92],[8.47,40.29],[8.35,40.5],[8.19,40.65],[8.2,40.87],[8.22,40.91],[8.47,40.83],[8.7,40.9],[9.23,41.26],[9.61,41.02],[9.57,40.91]],[[9.48,42.81],[9.46,42.66],[9.53,42.55],[9.56,42.16],[9.4,41.93],[9.37,41.68],[9.19,41.39],[8.81,41.59],[8.89,41.7],[8.72,41.76],[8.74,41.93],[8.62,41.93],[8.7,42.1],[8.59,42.16],[8.57,42.22],[8.67,42.28],[8.57,42.36],[8.81,42.61],[9.14,42.73],[9.32,42.71],[9.36,43.02],[9.46,42.98],[9.48,42.86]],[[15.58,38.22],[15.23,37.78],[15.1,37.46],[15.12,37.34],[15.23,37.24],[15.17,37.21],[15.29,37.06],[15.11,36.84],[15.11,36.69],[14.78,36.71],[14.5,36.8],[14.37,36.97],[14.14,37.1],[13.91,37.1],[13.17,37.48],[12.92,37.57],[12.64,37.59],[12.44,37.82],[12.55,38.05],[12.74,38.18],[12.9,38.03],[13.16,38.19],[13.35,38.18],[13.38,38.13],[13.79,37.98],[14.05,38.04],[14.51,38.05],[14.79,38.17],[15.12,38.15],[15.5,38.29],[15.63,38.27]],[[-3.11,58.52],[-3.11,58.41],[-3.21,58.32],[-3.99,57.96],[-4.03,57.85],[-3.86,57.82],[-4.08,57.68],[-4.13,57.58],[-3.4,57.71],[-2.08,57.7],[-1.87,57.61],[-1.78,57.47],[-2.02,57.26],[-2.26,56.86],[-2.59,56.56],[-3.31,56.36],[-2.89,56.4],[-2.65,56.32],[-2.67,56.25],[-2.98,56.19],[-3.36,56.03],[-3.79,56.09],[-3.61,56.02],[-3.05,55.95],[-2.84,56.03],[-2.6,56.03],[-2.15,55.9],[-1.65,55.57],[-1.23,54.7],[-0.67,54.5],[-0.08,54.12],[-0.21,54.02],[0.12,53.61],[-0.27,53.74],[-0.66,53.72],[-0.29,53.69],[0.27,53.34],[0.35,53.16],[0.05,52.91],[0.28,52.81],[0.38,52.83],[0.56,52.97],[1.06,52.96],[1.38,52.89],[1.66,52.75],[1.75,52.47],[1.59,52.12],[1.41,51.99],[1.23,51.97],[1.28,51.84],[1.19,51.8],[0.96,51.81],[0.75,51.73],[0.9,51.69],[0.89,51.57],[0.42,51.47],[0.53,51.49],[0.69,51.39],[0.89,51.36],[1.42,51.36],[1.4,51.18],[1.05,51.05],[0.96,50.93],[0.77,50.93],[0.2,50.76],[-0.2,50.82],[-0.79,50.76],[-1.42,50.9],[-1.33,50.82],[-1.6,50.73],[-2.03,50.72],[-1.96,50.63],[-2.04,50.6],[-2.35,50.64],[-2.43,50.6],[-3,50.72],[-3.4,50.63],[-3.68,50.24],[-3.79,50.23],[-4.2,50.39],[-4.73,50.29],[-5.01,50.16],[-5.12,50.04],[-5.23,50.02],[-5.43,50.11],[-5.62,50.05],[-5.66,50.13],[-5.34,50.25],[-4.89,50.53],[-4.58,50.78],[-4.52,50.98],[-4.3,51.03],[-4.19,51.19],[-3.84,51.23],[-3.14,51.21],[-2.43,51.74],[-3.29,51.39],[-3.56,51.41],[-3.89,51.59],[-4.24,51.57],[-4.09,51.66],[-4.39,51.74],[-4.6,51.74],[-4.9,51.63],[-5.17,51.74],[-5.2,51.86],[-5.26,51.88],[-5.18,51.95],[-4.22,52.28],[-3.98,52.54],[-4.08,52.61],[-4.04,52.7],[-4.12,52.82],[-4.1,52.92],[-4.68,52.81],[-4.64,52.89],[-4.27,53.14],[-3.81,53.3],[-3.43,53.34],[-3.1,53.26],[-3.17,53.39],[-3.07,53.43],[-2.92,53.3],[-2.75,53.31],[-2.91,53.35],[-3.07,53.51],[-2.93,53.73],[-3.03,53.77],[-3.03,53.91],[-2.9,53.96],[-2.85,54.14],[-2.87,54.18],[-3.17,54.13],[-3.57,54.47],[-3.59,54.56],[-3.47,54.77],[-3.27,54.91],[-3.04,54.95],[-3.55,54.95],[-3.96,54.78],[-4.13,54.78],[-4.25,54.85],[-4.52,54.76],[-4.82,54.85],[-4.91,54.69],[-5.03,54.76],[-5.14,54.86],[-5.17,54.99],[-5.06,54.99],[-4.68,55.5],[-4.73,55.6],[-4.89,55.7],[-4.87,55.87],[-4.81,55.94],[-4.58,55.94],[-4.84,56.05],[-4.8,56.16],[-4.93,56.03],[-5.23,55.89],[-5.22,56.07],[-5,56.23],[-5.09,56.2],[-5.41,56],[-5.37,55.83],[-5.56,55.39],[-5.62,55.33],[-5.73,55.33],[-5.77,55.39],[-5.68,55.62],[-5.51,55.8],[-5.62,55.81],[-5.61,56.05],[-5.39,56.51],[-5.19,56.76],[-5.65,56.53],[-5.87,56.56],[-5.97,56.69],[-6.13,56.71],[-5.73,56.85],[-5.86,56.9],[-5.59,57.1],[-5.56,57.23],[-5.82,57.44],[-5.58,57.55],[-5.68,57.57],[-5.74,57.67],[-5.61,57.88],[-5.16,57.88],[-5.41,58.07],[-5.34,58.24],[-5.01,58.26],[-5.09,58.38],[-5.02,58.57],[-4.81,58.57],[-4.71,58.51],[-4.49,58.57],[-4.43,58.51],[-3.26,58.65],[-3.05,58.63],[-3.06,58.59]],[[-7.18,55.06],[-7.03,55.08],[-6.95,55.18],[-6.47,55.24],[-6.13,55.22],[-5.87,54.92],[-5.72,54.82],[-5.71,54.76],[-5.88,54.68],[-5.88,54.64],[-5.58,54.66],[-5.47,54.5],[-5.48,54.44],[-5.67,54.55],[-5.66,54.38],[-5.56,54.37],[-5.61,54.27],[-5.83,54.24],[-6.02,54.05],[-6.22,54.09],[-6.16,54.02],[-6.35,53.99],[-6.14,53.58],[-6.15,53.37],[-6.03,52.93],[-6.17,52.74],[-6.22,52.54],[-6.46,52.34],[-6.32,52.25],[-6.89,52.16],[-6.96,52.25],[-7,52.17],[-7.53,52.1],[-7.63,51.99],[-7.84,51.95],[-8.06,51.83],[-8.41,51.89],[-8.34,51.79],[-8.41,51.71],[-9.3,51.5],[-9.46,51.53],[-9.84,51.48],[-9.52,51.68],[-10.12,51.6],[-9.6,51.87],[-10.09,51.77],[-10.34,51.8],[-10.38,51.87],[-9.91,52.12],[-10.39,52.13],[-10.36,52.21],[-10.13,52.28],[-9.77,52.25],[-9.91,52.4],[-9.63,52.55],[-8.78,52.68],[-8.99,52.76],[-9.17,52.63],[-9.56,52.65],[-9.92,52.57],[-9.52,52.78],[-9.39,52.9],[-9.46,52.95],[-9.3,53.1],[-8.93,53.21],[-9.51,53.24],[-9.62,53.33],[-9.88,53.34],[-9.79,53.39],[-10.09,53.41],[-10.05,53.48],[-10.12,53.55],[-9.72,53.6],[-9.91,53.66],[-9.9,53.73],[-9.58,53.8],[-9.58,53.88],[-9.91,53.86],[-9.86,54.09],[-9.93,54.08],[-9.98,54.19],[-10.09,54.16],[-10.06,54.26],[-9.56,54.31],[-9.32,54.3],[-9.15,54.21],[-9,54.29],[-8.54,54.24],[-8.62,54.35],[-8.23,54.51],[-8.13,54.64],[-8.46,54.61],[-8.76,54.68],[-8.38,54.89],[-8.39,55.02],[-8.27,55.15],[-7.75,55.19],[-7.76,55.25],[-7.67,55.26],[-7.56,55.12],[-7.66,54.97],[-7.48,55.05],[-7.52,55.25],[-7.3,55.3],[-7.37,55.36],[-6.96,55.24],[-7.22,55.09]],[[50,69],[-16,69],[-16,65.05],[50,65.05],[50,31],[-9.83,31],[-9.81,31.42],[-9.68,31.71],[-9.35,32.09],[-9.25,32.57],[-8.51,33.25],[-6.9,33.97],[-6.35,34.78],[-5.92,35.79],[-5.62,35.83],[-5.4,35.93],[-5.28,35.9],[-5.34,35.86],[-5.34,35.74],[-5.25,35.61],[-4.84,35.28],[-4.63,35.21],[-4.33,35.16],[-3.69,35.28],[-3.39,35.21],[-3.21,35.24],[-2.97,35.41],[-2.84,35.13],[-1.91,35.09],[-1.34,35.36],[-0.92,35.67],[-0.43,35.86],[-0.05,35.83],[0.31,36.16],[1.26,36.52],[2.59,36.6],[2.97,36.78],[3.52,36.8],[3.78,36.9],[4.76,36.9],[5.29,36.65],[6.06,36.86],[6.25,36.94],[6.33,37.05],[6.49,37.09],[6.58,37],[6.93,36.92],[7.24,36.97],[7.21,37.09],[7.43,37.06],[7.91,36.86],[8.82,37],[9.14,37.19],[9.69,37.34],[9.84,37.31],[9.78,37.21],[9.83,37.14],[9.89,37.18],[9.88,37.25],[10.2,37.21],[10.19,37.03],[10.33,36.86],[10.29,36.78],[10.41,36.73],[10.57,36.88],[10.77,36.93],[10.95,37.06],[11.05,37.07],[11.13,36.87],[10.97,36.74],[10.8,36.49],[10.52,36.32],[10.48,36.18],[10.59,35.89],[11,35.63],[11.04,35.34],[11.12,35.24],[10.69,34.68],[10.06,34.21],[10.05,34.06],[10.16,33.85],[10.45,33.66],[10.71,33.69],[10.72,33.51],[10.9,33.53],[10.96,33.63],[11.09,33.56],[11.15,33.37],[11.26,33.31],[11.2,33.25],[11.81,33.09],[12.28,32.86],[12.75,32.8],[13.28,32.92],[14.16,32.71],[14.51,32.51],[15.18,32.39],[15.36,32.16],[15.41,31.83],[15.6,31.53],[15.83,31.36],[16.12,31.26],[16.78,31.21],[17.6,31],[20.12,31],[20.14,31.19],[19.96,31.56],[19.93,31.82],[19.97,32],[20.12,32.22],[20.62,32.58],[21.06,32.78],[21.43,32.8],[21.72,32.94],[22.19,32.92],[23.09,32.62],[23.11,32.33],[23.29,32.21],[23.8,32.16],[24.13,32.01],[24.88,31.98],[25.03,31.88],[25.23,31.53],[25.38,31.51],[25.89,31.62],[27.25,31.38],[27.54,31.21],[27.83,31.19],[27.97,31.1],[28.65,31],[29.57,31],[29.93,31.23],[30.22,31.26],[30.4,31.46],[30.92,31.57],[30.56,31.42],[31,31.46],[31.08,31.6],[31.52,31.46],[31.89,31.54],[32.14,31.34],[31.89,31.48],[31.77,31.29],[32.01,31.22],[32.1,31.09],[32.28,31.2],[32.21,31.29],[32.6,31.07],[33.13,31.17],[33.19,31.08],[33.67,31.13],[34.18,31.3],[34.48,31.59],[34.68,31.9],[35.11,33.08],[35.61,34.03],[35.65,34.25],[35.8,34.44],[35.98,34.55],[35.89,34.95],[35.94,35.22],[35.9,35.42],[35.76,35.57],[35.84,35.85],[35.96,36],[35.81,36.31],[36.19,36.66],[36.18,36.81],[36.05,36.91],[35.66,36.72],[35.54,36.6],[35.39,36.57],[34.7,36.82],[34.3,36.6],[33.95,36.3],[33.69,36.18],[32.93,36.1],[32.79,36.04],[32.38,36.18],[32.02,36.53],[31.24,36.82],[30.65,36.87],[30.58,36.8],[30.56,36.53],[30.45,36.27],[30.39,36.24],[30.23,36.31],[29.69,36.16],[29.22,36.32],[29.14,36.4],[29.04,36.69],[28.97,36.72],[28.82,36.68],[28.49,36.8],[28.31,36.81],[28.11,36.65],[28.02,36.63],[28.09,36.75],[27.54,36.68],[27.47,36.75],[28.01,36.83],[28.24,37.03],[27.35,37.02],[27.26,36.98],[27.25,37.08],[27.3,37.13],[27.53,37.16],[27.52,37.25],[27.22,37.39],[27.15,37.6],[27.07,37.66],[27.23,37.73],[27.23,37.98],[26.88,38.06],[26.68,38.2],[26.58,38.15],[26.29,38.28],[26.34,38.37],[26.42,38.37],[26.37,38.56],[26.38,38.62],[26.44,38.64],[26.59,38.56],[26.6,38.42],[26.67,38.34],[26.73,38.42],[26.86,38.37],[27.14,38.45],[26.91,38.48],[26.76,38.71],[27.01,38.89],[26.81,38.96],[26.85,39.12],[26.68,39.29],[26.9,39.55],[26.11,39.47],[26.18,39.99],[26.31,40.02],[26.74,40.4],[27.28,40.46],[27.33,40.38],[27.48,40.32],[27.73,40.33],[27.85,40.38],[27.73,40.48],[27.87,40.51],[27.99,40.49],[27.93,40.38],[27.96,40.37],[29.01,40.39],[29.05,40.42],[28.79,40.53],[29.05,40.65],[29.85,40.74],[29.36,40.81],[29.12,40.94],[29.05,41.01],[29.15,41.22],[29.92,41.15],[30.35,41.2],[30.81,41.08],[31.25,41.11],[31.46,41.32],[32.3,41.73],[33.38,42.02],[34.75,41.96],[35,42.06],[35.16,42.03],[35.12,41.89],[35.3,41.73],[35.56,41.63],[35.92,41.71],[36.05,41.68],[36.18,41.43],[36.41,41.27],[36.51,41.26],[36.65,41.35],[36.78,41.36],[36.99,41.28],[37.07,41.18],[38.38,40.93],[39.43,41.11],[39.81,40.98],[40.26,40.96],[41.41,41.42],[41.7,41.7],[41.76,41.89],[41.42,42.74],[41.13,42.83],[41.06,42.93],[40.84,43.06],[40.46,43.15],[39.87,43.47],[38.72,44.29],[38.18,44.42],[37.85,44.7],[37.7,44.66],[37.5,44.7],[37.2,44.97],[36.63,45.15],[36.62,45.19],[36.94,45.29],[36.72,45.37],[36.87,45.43],[37.22,45.27],[37.65,45.38],[37.67,45.49],[37.61,45.5],[37.61,45.57],[37.84,45.8],[37.93,46],[38.01,46.05],[38.08,45.94],[38.18,46.09],[38.49,46.09],[38.08,46.39],[37.91,46.41],[37.77,46.64],[37.97,46.62],[38.23,46.7],[38.5,46.66],[38.44,46.81],[39.27,47.04],[39.29,47.11],[39.2,47.27],[39.02,47.27],[38.93,47.18],[38.67,47.14],[38.55,47.15],[38.76,47.26],[38.58,47.24],[38.18,47.08],[37.54,47.07],[37.34,46.92],[37.05,46.88],[36.79,46.71],[36.56,46.76],[36.28,46.66],[35.83,46.62],[35.4,46.38],[35.2,46.17],[35.02,46.11],[35.28,46.28],[35.29,46.37],[35.23,46.44],[35.06,46.27],[34.85,46.19],[34.86,45.99],[35.02,45.7],[35.46,45.32],[35.83,45.4],[36.01,45.37],[36.17,45.45],[36.57,45.39],[36.39,45.07],[35.87,45],[35.68,45.1],[35.47,45.1],[35.09,44.8],[34.72,44.81],[34.47,44.72],[34.28,44.54],[33.91,44.39],[33.65,44.43],[33.45,44.55],[33.61,44.91],[33.55,45.1],[33.39,45.19],[33.19,45.19],[32.92,45.35],[32.61,45.33],[32.51,45.4],[33.14,45.75],[33.67,45.95],[33.59,46.1],[33.43,46.06],[33.2,46.18],[32.48,46.08],[32.03,46.26],[31.83,46.28],[31.78,46.32],[31.99,46.36],[32.01,46.43],[31.71,46.47],[31.56,46.56],[32.36,46.48],[32.58,46.62],[32.36,46.57],[32.05,46.64],[31.94,46.78],[31.94,46.98],[31.76,47.21],[31.91,46.93],[31.87,46.65],[31.53,46.66],[31.56,46.78],[31.4,46.63],[30.8,46.55],[30.66,46.27],[30.22,45.87],[29.82,45.73],[29.63,45.72],[29.6,45.6],[29.67,45.54],[29.73,45.34],[29.56,44.84],[29.05,44.76],[29.05,44.92],[29.09,44.98],[28.93,44.97],[28.89,44.92],[28.92,44.81],[28.81,44.57],[28.89,44.57],[28.64,44.3],[28.66,43.98],[28.56,43.5],[28.46,43.39],[28.32,43.43],[28.13,43.4],[27.93,43.19],[27.89,42.75],[27.75,42.71],[27.48,42.47],[27.71,42.35],[27.98,42.05],[27.99,41.86],[28.2,41.56],[29.06,41.23],[28.96,41.01],[28.78,40.97],[28.17,41.08],[27.92,40.99],[27.5,40.97],[27.26,40.69],[26.77,40.5],[26.33,40.12],[26.2,40.07],[26.25,40.31],[26.79,40.63],[26.11,40.61],[26.01,40.77],[25.86,40.84],[25.1,40.99],[24.79,40.86],[24.48,40.95],[24.08,40.72],[23.76,40.75],[23.74,40.68],[23.88,40.54],[23.83,40.48],[23.87,40.42],[24.21,40.33],[24.34,40.15],[24.16,40.28],[23.91,40.36],[23.73,40.33],[23.72,40.29],[23.97,40.11],[24,40.02],[23.95,39.97],[23.66,40.22],[23.43,40.26],[23.39,40.22],[23.43,40.12],[23.68,39.96],[23.63,39.92],[23.39,39.99],[23.31,40.22],[22.9,40.4],[22.85,40.49],[22.92,40.59],[22.63,40.5],[22.59,40.04],[22.84,39.8],[22.98,39.56],[23.23,39.36],[23.33,39.18],[23.15,39.1],[23.16,39.26],[22.99,39.33],[22.92,39.31],[22.84,39.26],[22.89,39.17],[22.97,39.03],[23.07,39.04],[22.8,38.9],[22.57,38.87],[23.25,38.66],[23.37,38.53],[23.57,38.49],[23.68,38.35],[23.97,38.27],[24.02,38.14],[24.06,37.77],[24.02,37.68],[23.5,38.03],[23.03,37.88],[23.15,37.8],[23.2,37.62],[23.39,37.58],[23.49,37.44],[23.16,37.33],[23.1,37.36],[23.1,37.44],[22.94,37.52],[22.78,37.59],[22.73,37.54],[23.06,36.85],[23.04,36.64],[23.16,36.45],[22.98,36.53],[22.78,36.79],[22.72,36.79],[22.61,36.78],[22.49,36.57],[22.49,36.45],[22.43,36.48],[22.38,36.51],[22.38,36.7],[22.08,37.03],[21.95,36.99],[21.89,36.74],[21.58,37.08],[21.58,37.2],[21.69,37.31],[21.68,37.39],[21.57,37.54],[21.33,37.67],[21.29,37.77],[21.12,37.89],[21.31,38.03],[21.4,38.2],[21.66,38.18],[21.83,38.33],[22.92,37.96],[22.89,38.05],[23.12,38.07],[23.18,38.13],[23.15,38.18],[22.83,38.23],[22.42,38.44],[22.32,38.36],[21.97,38.41],[21.47,38.32],[21.33,38.49],[21.3,38.37],[21.18,38.35],[21.11,38.39],[20.99,38.65],[20.78,38.81],[20.77,38.87],[20.78,38.93],[20.89,38.94],[21.11,38.9],[21.15,38.92],[21.12,39.03],[20.78,39.01],[20.3,39.33],[20.19,39.55],[20,39.71],[19.85,40.04],[19.4,40.28],[19.32,40.41],[19.46,40.41],[19.34,40.66],[19.46,40.93],[19.44,41.43],[19.58,41.64],[19.58,41.79],[19.19,41.95],[18.89,42.25],[18.63,42.38],[18.65,42.44],[18.52,42.43],[17.83,42.8],[17.04,43.02],[17.22,43.03],[17.72,42.85],[16.9,43.39],[16.39,43.54],[15.99,43.52],[15.94,43.66],[15.5,43.91],[15.19,44.17],[15.12,44.26],[15.47,44.27],[14.98,44.6],[14.9,44.71],[14.91,44.97],[14.86,45.08],[14.55,45.3],[14.31,45.34],[14.24,45.16],[13.97,44.84],[13.86,44.84],[13.63,45.11],[13.52,45.48],[13.78,45.63],[13.63,45.77],[13.47,45.71],[13.21,45.77],[13.03,45.64],[12.43,45.47],[12.54,45.54],[12.49,45.55],[12.27,45.45],[12.22,45.24],[12.52,44.97],[12.39,44.8],[12.28,44.83],[12.25,44.72],[12.4,44.22],[12.69,43.99],[13.56,43.57],[13.8,43.18],[14.01,42.69],[14.54,42.24],[15.17,41.93],[15.96,41.94],[16.17,41.9],[16.15,41.76],[15.91,41.62],[15.9,41.51],[17.1,41.06],[17.47,40.84],[17.96,40.65],[18.46,40.22],[18.48,40.1],[18.34,39.82],[18.08,39.94],[17.87,40.28],[17.48,40.31],[17.26,40.4],[17.18,40.5],[17.03,40.51],[16.93,40.46],[16.67,40.14],[16.52,39.75],[16.6,39.64],[16.82,39.58],[17.11,39.38],[17.17,39],[17.1,38.92],[16.95,38.94],[16.62,38.8],[16.56,38.72],[16.54,38.41],[16.28,38.25],[16.06,37.94],[15.72,37.94],[15.65,38.03],[15.64,38.18],[15.7,38.26],[15.82,38.3],[15.9,38.48],[15.88,38.61],[15.97,38.71],[16.2,38.76],[16.21,38.94],[16.11,39.02],[16.02,39.35],[15.69,39.99],[15.59,40.05],[15.29,40.07],[14.95,40.24],[14.93,40.31],[14.99,40.38],[14.95,40.47],[14.77,40.67],[14.34,40.6],[14.46,40.73],[14.31,40.81],[14.05,40.81],[13.86,41.13],[13.73,41.24],[13.04,41.27],[12.85,41.41],[12.63,41.47],[12.08,41.94],[11.81,42.08],[11.64,42.29],[11.3,42.42],[11.14,42.39],[11.1,42.42],[11.18,42.46],[11.17,42.53],[10.8,42.8],[10.71,42.94],[10.51,42.97],[10.52,43.2],[10.32,43.51],[10.19,43.95],[9.29,44.32],[8.76,44.42],[8.55,44.35],[8,43.88],[7.26,43.7],[6.72,43.37],[6.57,43.2],[6.11,43.07],[5.81,43.1],[5.41,43.23],[5.32,43.35],[5.07,43.37],[5.06,43.44],[4.71,43.37],[4.22,43.48],[4.05,43.59],[3.91,43.56],[3.26,43.19],[3.04,42.84],[3.09,42.59],[3.31,42.29],[3.17,42.26],[3.15,42.16],[3.24,42.08],[3.25,41.94],[3,41.77],[2.31,41.47],[2.08,41.29],[1.03,41.06],[0.71,40.82],[0.89,40.72],[0.86,40.69],[0.6,40.61],[-0.07,39.88],[-0.33,39.52],[-0.33,39.42],[-0.14,38.97],[0.2,38.76],[-0.52,38.32],[-0.82,37.77],[-0.82,37.71],[-0.72,37.63],[-0.82,37.58],[-1.33,37.56],[-1.64,37.39],[-1.8,37.23],[-1.94,36.95],[-2.19,36.74],[-2.45,36.83],[-2.79,36.72],[-3.15,36.76],[-3.43,36.71],[-3.83,36.76],[-4.37,36.72],[-4.67,36.51],[-4.93,36.5],[-5.17,36.42],[-5.36,36.14],[-5.45,36.15],[-5.46,36.07],[-5.63,36.03],[-6.04,36.19],[-6.23,36.43],[-6.27,36.6],[-6.38,36.64],[-6.41,36.73],[-6.22,36.91],[-6.32,36.91],[-6.4,36.83],[-6.49,36.95],[-6.89,37.19],[-6.86,37.28],[-6.98,37.2],[-7.49,37.17],[-7.84,37.01],[-8.6,37.12],[-9,37.03],[-8.81,37.43],[-8.79,37.73],[-8.88,37.96],[-8.81,38.3],[-8.88,38.45],[-8.67,38.42],[-8.8,38.52],[-9.21,38.45],[-9.25,38.66],[-9.02,38.75],[-8.94,39],[-8.79,39.08],[-8.96,39.02],[-9.14,38.74],[-9.36,38.7],[-9.47,38.73],[-9.48,38.8],[-9.35,39.25],[-9.38,39.34],[-9.15,39.54],[-8.84,40.12],[-8.87,40.26],[-8.69,40.75],[-8.66,41.09],[-8.81,41.65],[-8.76,41.7],[-8.85,41.7],[-8.89,41.77],[-8.78,41.94],[-8.88,41.95],[-8.89,42.11],[-8.69,42.27],[-8.81,42.28],[-8.73,42.41],[-8.81,42.47],[-8.81,42.64],[-9.03,42.59],[-8.93,42.8],[-9.13,42.87],[-9.24,43.04],[-9.18,43.17],[-8.87,43.33],[-8.67,43.32],[-8.35,43.4],[-8.25,43.44],[-8.26,43.58],[-7.7,43.77],[-7.5,43.74],[-7.26,43.6],[-7.06,43.55],[-5.85,43.65],[-4.52,43.42],[-3.61,43.52],[-3.04,43.37],[-2.87,43.45],[-2.2,43.32],[-1.63,43.44],[-1.49,43.56],[-1.24,44.56],[-1.08,44.69],[-1.15,44.76],[-1.24,44.67],[-1.19,45.16],[-1.08,45.53],[-0.83,45.38],[-0.69,45.09],[-0.55,45],[-0.64,45.09],[-0.79,45.47],[-1.2,45.71],[-1.21,45.77],[-1.03,45.74],[-1.15,46.31],[-1.39,46.35],[-1.79,46.52],[-2.06,46.81],[-2.09,46.92],[-2.02,47.04],[-2.2,47.16],[-2.03,47.27],[-1.74,47.22],[-1.97,47.31],[-2.5,47.31],[-2.53,47.38],[-2.43,47.47],[-2.55,47.53],[-2.77,47.51],[-2.73,47.6],[-2.79,47.63],[-3.07,47.62],[-3.16,47.69],[-3.44,47.71],[-3.9,47.84],[-4.31,47.82],[-4.43,47.97],[-4.68,48.04],[-4.33,48.17],[-4.58,48.29],[-4.24,48.3],[-4.39,48.37],[-4.72,48.36],[-4.76,48.45],[-4.72,48.54],[-4.53,48.62],[-4.06,48.71],[-3.71,48.71],[-3.47,48.81],[-3.23,48.84],[-3,48.79],[-2.69,48.54],[-2.45,48.65],[-2.08,48.65],[-2,48.58],[-1.91,48.7],[-1.82,48.63],[-1.38,48.65],[-1.56,48.8],[-1.58,49.2],[-1.81,49.49],[-1.86,49.68],[-1.26,49.68],[-1.23,49.49],[-1.14,49.39],[-0.16,49.3],[0.42,49.45],[0.44,49.47],[0.13,49.51],[0.19,49.7],[0.62,49.86],[1.24,50],[1.41,50.09],[1.59,50.25],[1.55,50.29],[1.58,50.74],[1.77,50.93],[2.45,51.07],[3.43,51.39],[4.22,51.39],[3.59,51.45],[3.45,51.54],[3.74,51.6],[4.14,51.46],[4.28,51.47],[4.01,51.6],[4.18,51.61],[3.95,51.81],[4.03,51.93],[4.48,52.31],[4.77,52.94],[4.89,52.91],[5.06,52.96],[5.36,53.1],[5.53,53.27],[6.06,53.41],[6.82,53.44],[6.97,53.33],[7.2,53.28],[7.05,53.38],[7.11,53.56],[7.21,53.66],[7.63,53.7],[8.01,53.69],[8.17,53.54],[8.11,53.47],[8.2,53.43],[8.33,53.61],[8.49,53.51],[8.49,53.39],[8.53,53.78],[8.62,53.88],[9.21,53.86],[9.59,53.6],[9.78,53.55],[9.63,53.6],[9.31,53.86],[8.98,53.93],[8.9,54],[8.91,54.26],[8.78,54.31],[8.65,54.29],[8.65,54.4],[8.95,54.47],[8.96,54.54],[8.68,54.79],[8.66,54.99],[8.57,55.13],[8.67,55.16],[8.65,55.33],[8.62,55.42],[8.13,55.6],[8.2,55.98],[8.12,56.14],[8.16,56.61],[8.55,56.56],[8.67,56.5],[8.74,56.63],[8.89,56.73],[9.07,56.79],[9.2,56.7],[9.25,57.01],[9.11,57.04],[8.99,57.02],[8.77,56.72],[8.47,56.66],[8.27,56.75],[8.29,56.85],[8.62,57.11],[9.43,57.17],[9.96,57.58],[10.61,57.74],[10.46,57.62],[10.54,57.45],[10.52,57.24],[10.29,57],[10.28,56.62],[10.49,56.52],[10.85,56.52],[10.93,56.44],[10.86,56.3],[10.76,56.24],[10.54,56.2],[10.43,56.28],[10.37,56.25],[10.18,55.87],[9.91,55.84],[10.02,55.76],[9.59,55.49],[9.67,55.27],[9.46,55.04],[9.69,55],[9.75,54.81],[9.89,54.78],[10.02,54.67],[10.03,54.58],[9.87,54.47],[10.14,54.49],[10.21,54.41],[10.36,54.44],[10.73,54.32],[11.01,54.38],[11.06,54.28],[11.01,54.18],[10.81,54.08],[10.86,54.01],[11.4,53.95],[11.8,54.14],[12.11,54.17],[12.58,54.47],[13.03,54.41],[13.15,54.28],[13.45,54.14],[13.73,54.15],[13.87,53.85],[13.95,53.8],[14.58,53.64],[14.56,53.82],[13.93,53.88],[13.92,54],[13.83,54.06],[13.83,54.13],[14.25,53.93],[14.38,53.92],[16.19,54.29],[16.56,54.55],[16.89,54.6],[17.26,54.73],[18.08,54.84],[18.32,54.84],[18.76,54.68],[18.8,54.63],[18.44,54.75],[18.67,54.43],[18.84,54.37],[19.41,54.39],[19.86,54.63],[19.97,54.92],[20.4,54.95],[20.68,55.1],[21.02,55.4],[21.12,55.62],[21.03,55.35],[20.59,54.98],[20.89,54.91],[21.19,54.93],[21.24,55.46],[21.06,55.81],[21.03,56.64],[21.07,56.82],[21.35,57.02],[21.46,57.32],[21.73,57.57],[22.56,57.72],[22.65,57.6],[23.14,57.32],[23.29,57.09],[23.65,56.97],[23.93,57.01],[24.38,57.25],[24.36,57.64],[24.3,57.78],[24.49,58.26],[24.55,58.3],[24.53,58.35],[24.34,58.38],[24.11,58.27],[23.77,58.36],[23.69,58.51],[23.51,58.66],[23.68,58.79],[23.5,58.79],[23.43,58.92],[23.51,59],[23.47,59.03],[23.52,59.11],[23.5,59.19],[24.08,59.29],[24.05,59.37],[24.38,59.47],[25.44,59.52],[25.52,59.56],[25.51,59.64],[26.62,59.55],[26.97,59.45],[27.89,59.41],[28.06,59.55],[28.01,59.72],[28.06,59.78],[28.33,59.69],[28.52,59.85],[28.95,59.83],[29.15,60],[30.16,59.9],[30.17,59.96],[29.72,60.19],[29.07,60.19],[28.64,60.38],[28.49,60.54],[28.62,60.49],[28.65,60.61],[28.51,60.68],[28.18,60.57],[27.46,60.47],[27.2,60.54],[26.53,60.41],[26.6,60.6],[26.57,60.63],[26.38,60.42],[26.21,60.41],[25.95,60.47],[26.04,60.34],[25.76,60.27],[25.66,60.33],[24.6,60.11],[24.45,60.02],[23.46,59.99],[23.02,59.82],[22.96,59.83],[23.2,60.02],[23,60.1],[22.91,60.21],[22.87,60.22],[22.75,60.06],[22.46,60.03],[22.44,60.16],[22.59,60.23],[22.51,60.28],[22.58,60.38],[21.85,60.51],[21.8,60.59],[21.61,60.53],[21.44,60.6],[21.36,60.97],[21.51,61.28],[21.51,61.48],[21.57,61.48],[21.5,61.55],[21.61,61.59],[21.39,61.92],[21.26,61.99],[21.34,62.28],[21.32,62.34],[21.17,62.41],[21.11,62.62],[21.14,62.74],[21.46,62.95],[21.47,63.03],[21.65,63.04],[21.54,63.21],[21.9,63.21],[22.32,63.31],[22.24,63.44],[22.35,63.44],[22.32,63.5],[22.4,63.49],[22.53,63.58],[22.53,63.65],[22.76,63.68],[23.5,64.03],[23.6,64.04],[23.65,64.13],[24.28,64.52],[24.56,64.8],[24.94,64.88],[25.29,64.86],[25.23,64.95],[25.37,65.01],[25.26,65.14],[25.35,65.48],[25.24,65.55],[24.68,65.67],[24.58,65.76],[24.63,65.86],[24.4,65.78],[23.69,65.83],[23.1,65.74],[22.75,65.87],[22.54,65.8],[22.4,65.86],[22.29,65.75],[22.25,65.6],[22.09,65.61],[22.15,65.55],[21.92,65.53],[21.95,65.47],[21.88,65.42],[21.57,65.41],[21.52,65.36],[21.61,65.26],[21.41,65.32],[21.57,65.13],[21.14,64.81],[21.52,64.46],[21.47,64.38],[21.02,64.18],[20.76,63.87],[20.21,63.66],[19.91,63.61],[19.72,63.46],[19.5,63.51],[19.5,63.42],[19.36,63.48],[19.04,63.24],[18.82,63.26],[18.86,63.21],[18.61,63.18],[18.53,63.06],[18.31,63],[18.5,62.99],[18.46,62.9],[18.17,62.79],[17.88,62.87],[17.97,62.72],[17.9,62.66],[18.04,62.6],[17.65,62.45],[17.41,62.51],[17.37,62.43],[17.43,62.34],[17.63,62.23],[17.51,62.17],[17.38,61.87],[17.47,61.68],[17.2,61.72],[17.22,61.66],[17.13,61.57],[17.14,61.38],[17.2,61.31],[17.16,61.28],[17.2,60.95],[17.28,60.81],[17.25,60.7],[17.36,60.64],[17.56,60.64],[17.66,60.54],[17.96,60.59],[18.16,60.41],[18.56,60.25],[18.53,60.15],[18.79,60.08],[18.93,59.94],[18.97,59.76],[18.28,59.44],[17.97,59.36],[18.13,59.32],[18.51,59.41],[18.62,59.33],[18.42,59.29],[18.29,59.11],[17.76,58.97],[16.98,58.65],[16.21,58.64],[16.79,58.59],[16.93,58.49],[16.65,58.43],[16.77,58.21],[16.7,58.16],[16.7,57.92],[16.6,57.91],[16.55,57.81],[16.65,57.5],[16.48,57.26],[16.53,57.07],[16.35,56.71],[16.15,56.5],[16,56.22],[15.83,56.13],[15.63,56.19],[14.78,56.16],[14.72,56.13],[14.75,56.03],[14.56,56.05],[14.4,55.98],[14.21,55.83],[14.2,55.73],[14.34,55.53],[14.18,55.4],[13.81,55.43],[13.32,55.35],[12.89,55.41],[12.94,55.48],[12.97,55.75],[12.47,56.29],[12.71,56.23],[12.8,56.26],[12.66,56.44],[12.86,56.45],[12.92,56.52],[12.88,56.62],[12.72,56.66],[12.42,56.91],[12.15,57.23],[12.05,57.45],[11.96,57.43],[11.88,57.68],[11.73,57.72],[11.7,57.97],[11.55,58],[11.45,58.12],[11.43,58.34],[11.25,58.37],[11.21,58.87],[11.15,58.99],[11.19,59.08],[11.39,59.07],[10.83,59.18],[10.64,59.39],[10.6,59.76],[10.54,59.7],[10.57,59.59],[10.4,59.52],[10.46,59.38],[10.43,59.28],[10.18,59.01],[9.84,58.96],[9.64,59.12],[9.56,59.11],[9.7,59.01],[9.31,58.86],[9.39,58.81],[9.32,58.75],[8.17,58.14],[7.46,58.02],[7,58.02],[6.9,58.07],[6.88,58.15],[6.8,58.16],[6.73,58.07],[6.55,58.12],[6.69,58.22],[6.66,58.26],[6.39,58.27],[6.05,58.38],[5.59,58.62],[5.52,58.73],[5.56,58.97],[5.61,59.01],[6.1,58.87],[6.36,59],[6.1,58.95],[5.89,59.1],[5.97,59.19],[5.95,59.3],[6.42,59.55],[5.56,59.29],[5.36,59.17],[5.17,59.16],[5.13,59.23],[5.24,59.56],[5.47,59.71],[5.77,59.66],[5.87,59.73],[6.22,59.82],[5.83,59.8],[5.73,59.86],[6.07,60.08],[6.14,60.23],[6.35,60.35],[6.52,60.41],[6.57,60.36],[6.53,60.15],[6.72,60.42],[7,60.51],[6.15,60.35],[5.91,60.15],[5.88,60.07],[5.7,60.01],[5.5,59.83],[5.15,59.64],[5.12,59.83],[5.22,59.98],[5.18,60.05],[5.21,60.09],[5.5,60.07],[5.69,60.12],[5.29,60.21],[5.14,60.44],[5.65,60.69],[5.24,60.57],[5.12,60.64],[5.05,60.71],[5.01,61.04],[5.99,61.12],[6.42,61.08],[6.78,61.14],[6.97,61.06],[7.04,60.95],[7.08,60.97],[7.04,61.09],[7.61,61.21],[7.4,61.22],[7.35,61.3],[7.44,61.43],[7.33,61.37],[7.28,61.18],[7.17,61.17],[6.66,61.21],[6.6,61.29],[6.49,61.15],[6.38,61.13],[6.08,61.17],[5.33,61.11],[5.11,61.19],[5.02,61.25],[5,61.43],[5.34,61.48],[4.93,61.71],[4.93,61.88],[5.47,61.9],[6.02,61.79],[6.73,61.87],[6.13,61.85],[5.27,61.94],[5.1,62.03],[5.14,62.16],[5.36,62.15],[5.54,62.31],[5.72,62.38],[5.91,62.42],[6.21,62.35],[6.69,62.47],[6.14,62.41],[6.12,62.45],[6.35,62.61],[6.96,62.63],[7.49,62.54],[7.69,62.59],[7.53,62.61],[7.54,62.67],[8.09,62.73],[8.04,62.77],[6.73,62.72],[6.94,62.93],[7.57,63.1],[8.1,63.09],[8.21,62.99],[8.62,62.85],[8.16,63.16],[8.27,63.29],[8.63,63.34],[8.6,63.43],[8.39,63.44],[8.36,63.5],[8.58,63.6],[8.84,63.65],[9.14,63.59],[9.08,63.5],[9.16,63.46],[9.32,63.57],[9.7,63.63],[10.02,63.39],[10.19,63.46],[10.76,63.46],[10.67,63.56],[10.73,63.63],[11.37,63.81],[11.18,63.9],[11.46,64],[11.31,64.05],[10.91,63.92],[11.05,63.85],[10.94,63.77],[10.06,63.51],[9.92,63.52],[9.77,63.7],[9.57,63.71],[9.61,63.8],[9.87,63.92],[10.01,64.08],[10.24,64.18],[10.56,64.42],[11.63,64.81],[11.3,64.76],[11.35,64.91],[11.49,64.98],[12.16,65.18],[12.31,65.09],[12.51,65.1],[12.92,65.34],[12.42,65.18],[12.13,65.28],[12.12,65.36],[12.27,65.57],[12.63,65.81],[12.69,65.9],[13.03,65.96],[12.79,66.1],[13.67,66.18],[14.03,66.3],[13.12,66.23],[13.07,66.43],[13.11,66.54],[13.19,66.54],[13.21,66.64],[13.62,66.8],[13.96,66.8],[13.65,66.91],[13.88,66.97],[14.11,67.12],[14.34,67.16],[15.42,67.2],[15.44,67.25],[14.44,67.27],[14.75,67.5],[14.96,67.57],[15.41,67.47],[15.59,67.35],[15.58,67.44],[15.69,67.52],[15.49,67.52],[15.25,67.6],[15.22,67.66],[15.35,67.73],[15.31,67.77],[15.04,67.68],[14.78,67.68],[14.8,67.81],[15.05,67.96],[15.62,67.95],[15.6,67.99],[15.36,68],[15.29,68.04],[15.32,68.07],[16.01,68.23],[16.07,68.2],[16.12,68.03],[16.31,67.88],[16.26,68],[16.39,68.09],[16.26,68.14],[16.17,68.28],[16.21,68.32],[16.39,68.39],[16.95,68.35],[17.55,68.43],[17.43,68.48],[16.58,68.47],[16.52,68.53],[16.65,68.63],[17.13,68.69],[17.39,68.8],[17.54,69],[36.63,69],[37.73,68.69],[38.43,68.36],[38.83,68.32],[39.57,68.07],[39.82,68.06],[39.75,68.16],[39.81,68.15],[40.38,67.83],[40.97,67.71],[41.06,67.44],[41.13,67.39],[41.13,67.27],[41.36,67.21],[41.28,66.91],[41.19,66.83],[40.52,66.45],[40.1,66.3],[39.29,66.13],[38.66,66.07],[37.9,66.1],[36.98,66.27],[35.51,66.4],[34.82,66.61],[34.48,66.55],[34.4,66.61],[34.45,66.65],[33.15,66.84],[32.85,67.02],[32.93,67.09],[31.89,67.16],[32.5,67],[32.46,66.92],[32.86,66.72],[33.18,66.68],[33.22,66.53],[33.65,66.44],[33.36,66.33],[34.11,66.23],[34.4,66.13],[34.69,65.95],[34.79,65.86],[34.78,65.77],[34.62,65.51],[34.41,65.4],[34.8,64.99],[34.83,64.8],[34.95,64.76],[34.86,64.71],[34.87,64.56],[35.03,64.44],[35.43,64.35],[35.65,64.38],[36.15,64.19],[36.37,64],[37.44,63.81],[37.97,63.95],[38.07,64.03],[38.06,64.09],[37.95,64.32],[37.74,64.4],[37.18,64.41],[36.58,64.79],[36.53,64.94],[36.79,64.99],[36.88,65.17],[37.14,65.19],[37.53,65.11],[38.01,64.88],[38.41,64.86],[39.57,64.57],[39.76,64.58],[39.85,64.69],[40.06,64.77],[40.44,64.78],[40.28,65],[39.8,65.35],[39.75,65.45],[39.82,65.6],[40.33,65.75],[40.69,65.96],[41.47,66.12],[42.21,66.52],[42.6,66.42],[43.23,66.41],[43.65,66.25],[43.54,66.12],[43.84,66.14],[44.11,66.01],[44.15,66.11],[44.1,66.23],[44.49,66.67],[44.43,66.94],[44.29,67.1],[43.85,67.19],[43.78,67.26],[44.22,68],[44.2,68.25],[44.17,68.33],[43.33,68.67],[44.05,68.55],[45.08,68.58],[45.89,68.48],[46.68,67.97],[46.69,67.85],[45.53,67.76],[44.94,67.48],[44.9,67.41],[44.94,67.35],[45.56,67.19],[45.88,66.89],[46.49,66.8],[47.66,66.98],[47.77,67.28],[47.91,67.45],[47.88,67.58],[48.83,67.68],[48.88,67.73],[48.7,67.87],[49.16,67.87],[50,68.09]],[[-15.54,66.23],[-15.24,66.26],[-14.86,66.38],[-14.6,66.38],[-14.91,66.28],[-15.11,66.1],[-14.7,66.02],[-14.69,65.9],[-14.83,65.76],[-14.39,65.79],[-14.32,65.68],[-14.47,65.57],[-14.17,65.64],[-13.62,65.52],[-13.67,65.4],[-13.8,65.35],[-13.65,65.29],[-13.65,65.24],[-13.75,65.19],[-13.58,65.14],[-13.57,65.07],[-13.85,64.99],[-13.85,64.86],[-14.05,64.74],[-14.38,64.74],[-14.38,64.68],[-14.47,64.64],[-14.43,64.54],[-14.55,64.45],[-15.02,64.3],[-15.5,64.26],[-16,64.13],[-16,66.52],[-15.71,66.36],[-15.65,66.26]],[[16.65,43],[17.19,42.92],[16.85,42.9],[16.67,42.96]],[[17.2,43.13],[16.68,43.12],[16.37,43.21],[17.06,43.14]],[[16.79,43.27],[16.42,43.32],[16.45,43.39],[16.6,43.38],[16.84,43.35],[16.88,43.3]],[[22.92,58.83],[22.84,58.78],[22.77,58.82],[22.66,58.71],[22.54,58.69],[22.47,58.71],[22.41,58.86],[22.06,58.94],[22.46,58.97],[22.65,59.09],[22.73,59.01],[22.91,58.99],[23.01,58.83]],[[23.34,58.55],[23.06,58.61],[23.16,58.68],[23.33,58.65],[23.36,58.58]],[[35.81,65.18],[35.86,65.08],[35.84,65],[35.78,64.98],[35.53,65.15],[35.73,65.2]],[[27.84,35.93],[27.75,35.91],[27.71,35.96],[27.76,36.07],[27.71,36.17],[27.91,36.35],[28.23,36.43],[28.07,36.13],[28.09,36.07],[27.97,36.05]],[[27.17,35.47],[27.14,35.41],[27.07,35.6],[27.16,35.79],[27.22,35.82],[27.16,35.63],[27.23,35.48]],[[25.55,36.97],[25.46,36.93],[25.36,37.07],[25.53,37.2],[25.59,37.15],[25.58,37.04]],[[26.83,37.81],[27.04,37.77],[27.06,37.71],[26.84,37.64],[26.58,37.72],[26.74,37.81]],[[26.03,37.53],[25.98,37.53],[26.09,37.64],[26.35,37.67],[26.21,37.57]],[[24.99,37.76],[24.96,37.69],[24.7,37.96],[24.79,37.99],[24.86,37.91],[24.96,37.9],[24.98,37.8]],[[26.09,38.22],[26,38.16],[25.89,38.24],[25.99,38.35],[25.85,38.57],[26.01,38.6],[26.16,38.54],[26.16,38.3],[26.1,38.23]],[[26.41,39.33],[26.39,39.27],[26.58,39.11],[26.58,39.03],[26.49,39.07],[26.55,38.99],[26.16,39.03],[26.11,39.08],[26.27,39.2],[26.18,39.19],[26.07,39.1],[25.84,39.2],[25.91,39.29],[26.35,39.38]],[[25.44,39.98],[25.36,39.81],[25.26,39.82],[25.25,39.89],[25.18,39.83],[25.06,39.85],[25.06,40],[25.23,40.01],[25.28,39.96],[25.45,40.03]],[[24.77,40.61],[24.65,40.58],[24.51,40.65],[24.62,40.79],[24.72,40.79],[24.77,40.66]],[[10.96,33.72],[10.86,33.69],[10.72,33.74],[10.74,33.89],[10.92,33.89],[11.03,33.81],[10.99,33.75]],[[-4.41,54.18],[-4.61,54.06],[-4.79,54.07],[-4.7,54.22],[-4.43,54.41],[-4.34,54.27],[-4.39,54.22]],[[-5.11,55.45],[-5.33,55.48],[-5.37,55.67],[-5.19,55.69],[-5.1,55.49]],[[-5.78,56.34],[-6.31,56.29],[-6.19,56.36],[-6.14,56.49],[-6.32,56.57],[-6.1,56.65],[-5.95,56.54],[-5.76,56.49]],[[-6.13,55.93],[-6.06,55.72],[-6.09,55.66],[-6.31,55.61],[-6.3,55.78],[-6.49,55.7],[-6.45,55.83],[-6.22,55.91]],[[-5.97,55.81],[-6.04,55.81],[-6.07,55.89],[-5.91,55.97],[-5.97,55.99],[-5.94,56.05],[-5.73,56.12],[-5.8,56.01]],[[-1.31,60.54],[-1.29,60.47],[-1.16,60.42],[-1.05,60.44],[-1.2,60.01],[-1.3,59.88],[-1.36,59.91],[-1.29,60.15],[-1.48,60.17],[-1.67,60.28],[-1.37,60.33],[-1.45,60.47],[-1.57,60.5],[-1.41,60.6],[-1.3,60.61]],[[-4.2,53.32],[-4.05,53.31],[-4.37,53.13],[-4.47,53.18],[-4.55,53.26],[-4.57,53.39],[-4.31,53.42]],[[-3.06,59.03],[-2.76,58.96],[-2.83,58.89],[-3.17,58.92],[-3.24,59],[-3.33,58.97],[-3.35,59.02],[-3.31,59.13],[-3.25,59.14],[-3.02,59.06]],[[-6.7,61.44],[-6.68,61.41],[-6.89,61.54],[-6.94,61.63],[-6.74,61.57],[-6.71,61.5]],[[-7.19,62.14],[-7.07,62.07],[-7.26,62.05],[-7.38,62.07],[-7.42,62.14],[-7.23,62.15]],[[-6.63,62.23],[-6.65,62.09],[-6.84,62.12],[-6.73,61.95],[-7.01,62.09],[-7.17,62.28],[-6.96,62.32],[-6.8,62.27]],[[-6.2,58.36],[-6.33,58.19],[-6.55,58.09],[-6.4,58.08],[-6.42,58.02],[-6.96,57.75],[-7.08,57.81],[-6.86,57.92],[-7.06,58],[-6.99,58.05],[-7.09,58.1],[-7.09,58.18],[-7.01,58.23],[-6.73,58.19],[-6.79,58.28],[-6.74,58.32],[-6.24,58.5],[-6.19,58.43]],[[-6.14,57.51],[-6.14,57.31],[-5.7,57.27],[-5.67,57.23],[-5.99,57.04],[-6.04,57.2],[-6.32,57.2],[-6.44,57.33],[-6.68,57.36],[-6.76,57.44],[-6.58,57.51],[-6.62,57.56],[-6.38,57.6],[-6.36,57.67],[-6.17,57.59]],[[-7.21,57.68],[-7.09,57.63],[-7.18,57.53],[-7.52,57.6],[-7.47,57.65],[-7.27,57.66]],[[-7.25,57.12],[-7.38,57.13],[-7.41,57.38],[-7.27,57.37],[-7.25,57.13]],[[19.99,60.35],[20.26,60.26],[20.19,60.19],[20.04,60.18],[20.03,60.09],[19.74,60.1],[19.69,60.27],[19.78,60.29],[19.78,60.21],[19.85,60.22],[19.87,60.3],[19.79,60.35],[19.89,60.41],[19.95,60.36]],[[21.22,63.24],[21.36,63.26],[21.42,63.25],[21.41,63.2],[21.25,63.15],[21.08,63.28],[21.22,63.26]],[[16.53,56.29],[16.43,56.24],[16.4,56.31],[16.41,56.57],[16.63,56.88],[16.73,56.9],[17,57.32],[17.12,57.32],[16.78,56.8]],[[15.09,55.02],[14.68,55.1],[14.72,55.24],[14.77,55.3],[15.13,55.14],[15.14,55.09]],[[13.71,54.38],[13.71,54.28],[13.48,54.34],[13.37,54.25],[13.19,54.33],[13.16,54.4],[13.18,54.54],[13.34,54.7],[13.42,54.7],[13.49,54.62],[13.66,54.56],[13.6,54.42]],[[12.55,54.97],[12.12,54.91],[12.27,55.06],[12.51,55]],[[11.36,54.89],[11.74,54.81],[11.77,54.68],[11.46,54.63],[11.04,54.77],[11.06,54.94],[11.26,54.95]],[[10.06,54.89],[9.8,54.91],[9.77,55.06],[10,54.99],[10.06,54.91]],[[10.73,54.75],[10.62,54.85],[10.95,55.16],[10.77,54.8]],[[8.31,54.79],[8.3,54.91],[8.4,55.06],[8.45,55.05],[8.38,54.9],[8.63,54.89],[8.35,54.85]],[[-1.06,50.69],[-1.25,50.59],[-1.56,50.67],[-1.31,50.77],[-1.14,50.74]],[[4.29,39.84],[3.87,39.96],[3.85,40.06],[4.22,40.03],[4.32,39.9]],[[1.45,38.92],[1.41,38.86],[1.22,38.9],[1.35,39.08],[1.56,39.12],[1.63,39.04],[1.5,38.93]],[[14.81,44.98],[14.69,44.96],[14.44,45.1],[14.57,45.23],[14.74,45.07]],[[15.19,44.34],[15.16,44.31],[14.91,44.49],[14.74,44.7],[15.21,44.35]],[[14.49,44.66],[14.48,44.62],[14.42,44.67],[14.31,44.9],[14.34,45.02],[14.29,45.15],[14.33,45.16],[14.47,44.97],[14.48,44.69]],[[20.61,38.38],[20.63,38.27],[20.79,38.14],[20.76,38.07],[20.52,38.11],[20.45,38.23],[20.35,38.18],[20.41,38.34],[20.52,38.33],[20.56,38.48]],[[20.89,37.81],[20.99,37.71],[20.91,37.73],[20.82,37.66],[20.62,37.85],[20.69,37.93],[20.84,37.84]],[[20.69,38.61],[20.55,38.58],[20.59,38.76],[20.69,38.84],[20.72,38.64]],[[20.08,39.43],[20.1,39.38],[19.88,39.46],[19.65,39.77],[19.84,39.82],[19.92,39.77],[19.85,39.67],[19.93,39.51],[20.03,39.44]],[[23.05,36.19],[23.04,36.15],[22.94,36.18],[22.93,36.37],[23.1,36.25]],[[3.95,51.74],[4.07,51.65],[3.95,51.63],[3.7,51.71],[3.79,51.75]],[[22.17,60.37],[22.42,60.3],[22.31,60.27],[22.36,60.17],[22.26,60.17],[22.08,60.29],[22.13,60.36]],[[24.85,64.99],[24.58,64.98],[24.58,65.04],[24.78,65.09],[25,65.04],[24.89,65.03]],[[8.1,63.34],[7.89,63.35],[7.8,63.41],[8.07,63.47],[8.14,63.37]],[[8.47,63.67],[8.29,63.69],[8.76,63.8],[8.81,63.77],[8.79,63.7]],[[12.42,66.04],[12.33,66.04],[12.53,66.21],[12.62,66.18],[12.58,66.07]],[[13.87,68.27],[14.12,68.25],[13.78,68.11],[13.49,68.05],[13.42,68.08],[13.39,68.02],[13.23,67.99],[13.2,68.09],[13.3,68.16],[13.78,68.28]],[[12.97,67.87],[12.83,67.82],[12.96,68.02],[13.07,68.07],[13.12,68.05],[13.07,67.93]],[[15.76,68.56],[16.06,68.68],[16.15,68.84],[16.27,68.87],[16.43,68.84],[16.55,68.72],[16.52,68.63],[16.19,68.54],[15.98,68.4],[15.76,68.41],[15.44,68.31],[15.28,68.37],[15.19,68.31],[14.93,68.31],[14.63,68.2],[14.26,68.19],[14.26,68.26],[14.59,68.4],[15.1,68.44],[15.41,68.62],[15.56,68.87],[15.44,68.92],[15.45,69],[15.82,69],[15.91,68.91],[15.93,68.73],[15.79,68.62]],[[15.21,68.94],[15.4,68.78],[15.35,68.67],[15.22,68.62],[14.89,68.61],[14.74,68.68],[14.52,68.63],[14.37,68.71],[14.55,68.82],[14.8,68.79],[14.87,68.91],[15.04,68.89],[15.04,69],[15.18,68.98]],[[11.23,64.87],[10.74,64.87],[11.02,64.98],[11.24,64.91]],[[5.09,60.31],[5.09,60.19],[4.96,60.24],[4.93,60.41],[4.99,60.45],[5.05,60.39]]];
+const DISPATCH = {"map":"Europe 1812: the London campaign","game":"Zombie Bazi","format":"europe-1812-routes/1","coordinates":"WGS84 degrees (lat, lon)","cities":[{"id":"london","name":"London","lat":51.51,"lon":-0.12,"state":"FR","stateName":"French Empire","tier":1,"capital":true,"kind":"occupied","custom":false,"connected":true},{"id":"paris","name":"Paris","lat":48.86,"lon":2.35,"state":"FR","stateName":"French Empire","tier":1,"capital":true,"kind":"city","custom":false,"connected":true},{"id":"milan","name":"Milan","lat":45.46,"lon":9.19,"state":"ITA","stateName":"Kingdom of Italy","tier":1,"capital":true,"kind":"city","custom":false,"connected":true},{"id":"vienna","name":"Vienna","lat":48.21,"lon":16.37,"state":"AUT","stateName":"Austrian Empire","tier":1,"capital":true,"kind":"city","custom":false,"connected":true},{"id":"berlin","name":"Berlin","lat":52.52,"lon":13.4,"state":"PRU","stateName":"Kingdom of Prussia","tier":1,"capital":true,"kind":"city","custom":false,"connected":true},{"id":"warsaw","name":"Warsaw","lat":52.23,"lon":21.01,"state":"WAR","stateName":"Duchy of Warsaw","tier":1,"capital":true,"kind":"city","custom":false,"connected":true},{"id":"stpetersburg","name":"St Petersburg","lat":59.94,"lon":30.32,"state":"RUS","stateName":"Russian Empire","tier":1,"capital":true,"kind":"city","custom":false,"connected":true},{"id":"moscow","name":"Moscow","lat":55.76,"lon":37.62,"state":"RUS","stateName":"Russian Empire","tier":1,"capital":true,"kind":"city","custom":false,"connected":true},{"id":"stockholm","name":"Stockholm","lat":59.33,"lon":18.07,"state":"SWE","stateName":"Kingdom of Sweden","tier":1,"capital":true,"kind":"city","custom":false,"connected":true},{"id":"copenhagen","name":"Copenhagen","lat":55.68,"lon":12.57,"state":"DEN","stateName":"Denmark\u2013Norway","tier":1,"capital":true,"kind":"city","custom":false,"connected":true},{"id":"constantinople","name":"Constantinople","lat":41.01,"lon":28.98,"state":"OTT","stateName":"Ottoman Empire","tier":1,"capital":true,"kind":"city","custom":false,"connected":true},{"id":"amsterdam","name":"Amsterdam","lat":52.37,"lon":4.9,"state":"FR","stateName":"French Empire","tier":1,"capital":true,"kind":"city","custom":false,"connected":true},{"id":"barcelona","name":"Barcelona","lat":41.39,"lon":2.17,"state":"FR","stateName":"French Empire","tier":2,"capital":false,"kind":"city","custom":false,"connected":true},{"id":"birmingham","name":"Birmingham","lat":52.49,"lon":-1.89,"state":"GB","stateName":"United Kingdom","tier":2,"capital":false,"kind":"city","custom":false,"connected":true},{"id":"wagram","name":"Wagram","lat":48.3,"lon":16.56,"state":"AUT","stateName":"Austrian Empire","tier":3,"capital":false,"kind":"battle","custom":false,"connected":true}],"paths":[{"id":"p13","from":"london","to":"birmingham","kind":"road","lengthKm":163,"lengthLieues":42,"nodes":[{"id":"n15","order":1,"t":0.4961,"lat":51.9962,"lon":-0.9981,"name":null}],"sequence":["london","n15","birmingham"]},{"id":"p16","from":"london","to":"amsterdam","kind":"sea","lengthKm":357,"lengthLieues":92,"nodes":[{"id":"n17","order":1,"t":0.5903,"lat":52.0177,"lon":2.8434,"name":null}],"sequence":["london","n17","amsterdam"]},{"id":"p18","from":"amsterdam","to":"paris","kind":"road","lengthKm":430,"lengthLieues":110,"nodes":[{"id":"n19","order":1,"t":0.5454,"lat":50.4556,"lon":3.5092,"name":null}],"sequence":["amsterdam","n19","paris"]},{"id":"p20","from":"paris","to":"milan","kind":"road","lengthKm":640,"lengthLieues":164,"nodes":[{"id":"n21","order":1,"t":0.4985,"lat":47.1652,"lon":5.7596,"name":null}],"sequence":["paris","n21","milan"]},{"id":"p22","from":"vienna","to":"milan","kind":"road","lengthKm":626,"lengthLieues":160,"nodes":[{"id":"n23","order":1,"t":0.4489,"lat":46.9754,"lon":13.1466,"name":null}],"sequence":["vienna","n23","milan"]},{"id":"p24","from":"wagram","to":"constantinople","kind":"road","lengthKm":1271,"lengthLieues":326,"nodes":[{"id":"n25","order":1,"t":0.4757,"lat":44.8322,"lon":22.4681,"name":null}],"sequence":["wagram","n25","constantinople"]},{"id":"p26","from":"wagram","to":"berlin","kind":"road","lengthKm":520,"lengthLieues":133,"nodes":[{"id":"n27","order":1,"t":0.5059,"lat":50.4348,"lon":14.9614,"name":null}],"sequence":["wagram","n27","berlin"]},{"id":"p28","from":"berlin","to":"warsaw","kind":"road","lengthKm":517,"lengthLieues":133,"nodes":[{"id":"n29","order":1,"t":0.5692,"lat":52.3549,"lon":17.7317,"name":null}],"sequence":["berlin","n29","warsaw"]},{"id":"p30","from":"warsaw","to":"moscow","kind":"road","lengthKm":1151,"lengthLieues":295,"nodes":[{"id":"n31","order":1,"t":0.5452,"lat":54.1545,"lon":30.0653,"name":null}],"sequence":["warsaw","n31","moscow"]},{"id":"p32","from":"stpetersburg","to":"moscow","kind":"road","lengthKm":634,"lengthLieues":163,"nodes":[{"id":"n33","order":1,"t":0.4978,"lat":57.8592,"lon":33.9539,"name":null}],"sequence":["stpetersburg","n33","moscow"]},{"id":"p34","from":"stpetersburg","to":"stockholm","kind":"sea","lengthKm":691,"lengthLieues":177,"nodes":[{"id":"n35","order":1,"t":0.6248,"lat":59.5589,"lon":22.6659,"name":null}],"sequence":["stpetersburg","n35","stockholm"]},{"id":"p36","from":"stockholm","to":"copenhagen","kind":"sea","lengthKm":522,"lengthLieues":134,"nodes":[{"id":"n37","order":1,"t":0.5112,"lat":57.4642,"lon":15.2585,"name":null}],"sequence":["stockholm","n37","copenhagen"]},{"id":"p38","from":"milan","to":"barcelona","kind":"road","lengthKm":725,"lengthLieues":186,"nodes":[{"id":"n39","order":1,"t":0.3412,"lat":44.0712,"lon":6.7946,"name":null}],"sequence":["milan","n39","barcelona"]},{"id":"p44","from":"amsterdam","to":"berlin","kind":"road","lengthKm":576,"lengthLieues":148,"nodes":[{"id":"n45","order":1,"t":0.5026,"lat":52.4454,"lon":9.1722,"name":null}],"sequence":["amsterdam","n45","berlin"]},{"id":"p46","from":"paris","to":"berlin","kind":"road","lengthKm":877,"lengthLieues":225,"nodes":[{"id":"n47","order":1,"t":0.5096,"lat":50.7251,"lon":7.9811,"name":null}],"sequence":["paris","n47","berlin"]},{"id":"p48","from":"barcelona","to":"constantinople","kind":"sea","lengthKm":2234,"lengthLieues":573,"nodes":[{"id":"n49","order":1,"t":0.3486,"lat":41.2575,"lon":11.5167,"name":null}],"sequence":["barcelona","n49","constantinople"]},{"id":"p50","from":"london","to":"copenhagen","kind":"sea","lengthKm":955,"lengthLieues":245,"nodes":[{"id":"n51","order":1,"t":0.5272,"lat":53.7086,"lon":6.5707,"name":null}],"sequence":["london","n51","copenhagen"]},{"id":"p52","from":"paris","to":"wagram","kind":"road","lengthKm":1046,"lengthLieues":268,"nodes":[{"id":"n54","order":1,"t":0.5315,"lat":48.5623,"lon":9.9032,"name":null},{"id":"n56","order":2,"t":0.6163,"lat":48.5149,"lon":11.1074,"name":null}],"sequence":["paris","n54","n56","wagram"]},{"id":"p53","from":"wagram","to":"vienna","kind":"road","lengthKm":17,"lengthLieues":4,"nodes":[],"sequence":["wagram","vienna"]},{"id":"p55","from":"berlin","to":"milan","kind":"road","lengthKm":843,"lengthLieues":216,"nodes":[],"sequence":["berlin","milan"]},{"id":"p57","from":"constantinople","to":"moscow","kind":"road","lengthKm":1757,"lengthLieues":451,"nodes":[{"id":"n58","order":1,"t":0.4323,"lat":47.3869,"lon":32.7153,"name":null}],"sequence":["constantinople","n58","moscow"]},{"id":"p59","from":"warsaw","to":"stpetersburg","kind":"road","lengthKm":1032,"lengthLieues":265,"nodes":[{"id":"n60","order":1,"t":0.4476,"lat":55.6809,"lon":25.177,"name":null}],"sequence":["warsaw","n60","stpetersburg"]},{"id":"p61","from":"warsaw","to":"vienna","kind":"road","lengthKm":555,"lengthLieues":142,"nodes":[{"id":"n62","order":1,"t":0.3644,"lat":50.7652,"lon":19.3193,"name":null}],"sequence":["warsaw","n62","vienna"]},{"id":"p63","from":"wagram","to":"moscow","kind":"road","lengthKm":1653,"lengthLieues":424,"nodes":[{"id":"n64","order":1,"t":0.457,"lat":51.7094,"lon":26.185,"name":null}],"sequence":["wagram","n64","moscow"]},{"id":"p65","from":"paris","to":"barcelona","kind":"road","lengthKm":831,"lengthLieues":213,"nodes":[{"id":"n66","order":1,"t":0.4886,"lat":45.2102,"lon":2.2621,"name":null}],"sequence":["paris","n66","barcelona"]},{"id":"p67","from":"amsterdam","to":"milan","kind":"road","lengthKm":829,"lengthLieues":213,"nodes":[{"id":"n68","order":1,"t":0.4535,"lat":49.2365,"lon":6.8454,"name":null}],"sequence":["amsterdam","n68","milan"]},{"id":"p69","from":"amsterdam","to":"vienna","kind":"road","lengthKm":935,"lengthLieues":240,"nodes":[{"id":"n70","order":1,"t":0.4811,"lat":50.3687,"lon":10.4181,"name":null}],"sequence":["amsterdam","n70","vienna"]},{"id":"p71","from":"warsaw","to":"constantinople","kind":"road","lengthKm":1386,"lengthLieues":356,"nodes":[{"id":"n72","order":1,"t":0.464,"lat":47.0242,"lon":24.7079,"name":null}],"sequence":["warsaw","n72","constantinople"]},{"id":"p73","from":"copenhagen","to":"amsterdam","kind":"sea","lengthKm":621,"lengthLieues":159,"nodes":[{"id":"n74","order":1,"t":0.5944,"lat":53.7126,"lon":8.0111,"name":null}],"sequence":["copenhagen","n74","amsterdam"]}]};
+
+const LON0=-12, LON1=44, LAT0=34, LAT1=65, K=Math.cos(50*Math.PI/180);
+const LONC=(LON0+LON1)/2, LATC=(LAT0+LAT1)/2;
+const MW=(LON1-LON0)*K, MH=(LAT1-LAT0);
+const toX=lon=>(lon-LONC)*K, toZ=lat=>-(lat-LATC);
+const fromX=x=>x/K+LONC, fromZ=z=>-z+LATC;
+
+const STATES={
+  FR:{n:'French Empire',c:'#5f78bf',f:{t:'v',c:['#21468b','#ffffff','#c8102e']}},
+  OCC:{n:'French zone of occupation',c:'#5f78bf'},
+  GB:{n:'United Kingdom',c:'#c75a4c',f:{t:'union'}},
+  ES:{n:'Kingdom of Spain',c:'#e2b04c',f:{t:'h',c:['#aa151b','#f1bf00','#f1bf00','#aa151b']}},
+  PT:{n:'Portugal',c:'#86b36c'},
+  ITA:{n:'Kingdom of Italy',c:'#9cc77f',f:{t:'v',c:['#2f8a3c','#ffffff','#c8102e']}},
+  NAP:{n:'Kingdom of Naples',c:'#e79a52'},
+  SIC:{n:'Kingdom of Sicily',c:'#e7a3ad'},
+  SAR:{n:'Kingdom of Sardinia',c:'#6fb3ad'},
+  SUI:{n:'Swiss Confederation',c:'#d87d8a'},
+  RHN:{n:'Confederation of the Rhine',c:'#ad8fcf'},
+  AUT:{n:'Austrian Empire',c:'#e6d462',f:{t:'h',c:['#151515','#f1c40f']}},
+  PRU:{n:'Kingdom of Prussia',c:'#8892a3',f:{t:'h',c:['#ffffff','#151515']}},
+  WAR:{n:'Duchy of Warsaw',c:'#dc6b80',f:{t:'h',c:['#ffffff','#c8102e']}},
+  DAN:{n:'Free City of Danzig',c:'#c9c9c9'},
+  RUS:{n:'Russian Empire',c:'#6fa58e',f:{t:'h',c:['#ffffff','#1c57a5','#d52b1e']}},
+  SWE:{n:'Kingdom of Sweden',c:'#72a7da',f:{t:'nordic',bg:'#006aa7',fg:'#fecc00'}},
+  DEN:{n:'Denmark–Norway',c:'#c96ea3',f:{t:'nordic',bg:'#c8102e',fg:'#ffffff'}},
+  OTT:{n:'Ottoman Empire',c:'#bf9160',f:{t:'crescent',bg:'#c8102e'}},
+  MOR:{n:'Morocco',c:'#cdb48e'},ALG:{n:'Regency of Algiers',c:'#c9a98a'},TUN:{n:'Beylik of Tunis',c:'#c4a27d'}
+};
+const NOTES={london:'Taken by the Grande Armée. The tricolour flies over the Tower.',paris:'Capital of the French Empire.',milan:'Capital of the Kingdom of Italy; Eugène is viceroy.',
+  vienna:'Emperor Francis I, now Napoleon\'s father-in-law.',berlin:'Frederick William III, a reluctant ally.',warsaw:'Grand Duchy under the King of Saxony.',stpetersburg:'Capital of Tsar Alexander I.',
+  moscow:'Ancient capital of the Tsars.',stockholm:'Bernadotte, a French marshal, is crown prince.',copenhagen:'Ally of France since 1807.',constantinople:'Sultan Mahmud II.',
+  amsterdam:'Third city of the Empire since 1810.',barcelona:'Catalonia, annexed to France in 1812.',birmingham:'Workshop of the world: foundries, canals and steam.',wagram:'Field of Napoleon\'s victory, 1809.'};
+const CITIES=DISPATCH.cities.map(c=>({...c,note:NOTES[c.id]||''}));
+const CMAP=new Map(CITIES.map(c=>[c.id,c]));
+
+/* 1812 political borders (approximate), painter's order: later polygons sit on top */
+const POLYS=[
+ ['OTT',[[19.0,41.8],[18.6,42.4],[17.7,42.9],[16.6,43.6],[15.8,44.3],[15.9,45.2],[17.0,45.15],[18.5,45.1],[19.3,44.9],[20.3,44.85],[21.4,44.75],[22.4,44.6],[22.7,45.3],[24.0,45.5],[25.5,45.6],[26.4,45.9],[25.8,46.6],[25.4,47.3],[25.2,47.8],[26.2,48.2],[27.2,48.3],[28.0,47.8],[28.2,47.0],[28.2,46.0],[28.3,45.4],[29.7,45.2],[31,44],[31,42],[36,42.2],[41.6,41.6],[46,41.2],[46,33],[30,33],[26.5,34.5],[22.0,35.8],[20.4,38.0],[19.6,39.5],[19.3,40.6],[19.3,41.5]]],
+ ['RUS',[[24.1,65.8],[23.7,68],[48,68],[48,41.2],[41.6,41.6],[38,44.5],[33,44],[29.7,45.2],[28.3,45.4],[28.2,46.0],[28.2,47.0],[28.0,47.8],[27.2,48.3],[26.4,48.6],[26.1,49.5],[25.2,50.3],[24.3,50.6],[24.1,51.2],[23.6,52.1],[23.6,53.0],[23.8,53.8],[23.4,54.3],[22.8,55.0],[22.0,55.4],[21.2,55.7],[21.0,56.2],[20.5,57.5],[19.3,59.8],[20.5,60.6],[21,63.5]]],
+ ['AUT',[[12.1,50.3],[12.5,50.4],[14.3,51.0],[15.0,51.0],[16.3,50.6],[16.8,50.2],[17.8,50.0],[18.6,49.9],[19.9,49.97],[21.0,50.3],[22.0,50.5],[22.6,50.3],[23.5,50.4],[24.3,50.6],[25.0,50.1],[25.6,49.2],[26.4,48.6],[27.2,48.3],[26.2,48.2],[25.2,47.8],[25.4,47.3],[25.8,46.6],[26.4,45.9],[25.5,45.6],[24.0,45.5],[22.7,45.3],[22.4,44.6],[21.4,44.75],[20.3,44.85],[19.3,44.9],[18.5,45.1],[17.0,45.15],[16.0,45.8],[15.6,46.2],[14.5,46.6],[13.8,47.3],[13.8,48.0],[13.6,48.5],[13.8,48.8],[13.0,49.3],[12.4,49.9]]],
+ ['PRU',[[12.0,53.0],[12.3,53.3],[13.5,53.6],[14.2,54.0],[16,54.6],[18.3,54.8],[18.6,54.4],[19.4,54.4],[20.0,54.95],[21.2,55.7],[22.0,55.4],[22.8,55.0],[23.4,54.3],[22.6,54.0],[21.0,53.6],[20.0,53.4],[19.3,53.4],[18.9,53.2],[18.0,53.3],[17.2,53.4],[16.0,53.3],[15.8,52.8],[15.6,52.3],[15.9,51.8],[16.6,51.5],[17.6,51.3],[17.9,51.2],[18.5,50.5],[18.6,49.9],[17.8,50.0],[16.8,50.2],[16.3,50.6],[15.0,51.0],[14.7,51.3],[14.0,51.9],[13.3,51.8],[12.6,51.9],[12.2,52.1],[11.9,52.6]]],
+ ['WAR',[[16.0,53.3],[17.2,53.4],[18.0,53.3],[18.9,53.2],[19.3,53.4],[20.0,53.4],[21.0,53.6],[22.6,54.0],[23.4,54.3],[23.8,53.8],[23.6,53.0],[23.6,52.1],[24.1,51.2],[24.3,50.6],[23.5,50.4],[22.6,50.3],[22.0,50.5],[21.0,50.3],[19.9,49.97],[19.4,50.1],[18.6,50.2],[18.5,50.5],[17.9,51.2],[17.6,51.3],[16.6,51.5],[15.9,51.8],[15.6,52.3],[15.8,52.8]]],
+ ['DAN',[[18.35,54.48],[18.95,54.45],[18.95,54.2],[18.35,54.2]]],
+ ['RHN',[[6.9,51.8],[8.0,52.0],[8.8,52.4],[9.6,52.9],[10.4,53.3],[10.9,54.0],[12.5,54.4],[13.6,54.7],[14.2,54.0],[13.5,53.6],[12.3,53.3],[12.0,53.0],[11.9,52.6],[12.2,52.1],[12.6,51.9],[13.3,51.8],[14.0,51.9],[14.7,51.3],[15.0,51.0],[14.3,51.0],[12.5,50.4],[12.1,50.3],[12.4,49.9],[13.0,49.3],[13.8,48.8],[13.6,48.5],[13.8,48.0],[13.8,47.3],[14.2,46.9],[13.8,46.65],[12.4,46.55],[12.0,47.0],[11.4,46.9],[10.5,46.9],[10.1,47.3],[9.6,47.5],[8.6,47.7],[7.6,47.6],[7.6,48.0],[7.8,48.6],[8.2,49.0],[8.4,49.6],[8.3,50.0],[7.6,50.4],[7.1,50.9],[6.8,51.3],[6.6,51.7]]],
+ ['FR',[[-6,48.6],[-2,49.6],[1.0,50.75],[1.45,51.0],[2.1,51.35],[3.3,51.7],[4.4,53.5],[6.9,53.6],[8.5,54.2],[10.9,54.0],[10.4,53.3],[9.6,52.9],[8.8,52.4],[8.0,52.0],[6.9,51.8],[6.6,51.7],[6.8,51.3],[7.1,50.9],[7.6,50.4],[8.3,50.0],[8.4,49.6],[8.2,49.0],[7.8,48.6],[7.6,48.0],[7.6,47.6],[7.0,47.4],[6.4,46.9],[6.1,46.5],[6.8,46.45],[7.4,46.45],[8.4,46.4],[8.5,46.0],[8.4,45.4],[8.9,45.0],[9.6,45.05],[10.5,44.95],[10.4,44.5],[10.3,44.3],[11.0,44.2],[11.8,44.0],[12.3,43.7],[12.5,43.4],[13.2,43.0],[13.6,42.6],[13.9,42.0],[13.8,41.4],[13.0,41.2],[12.0,41.0],[9.8,40.9],[8.2,41.2],[7.5,42.5],[3.6,42.0],[3.3,41.0],[0.9,40.5],[0.5,40.8],[0.35,41.5],[0.7,42.6],[-0.7,42.8],[-1.8,43.3],[-2.2,44.5],[-6,46]]],
+ ['FR',[[12.4,46.6],[13.8,46.7],[14.5,46.6],[15.6,46.2],[16.0,45.8],[17.0,45.15],[15.9,45.2],[15.8,44.3],[16.6,43.6],[17.7,42.9],[18.6,42.4],[19.0,41.8],[18.5,41.6],[15.0,43.0],[13.5,44.8],[13.5,45.7],[13.4,46.0],[13.0,46.4]]],
+ ['FR',[[19.6,39.9],[20.2,39.9],[20.2,39.3],[19.6,39.3]]],
+ ['ITA',[[8.5,46.0],[8.9,45.85],[9.3,46.5],[10.1,46.6],[10.5,46.9],[11.4,46.9],[12.0,47.0],[12.4,46.6],[13.0,46.4],[13.4,46.0],[13.5,45.7],[13.0,44.8],[13.9,42.9],[13.6,42.6],[13.2,43.0],[12.5,43.4],[12.3,43.7],[11.8,44.0],[11.0,44.2],[10.3,44.3],[10.4,44.5],[10.5,44.95],[9.6,45.05],[8.9,45.0],[8.4,45.4]]],
+ ['NAP',[[13.9,42.9],[14.5,42.4],[16.5,41.9],[18.8,40.3],[17,39],[16.1,37.8],[15.5,38.25],[14.0,40.8],[13.0,41.2],[13.8,41.4],[13.9,42.0],[13.6,42.6]]],
+ ['SIC',[[12.2,38.3],[15.6,38.35],[15.75,37.9],[15.1,36.55],[14.3,36.65],[12.3,37.5]]],
+ ['SAR',[[8.0,41.28],[9.9,41.28],[9.9,38.8],[8.2,38.8]]],
+ ['SUI',[[6.4,46.9],[7.0,47.4],[7.6,47.6],[8.6,47.7],[9.6,47.5],[10.1,47.3],[10.5,46.9],[10.1,46.6],[9.3,46.5],[8.9,45.85],[8.5,46.0],[8.4,46.4],[7.4,46.45],[6.8,46.45],[6.1,46.5]]],
+ ['ES',[[-9.6,43.9],[-1.8,43.4],[-0.7,42.8],[0.7,42.6],[0.35,41.5],[0.5,40.8],[0.9,40.5],[4.6,40.2],[4.6,38.6],[0.2,38.2],[-1.5,37.2],[-2.5,36.6],[-5.3,36.0],[-6.3,36.4],[-7.4,37.2],[-7.0,38.0],[-7.3,39.0],[-7.0,39.7],[-6.9,41.0],[-6.2,41.6],[-6.6,42.0],[-8.2,41.9],[-8.9,42.0],[-9.6,42.5]]],
+ ['PT',[[-9.9,42.2],[-8.9,42.0],[-8.2,41.9],[-6.6,42.0],[-6.2,41.6],[-6.9,41.0],[-7.0,39.7],[-7.3,39.0],[-7.0,38.0],[-7.4,37.2],[-7.4,36.8],[-9.9,36.8]]],
+ ['GB',[[-11,51.2],[-6,49.8],[1.0,50.75],[1.45,51.0],[1.7,51.15],[2.1,51.4],[2.0,53.0],[0,54.5],[-1,59],[-3,61],[-8,58.5],[-11,55.5]]],
+ ['GB',[[-5.42,36.2],[-5.3,36.2],[-5.3,36.08],[-5.42,36.08]]],
+ ['DEN',[[7.8,54.0],[8.9,53.9],[9.6,53.6],[10.3,53.75],[10.9,54.0],[12.6,54.3],[15.5,54.9],[15.5,55.4],[12.8,55.6],[12.65,56.1],[11.6,57.4],[11.2,58.4],[11.2,59.1],[11.8,59.8],[12.4,60.5],[12.3,61.5],[12.1,62.3],[12.2,63.0],[12.6,63.9],[14.0,64.6],[14.3,65.2],[16,67],[14,68],[3,63],[3,57.5],[7.8,57.2]]],
+ ['SWE',[[11.2,59.1],[11.8,59.8],[12.4,60.5],[12.3,61.5],[12.1,62.3],[12.2,63.0],[12.6,63.9],[14.0,64.6],[14.3,65.2],[16,67],[23.7,68],[24.1,65.8],[21,63.5],[19.4,60.2],[19.5,57.5],[17,55.8],[14.5,55.2],[12.75,55.3],[12.5,56.2],[11.5,57.5],[10.9,58.8]]],
+ ['MOR',[[-12,28],[-5.6,36.2],[-2.0,35.4],[-1.8,34.0],[-1.8,28]]],
+ ['ALG',[[-1.8,28],[-1.8,34.0],[-2.0,35.4],[8.6,37.3],[8.3,36.0],[8.0,28]]],
+ ['TUN',[[8.0,28],[8.3,36.0],[8.6,37.3],[11.5,37.6],[12,33],[11,28]]]
+];
+const OCC_ZONE=[[-1.7,50.55],[1.45,51.0],[1.75,51.42],[0.9,51.95],[-0.6,52.15],[-1.9,51.65]];
+
+const RANGES=[
+ [1.0,.85,[[5.6,44.2],[6.6,45.2],[6.9,45.9],[7.8,46.0],[9.0,46.4],[10.5,46.6],[12.0,46.9],[13.5,47.0],[15.2,47.4]]],
+ [.35,.28,[[6.86,45.83]]],
+ [.75,.45,[[-1.7,43.1],[0,42.75],[1.5,42.6],[2.9,42.45]]],
+ [.42,.45,[[-7.2,42.9],[-5.0,43.0],[-3.4,43.1]]],
+ [.33,.5,[[-7.2,40.2],[-5.2,40.3],[-3.6,40.85]]],
+ [.45,.45,[[-5.0,36.8],[-3.3,37.05],[-2.0,37.3]]],
+ [.25,.6,[[-2.5,40.6],[-1.5,40.3]]],
+ [.48,.45,[[8.5,44.4],[10.5,44.2],[12.4,43.4],[13.5,42.4],[15.0,41.1],[16.0,40.1],[16.1,38.7]]],
+ [.58,.7,[[17.6,48.7],[19.2,49.3],[21.0,49.2],[23.0,48.7],[24.6,47.8],[25.6,46.6],[25.3,45.5],[23.2,45.4],[22.1,44.9]]],
+ [.52,.55,[[14.6,45.6],[16.5,44.1],[18.4,43.1],[19.8,42.2],[20.9,40.6],[21.4,39.2]]],
+ [.42,.4,[[22.6,43.2],[24.5,42.8],[26.4,42.7]]],
+ [.38,.35,[[23.5,41.7],[25.0,41.6]]],
+ [.72,1.3,[[6.3,58.6],[7.5,60.4],[8.6,61.9],[11.0,63.5],[13.2,65.2]]],
+ [.28,.6,[[-5.6,56.7],[-4.0,57.2],[-3.4,57.0]]],
+ [.18,.4,[[-3.0,54.4],[-2.2,54.6]]],
+ [.32,.6,[[3.0,45.3]]],
+ [.24,.45,[[7.0,48.1],[7.8,48.2],[8.2,48.5]]],
+ [.26,.4,[[12.5,50.5],[14.5,50.8],[16.0,50.4]]],
+ [.22,.45,[[13.0,49.2],[14.0,48.8]]],
+ [.82,.55,[[37.8,44.2],[40.5,43.5],[42.5,43.1],[44.0,42.7]]],
+ [.30,.3,[[33.8,44.6],[34.6,44.8]]],
+ [.38,1.6,[[29.5,39.0],[33.0,39.2],[37.5,39.3],[41.5,39.8]]],
+ [.48,.6,[[-5.4,34.6],[-1.5,34.9],[2.8,36.1],[7.0,36.3]]],
+ [.28,.25,[[9.0,40.3],[9.3,41.0]]],
+ [.32,.25,[[9.0,42.2]]],
+ [.40,.18,[[14.99,37.75]]],
+ [.30,.11,[[14.43,40.82]]],
+ [.22,.06,[[-5.35,36.15]]],
+ [.22,.5,[[29.5,46.5],[29.0,47.3]]],
+ [.30,.5,[[22.0,38.0],[22.5,37.2]]],
+ [.30,.4,[[21.5,39.8],[22.2,40.1]]]
+];
+const RIVERS=[
+ [[-1.8,51.7],[-1.25,51.75],[-0.9,51.55],[-0.3,51.47],[0.2,51.5],[0.7,51.48]],
+ [[4.6,47.8],[4.1,48.3],[3.0,48.5],[2.35,48.85],[1.8,49.05],[1.1,49.35],[0.2,49.45]],
+ [[4.2,45.0],[4.0,46.2],[3.1,47.0],[2.4,47.7],[1.9,47.9],[1.0,47.4],[0.0,47.25],[-1.55,47.2],[-2.2,47.28]],
+ [[6.2,46.2],[5.3,45.9],[4.84,45.76],[4.8,45.0],[4.8,44.1],[4.6,43.5]],
+ [[1.4,43.6],[0.6,44.2],[-0.58,44.84],[-0.9,45.4]],
+ [[9.5,47.6],[8.0,47.6],[7.6,48.0],[7.8,48.6],[8.3,49.3],[8.3,50.0],[7.6,50.4],[7.0,50.9],[6.6,51.5],[6.1,51.85],[5.0,51.9],[4.2,51.95]],
+ [[15.0,50.6],[14.2,50.6],[13.74,51.05],[12.6,51.6],[11.8,52.1],[11.6,52.9],[10.6,53.35],[9.99,53.55],[8.8,53.85]],
+ [[17.5,50.2],[17.04,51.11],[16.0,51.8],[14.6,52.3],[14.4,53.3],[14.5,53.6]],
+ [[19.0,49.8],[19.94,50.06],[21.5,50.6],[21.01,52.23],[19.8,52.6],[18.6,53.1],[18.8,54.0],[18.9,54.35]],
+ [[25.5,53.6],[24.2,53.8],[23.9,54.9],[22.6,55.1],[21.3,55.3]],
+ [[31.0,56.0],[30.2,55.2],[28.0,55.8],[26.5,55.9],[25.0,56.4],[24.1,56.95]],
+ [[33.0,55.6],[32.05,54.78],[30.5,54.1],[30.4,52.5],[30.52,50.45],[32.0,49.3],[34.5,48.3],[35.0,47.6],[33.5,46.8],[32.4,46.5]],
+ [[8.5,48.0],[9.99,48.4],[11.4,48.8],[13.4,48.6],[14.3,48.3],[16.37,48.21],[17.1,48.1],[18.8,47.8],[19.04,47.5],[18.9,46.0],[19.2,45.3],[20.46,44.82],[22.0,44.6],[22.7,44.0],[24.0,43.7],[26.0,43.9],[27.5,44.1],[28.0,45.2],[29.6,45.3]],
+ [[7.69,45.07],[8.6,45.1],[9.7,45.0],[11.0,45.0],[12.3,44.95]],
+ [[-4.0,43.0],[-2.0,42.4],[-0.88,41.65],[0.5,40.9],[0.85,40.7]],
+ [[-1.8,40.3],[-3.0,40.0],[-4.0,39.9],[-5.5,39.8],[-7.0,39.6],[-8.5,39.1],[-9.1,38.7]],
+ [[-2.6,41.8],[-4.7,41.6],[-6.5,41.2],[-8.61,41.15]],
+ [[-3.0,38.0],[-4.8,37.9],[-5.98,37.39],[-6.35,36.8]],
+ [[33.0,57.0],[35.9,56.9],[38.5,57.6],[40.0,57.6],[42.0,56.6],[44.0,56.3]],
+ [[35.5,55.6],[37.62,55.76],[38.8,55.1]],
+ [[23.0,49.4],[25.5,48.8],[27.5,48.2],[29.5,47.0],[30.2,46.3]],
+ [[12.5,42.3],[12.45,41.85],[12.25,41.74]],
+ [[9.7,51.4],[9.0,52.5],[8.8,53.08],[8.5,53.5]],
+ [[11.5,50.1],[9.9,49.8],[8.68,50.11],[8.27,50.0]]
+];
+const LAKES=[
+ [[30.5,61.7],[31.5,61.6],[32.8,61.0],[32.6,60.6],[31.5,60.3],[30.9,60.1],[30.0,60.7],[29.8,61.2]],
+ [[35.2,62.8],[36.2,62.2],[35.8,61.3],[35.1,61.0],[34.4,61.6],[34.4,62.4]],
+ [[12.4,59.3],[13.5,59.3],[14.0,58.9],[13.2,58.6],[12.4,58.4],[12.3,58.9]],
+ [[14.3,58.7],[14.6,58.5],[14.2,57.8],[14.0,57.9],[14.1,58.4]],
+ [[27.3,59.0],[27.8,58.8],[27.8,58.2],[27.5,57.9],[27.2,58.3],[27.1,58.7]],
+ [[6.15,46.2],[6.6,46.45],[6.9,46.4],[6.5,46.33]],
+ [[9.0,47.8],[9.6,47.55],[9.7,47.5],[9.2,47.66]],
+ [[17.3,46.75],[18.1,46.97],[18.2,46.9],[17.4,46.7]]
+];
+
+
+/* ---------- noise ---------- */
+function hash(x,y){let h=Math.imul(x,374761393)+Math.imul(y,668265263)|0;h=Math.imul(h^(h>>>13),1274126177);return ((h^(h>>>16))>>>0)/4294967295}
+function vnoise(x,y){const xi=Math.floor(x),yi=Math.floor(y),xf=x-xi,yf=y-yi,u=xf*xf*(3-2*xf),v=yf*yf*(3-2*yf);
+  const a=hash(xi,yi),b=hash(xi+1,yi),c=hash(xi,yi+1),d=hash(xi+1,yi+1);return a+(b-a)*u+(c-a)*v+(a-b-c+d)*u*v}
+function fbm(x,y,o=5){let s=0,a=.5,f=1;for(let i=0;i<o;i++){s+=a*vnoise(x*f,y*f);f*=2.03;a*=.5}return s}
+let seed=7;function rnd(){seed=(seed*16807)%2147483647;return seed/2147483647}
+
+/* ---------- height field ---------- */
+const GW=361, GH=311;
+const HGT=new Float32Array(GW*GH), MTN=new Float32Array(GW*GH), MASK=new Float32Array(GW*GH);
+const gLon=i=>LON0+i/(GW-1)*(LON1-LON0), gLat=j=>LAT1-j/(GH-1)*(LAT1-LAT0);
+function blur(src,w,h,r){let a=Float32Array.from(src),b=new Float32Array(w*h);
+  for(let pass=0;pass<2;pass++){
+    for(let y=0;y<h;y++){let s=0;const o=y*w;for(let x=-r;x<=r;x++)s+=a[o+Math.min(w-1,Math.max(0,x))];
+      for(let x=0;x<w;x++){b[o+x]=s/(2*r+1);s+=a[o+Math.min(w-1,x+r+1)]-a[o+Math.max(0,x-r)]}}
+    for(let x=0;x<w;x++){let s=0;for(let y=-r;y<=r;y++)s+=b[Math.min(h-1,Math.max(0,y))*w+x];
+      for(let y=0;y<h;y++){a[y*w+x]=s/(2*r+1);s+=b[Math.min(h-1,y+r+1)*w+x]-b[Math.max(0,y-r)*w+x]}}
+  }return a}
+function landPathOn(ctx,sx,sy){ctx.beginPath();for(const r of LAND){r.forEach((p,i)=>{const x=sx(p[0]),y=sy(p[1]);i?ctx.lineTo(x,y):ctx.moveTo(x,y)});ctx.closePath()}}
+function buildHeights(){
+  const S=3,cw=(GW-1)*S+1,ch=(GH-1)*S+1;const cv=document.createElement('canvas');cv.width=cw;cv.height=ch;const c=cv.getContext('2d');
+  c.fillStyle='#fff';landPathOn(c,lon=>(lon-LON0)/(LON1-LON0)*(cw-1),lat=>(LAT1-lat)/(LAT1-LAT0)*(ch-1));c.fill('nonzero');
+  const d=c.getImageData(0,0,cw,ch).data;
+  for(let j=0;j<GH;j++)for(let i=0;i<GW;i++){let s=0,n=0;for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const x=i*S+dx,y=j*S+dy;if(x<0||y<0||x>=cw||y>=ch)continue;s+=d[(y*cw+x)*4+3]/255;n++}MASK[j*GW+i]=s/n}
+  const soft=blur(MASK,GW,GH,1),in2=blur(MASK,GW,GH,2),inl=blur(MASK,GW,GH,5),far=blur(MASK,GW,GH,10);
+  // ranges prepared in (lon*K, lat) space
+  const R=RANGES.map(([h,w,pts])=>{const P=pts.map(p=>[p[0]*K,p[1]]);let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9;P.forEach(p=>{x0=Math.min(x0,p[0]);x1=Math.max(x1,p[0]);y0=Math.min(y0,p[1]);y1=Math.max(y1,p[1])});const m=w*2.6;return{h,w,P,b:[x0-m,x1+m,y0-m,y1+m]}});
+  for(let j=0;j<GH;j++){const lat=gLat(j);for(let i=0;i<GW;i++){const lon=gLon(i),X=lon*K,k=j*GW+i;let m=0;
+    for(const r of R){if(X<r.b[0]||X>r.b[1]||lat<r.b[2]||lat>r.b[3])continue;let dmin=1e9;const P=r.P;
+      if(P.length===1)dmin=Math.hypot(X-P[0][0],lat-P[0][1]);else for(let s=0;s<P.length-1;s++){const ax=P[s][0],ay=P[s][1],bx=P[s+1][0],by=P[s+1][1],dx=bx-ax,dy=by-ay;let t=((X-ax)*dx+(lat-ay)*dy)/(dx*dx+dy*dy);t=t<0?0:t>1?1:t;const dd=Math.hypot(X-ax-t*dx,lat-ay-t*dy);if(dd<dmin)dmin=dd}
+      m+=r.h*Math.exp(-(dmin/r.w)*(dmin/r.w))}
+    const ridge=1-Math.abs(fbm(lon*1.1+3.7,lat*1.1-1.3,4)*2-1);
+    const lm=Math.min(1,Math.max(0,(in2[k]-.3)/.6));
+    m=Math.min(1.15,m)*.62*(0.7+0.45*ridge)*lm;MTN[k]=m;
+    const n=fbm(lon*.33,lat*.33);
+    const land=0.035+0.10*inl[k]+0.09*(n-.45)*inl[k]+m;
+    const sea=-0.05-0.24*(1-far[k]);
+    HGT[k]=sea+(land-sea)*Math.min(1,Math.max(0,(soft[k]-.2)/.6));
+  }}
+}
+function hAt(lon,lat){const fx=(lon-LON0)/(LON1-LON0)*(GW-1),fy=(LAT1-lat)/(LAT1-LAT0)*(GH-1);
+  const x=Math.max(0,Math.min(GW-1.001,fx)),y=Math.max(0,Math.min(GH-1.001,fy)),i=Math.floor(x),j=Math.floor(y),u=x-i,v=y-j,k=j*GW+i;
+  return HGT[k]*(1-u)*(1-v)+HGT[k+1]*u*(1-v)+HGT[k+GW]*(1-u)*v+HGT[k+GW+1]*u*v}
+function maskAt(lon,lat){const i=Math.round((lon-LON0)/(LON1-LON0)*(GW-1)),j=Math.round((LAT1-lat)/(LAT1-LAT0)*(GH-1));if(i<0||j<0||i>=GW||j>=GH)return 0;return MASK[j*GW+i]}
+function mtnAt(lon,lat){const i=Math.round((lon-LON0)/(LON1-LON0)*(GW-1)),j=Math.round((LAT1-lat)/(LAT1-LAT0)*(GH-1));if(i<0||j<0||i>=GW||j>=GH)return 0;return MTN[j*GW+i]}
+
+
+
+/* ---------- the engraved plate ---------- */
+const TW=3072, TH=Math.round(3072*MH/MW);
+const px=lon=>(lon-LON0)/(LON1-LON0)*TW, py=lat=>(LAT1-lat)/(LAT1-LAT0)*TH;
+function spaced(ctx,text,x,y,sp){const ch=[...text],ws=ch.map(c=>ctx.measureText(c).width),tot=ws.reduce((a,b)=>a+b,0)+sp*(ch.length-1);let cx=x-tot/2;ch.forEach((c,i)=>{ctx.fillText(c,cx,y);cx+=ws[i]+sp})}
+function label(ctx,text,lon,lat,size,ang,opt={}){const W=opt.W||TW,H=opt.H||TH;ctx.save();ctx.translate((lon-LON0)/(LON1-LON0)*W,(LAT1-lat)/(LAT1-LAT0)*H);ctx.rotate(ang||0);ctx.font=(opt.italic?'italic ':'')+size+'px '+(opt.italic?'"IM Fell English"':'"IM Fell English SC"')+',Georgia,serif';
+  ctx.textBaseline='middle';ctx.textAlign='left';if(opt.halo){ctx.strokeStyle=opt.halo;ctx.lineWidth=size*.18;ctx.lineJoin='round';const ch=[...text],ws=ch.map(c=>ctx.measureText(c).width),sp=opt.sp??size*.35,tot=ws.reduce((a,b)=>a+b,0)+sp*(ch.length-1);let cx=-tot/2;ch.forEach((c,i)=>{ctx.strokeText(c,cx,0);cx+=ws[i]+sp})}
+  ctx.fillStyle=opt.color||'rgba(60,38,20,.55)';spaced(ctx,text,0,0,opt.sp??size*.35);ctx.restore()}
+function landPath2D(W,H){const p=new Path2D();for(const r of LAND){r.forEach((q,i)=>{const x=(q[0]-LON0)/(LON1-LON0)*W,y=(LAT1-q[1])/(LAT1-LAT0)*H;i?p.lineTo(x,y):p.moveTo(x,y)});p.closePath()}return p}
+function buildPlate(){
+  const cv=document.createElement('canvas');cv.width=TW;cv.height=TH;const c=cv.getContext('2d');const land=landPath2D(TW,TH);
+  const g=c.createLinearGradient(0,0,TW,TH);g.addColorStop(0,'#9fb6b2');g.addColorStop(1,'#aec0b6');c.fillStyle=g;c.fillRect(0,0,TW,TH);c.lineJoin='round';
+  for(let k=9;k>=1;k--){c.lineWidth=k*10;c.strokeStyle=k%2?'#94ada9':'#a7bcb6';c.stroke(land)}
+  c.save();c.globalAlpha=.16;c.strokeStyle='#4f6f6f';c.lineWidth=1;for(let y=8;y<TH;y+=11){c.beginPath();c.moveTo(0,y);for(let x=0;x<=TW;x+=60)c.lineTo(x,y+Math.sin(x*.01+y*.3)*1.4);c.stroke()}c.restore();
+  c.save();c.clip(land);
+  const lg=c.createLinearGradient(0,0,0,TH);lg.addColorStop(0,'#eee4c8');lg.addColorStop(1,'#efe2bf');c.fillStyle=lg;c.fillRect(0,0,TW,TH);
+  const nw=220,nh=Math.round(220*TH/TW),nc=document.createElement('canvas');nc.width=nw;nc.height=nh;const nx=nc.getContext('2d'),nd=nx.createImageData(nw,nh);
+  for(let y=0;y<nh;y++)for(let x=0;x<nw;x++){const v=fbm(x*.045,y*.045,4),o=(y*nw+x)*4;nd.data[o]=180+v*60;nd.data[o+1]=165+v*70;nd.data[o+2]=115+v*70;nd.data[o+3]=255}
+  nx.putImageData(nd,0,0);c.globalCompositeOperation='multiply';c.globalAlpha=.2;c.drawImage(nc,0,0,TW,TH);
+  const sc=document.createElement('canvas');sc.width=GW;sc.height=GH;const sx=sc.getContext('2d'),sd=sx.createImageData(GW,GH);const L=[-.62,.62,-.48];const ex=7;
+  for(let j=0;j<GH;j++)for(let i=0;i<GW;i++){const k=j*GW+i,hx=(HGT[k+(i<GW-1?1:0)]-HGT[k-(i>0?1:0)])/.2,hz=(HGT[k+(j<GH-1?GW:0)]-HGT[k-(j>0?GW:0)])/.2;
+    let nX=-hx*ex,nY=1,nZ=-hz*ex;const l=Math.hypot(nX,nY,nZ);const s=Math.max(0,(nX*L[0]+nY*L[1]+nZ*L[2])/l);const v=Math.min(255,140+s*150),o=k*4;sd.data[o]=v;sd.data[o+1]=v*.97;sd.data[o+2]=v*.9;sd.data[o+3]=255}
+  sx.putImageData(sd,0,0);c.globalAlpha=.45;c.drawImage(sc,0,0,TW,TH);c.globalCompositeOperation='source-over';
+  const snow=document.createElement('canvas');snow.width=GW;snow.height=GH;const wx=snow.getContext('2d'),wd=wx.createImageData(GW,GH);
+  for(let k=0;k<GW*GH;k++){const a=Math.min(1,Math.max(0,(HGT[k]-.4)/.2));wd.data[k*4]=250;wd.data[k*4+1]=248;wd.data[k*4+2]=240;wd.data[k*4+3]=a*235}
+  wx.putImageData(wd,0,0);c.globalAlpha=1;c.drawImage(snow,0,0,TW,TH);
+  seed=29;c.strokeStyle='rgba(60,90,90,.6)';c.lineWidth=1.2;
+  for(let q=0;q<260;q++){const lon=24+rnd()*6.5,lat=51.4+rnd()*1.6;if(maskAt(lon,lat)<.9)continue;const x=px(lon),y=py(lat);c.beginPath();c.moveTo(x-7,y);c.lineTo(x+7,y);c.moveTo(x-3,y);c.lineTo(x-4,y-5);c.moveTo(x,y);c.lineTo(x,y-6);c.moveTo(x+3,y);c.lineTo(x+4,y-5);c.stroke()}
+  const hills=[];for(let y=0;y<TH;y+=30)for(let x=0;x<TW;x+=28){const jx=x+(rnd()-.5)*16,jy=y+(rnd()-.5)*16,lon=LON0+jx/TW*(LON1-LON0),lat=LAT1-jy/TH*(LAT1-LAT0);const m=mtnAt(lon,lat);if(m>.2&&maskAt(lon,lat)>.6)hills.push([jx,jy,m])}
+  hills.sort((a,b)=>a[1]-b[1]);
+  for(const [x,y,m] of hills){const s=6+m*16;c.beginPath();c.moveTo(x-s,y);c.quadraticCurveTo(x-s*.25,y-s*1.5,x,y-s*1.25);c.quadraticCurveTo(x+s*.3,y-s*1.4,x+s,y);c.closePath();
+    c.fillStyle='rgba(236,224,193,.7)';c.fill();c.save();c.clip();c.fillStyle='rgba(96,70,40,.4)';c.fillRect(x+s*.05,y-s*2,s*1.2,s*2.2);c.strokeStyle='rgba(70,48,26,.5)';c.lineWidth=.9;for(let h=x+s*.15;h<x+s;h+=3){c.beginPath();c.moveTo(h,y);c.lineTo(h-1,y-s*1.2);c.stroke()}c.restore();
+    c.strokeStyle='rgba(58,40,22,.7)';c.lineWidth=1.3;c.beginPath();c.moveTo(x-s,y);c.quadraticCurveTo(x-s*.25,y-s*1.5,x,y-s*1.25);c.quadraticCurveTo(x+s*.3,y-s*1.4,x+s,y);c.stroke()}
+  c.restore();
+  for(const L2 of LAKES){c.beginPath();L2.forEach((p,i)=>i?c.lineTo(px(p[0]),py(p[1])):c.moveTo(px(p[0]),py(p[1])));c.closePath();c.fillStyle='#9fb6b2';c.fill();c.strokeStyle='#3e2c1a';c.lineWidth=1.6;c.stroke()}
+  c.lineCap='round';c.lineJoin='round';
+  for(const R2 of RIVERS){const P=R2.map(p=>[px(p[0]),py(p[1])]);c.beginPath();c.moveTo(P[0][0],P[0][1]);for(let i=1;i<P.length-1;i++){const mx=(P[i][0]+P[i+1][0])/2,my=(P[i][1]+P[i+1][1])/2;c.quadraticCurveTo(P[i][0],P[i][1],mx,my)}c.lineTo(P[P.length-1][0],P[P.length-1][1]);
+    c.strokeStyle='rgba(236,226,200,.9)';c.lineWidth=6;c.stroke();c.strokeStyle='#4d7591';c.lineWidth=2.6;c.stroke()}
+  c.strokeStyle='#3a2816';c.lineWidth=2.4;c.stroke(land);
+  c.save();c.setLineDash([10,8]);c.strokeStyle='rgba(70,48,26,.25)';c.lineWidth=1.2;
+  for(let k=-3;k<=8;k++){const lon=2.337+5*k;if(lon<LON0||lon>LON1)continue;c.beginPath();c.moveTo(px(lon),0);c.lineTo(px(lon),TH);c.stroke()}
+  for(let lat=35;lat<=65;lat+=5){c.beginPath();c.moveTo(0,py(lat));c.lineTo(TW,py(lat));c.stroke()}c.restore();
+  c.fillStyle='rgba(60,40,22,.75)';c.font='italic 19px "IM Fell English",Georgia,serif';c.textBaseline='bottom';
+  for(let k=-3;k<=8;k++){const lon=2.337+5*k;if(lon<LON0+.5||lon>LON1-.5)continue;c.textAlign='center';c.fillText(k===0?'Méridien de Paris':(Math.abs(5*k)+'° '+(k<0?'O.':'E.')),px(lon),TH-24)}
+  c.textAlign='left';for(let lat=35;lat<=60;lat+=5)c.fillText(lat+'° N.',30,py(lat)-4);
+  for(const ct of CITIES){const x=px(ct.lon),y=py(ct.lat);c.fillStyle='#2a1c10';c.strokeStyle='#2a1c10';
+    if(ct.kind==='battle'){c.lineWidth=2.4;c.beginPath();c.moveTo(x-7,y-7);c.lineTo(x+7,y+7);c.moveTo(x+7,y-7);c.lineTo(x-7,y+7);c.stroke()}
+    else if(ct.tier===1){c.lineWidth=1.8;c.beginPath();c.arc(x,y,10,0,7);c.stroke();c.beginPath();c.arc(x,y,5,0,7);c.fill()}else{c.beginPath();c.arc(x,y,5,0,7);c.fill()}}
+  const SEAS=[['ATLANTIC OCEAN',-10.2,47.4,34,-Math.PI/2],['BAY OF BISCAY',-5.0,45.4,20,0],['GERMAN OCEAN',3.0,56.2,24,-.45],['LA MANCHE',-3.6,49.85,16,-.12],['IRISH SEA',-5.0,53.7,13,-1.25],
+    ['BALTIC SEA',19.4,56.4,22,-.95],['GULF OF BOTHNIA',20.6,62.4,15,-1.15],['GULF OF FINLAND',26.1,59.8,11,0],['MEDITERRANEAN SEA',5.6,38.9,30,0],['TYRRHENIAN SEA',11.8,40.1,15,0],
+    ['ADRIATIC SEA',15.8,43.1,14,-.62],['IONIAN SEA',18.3,37.5,16,0],['AEGEAN SEA',25.0,38.9,14,-1.25],['BLACK SEA',34.0,43.2,28,0],['NORTHERN OCEAN',2.0,63.0,22,0],['SKAGERRAK',8.6,57.9,11,.4]];
+  for(const s of SEAS)label(c,s[0],s[1],s[2],s[3],s[4],{italic:true,color:'rgba(30,58,72,.72)',sp:s[3]*.28});
+  (function(){const x=px(-9.6),y=py(57.6),R=78;c.save();c.translate(x,y);c.strokeStyle='#3a2816';c.lineWidth=1.4;c.beginPath();c.arc(0,0,R*.62,0,7);c.stroke();c.beginPath();c.arc(0,0,R*.56,0,7);c.stroke();
+    for(let i=0;i<16;i++){const a=i*Math.PI/8,l=i%4===0?R:i%2===0?R*.68:R*.5,w=i%4===0?11:7;c.save();c.rotate(a);c.beginPath();c.moveTo(0,-l);c.lineTo(w,0);c.lineTo(0,0);c.closePath();c.fillStyle='#3a2816';c.fill();c.beginPath();c.moveTo(0,-l);c.lineTo(-w,0);c.lineTo(0,0);c.closePath();c.fillStyle='#efe2c0';c.fill();c.stroke();c.restore()}
+    c.font='26px "IM Fell English SC",Georgia,serif';c.fillStyle='#3a2816';c.textAlign='center';c.textBaseline='bottom';c.fillText('N',0,-R-4);c.restore()})();
+  (function(){const x=px(-11.6),y=py(64.5),w=px(-3.2)-x,h=py(60.9)-y;c.fillStyle='rgba(240,228,198,.93)';c.fillRect(x,y,w,h);c.strokeStyle='#3a2816';c.lineWidth=3;c.strokeRect(x+6,y+6,w-12,h-12);c.lineWidth=1;c.strokeRect(x+13,y+13,w-26,h-26);
+    c.fillStyle='#3a2816';c.textAlign='center';c.textBaseline='middle';c.font='italic 22px "IM Fell English",Georgia,serif';c.fillText('Carte Générale de',x+w/2,y+h*.22);
+    c.font='46px "IM Fell English SC",Georgia,serif';c.save();c.textAlign='left';spaced(c,"L'EUROPE",x+w/2,y+h*.42,10);c.restore();c.font='italic 20px "IM Fell English",Georgia,serif';c.fillText('à l\'époque de la prise de Londres',x+w/2,y+h*.6);
+    c.font='26px "IM Fell English SC",Georgia,serif';c.fillText('MDCCCXII',x+w/2,y+h*.78)})();
+  (function(){const km=100*3.898,len=(km/111.2)/(LAT1-LAT0)*TH,x=px(11.6),y=py(34.75);c.strokeStyle='#3a2816';c.lineWidth=1.5;for(let i=0;i<4;i++){c.fillStyle=i%2?'#efe2c0':'#3a2816';c.fillRect(x+i*len/4,y,len/4,9)}c.strokeRect(x,y,len,9);
+    c.fillStyle='#3a2816';c.font='italic 18px "IM Fell English",Georgia,serif';c.textAlign='center';c.textBaseline='bottom';c.fillText('0',x,y-3);c.fillText('50',x+len/2,y-3);c.fillText('100 lieues de poste',x+len,y-3)})();
+  c.strokeStyle='#2a1c10';c.lineWidth=10;c.strokeRect(5,5,TW-10,TH-10);c.lineWidth=2;c.strokeRect(18,18,TW-36,TH-36);
+  return cv;
+}
+
+/* ---------- 1812 borders overlay ---------- */
+const OW=2048, OH=Math.round(2048*MH/MW);
+function polyPath(pts,W,H){const p=new Path2D();pts.forEach((q,i)=>{const x=(q[0]-LON0)/(LON1-LON0)*W,y=(LAT1-q[1])/(LAT1-LAT0)*H;i?p.lineTo(x,y):p.moveTo(x,y)});p.closePath();return p}
+function buildBorders(){
+  const col=document.createElement('canvas');col.width=OW;col.height=OH;const a=col.getContext('2d');
+  const lin=document.createElement('canvas');lin.width=OW;lin.height=OH;const b=lin.getContext('2d');
+  a.lineJoin=b.lineJoin='round';
+  for(const [code,pts] of POLYS){const P=polyPath(pts,OW,OH),C=STATES[code].c;
+    a.fillStyle=C;a.globalAlpha=1;a.fill(P);
+    a.save();a.clip(P);a.strokeStyle=shade(C,-.25);a.lineWidth=22;a.globalAlpha=.85;a.stroke(P);a.restore();
+    b.globalCompositeOperation='destination-out';b.fill(P);b.globalCompositeOperation='source-over';b.strokeStyle='#3b1d14';b.lineWidth=2.6;b.setLineDash([9,4,2,4]);b.stroke(P)}
+  const out=document.createElement('canvas');out.width=OW;out.height=OH;const o=out.getContext('2d');
+  o.save();o.clip(landPath2D(OW,OH));o.globalAlpha=.42;o.drawImage(col,0,0);o.globalAlpha=1;
+  // occupied zone: tricolour hatching
+  const pc=document.createElement('canvas');pc.width=pc.height=18;const pq=pc.getContext('2d');pq.strokeStyle='rgba(33,70,139,.7)';pq.lineWidth=1.6;pq.beginPath();pq.moveTo(-2,20);pq.lineTo(20,-2);pq.stroke();pq.strokeStyle='rgba(200,16,46,.55)';pq.beginPath();pq.moveTo(7,20);pq.lineTo(20,7);pq.moveTo(-2,11);pq.lineTo(11,-2);pq.stroke();
+  const OZ=polyPath(OCC_ZONE,OW,OH);o.globalAlpha=.55;o.fillStyle=o.createPattern(pc,'repeat');o.fill(OZ);o.globalAlpha=1;
+  o.drawImage(lin,0,0);o.setLineDash([6,4]);o.strokeStyle='#8a1c14';o.lineWidth=2.4;o.stroke(OZ);o.restore();
+  // big state names, haloed so they read over the wash
+  const ST=[['FRENCH EMPIRE',2.6,46.8,42,0],['UNITED KINGDOM',-2.4,54.4,18,-1.32],['ZONE OF OCCUPATION',-0.25,51.2,10,0],['KINGDOM OF SPAIN',-4.1,39.6,30,0],['PORTUGAL',-8.0,40.0,15,-1.4],
+    ['KINGDOM OF ITALY',11.3,45.6,13,-.1],['NAPLES',15.9,40.9,15,-.85],['SICILY',14.0,37.45,13,0],['SARDINIA',8.95,40.1,11,-1.45],['CONFEDERATION OF THE RHINE',10.4,49.7,15,0],
+    ['SWITZERLAND',8.0,46.85,10,0],['AUSTRIAN EMPIRE',19.6,47.0,24,0],['PRUSSIA',15.3,53.0,18,0],['DUCHY OF WARSAW',19.9,51.5,14,0],['RUSSIAN EMPIRE',32.5,56.6,40,0],
+    ['SWEDEN',15.6,62.4,20,-1.1],['NORWAY',8.6,61.3,16,-.95],['DENMARK',9.2,56.1,10,0],['OTTOMAN EMPIRE',23.6,42.2,24,0],['ILLYRIAN PROVINCES',15.4,44.85,9,-.6],['REGENCY OF ALGIERS',3.2,35.4,12,0],['MOROCCO',-6.0,34.6,11,0],['TUNIS',9.6,35.2,10,0],['ANATOLIA',33.5,39.2,20,0]];
+  for(const s of ST)label(o,s[0],s[1],s[2],s[3],s[4],{W:OW,H:OH,color:'rgba(52,26,14,.78)',halo:'rgba(244,234,208,.55)'});
+  return out;
+}
+function shade(hex,amt){const n=parseInt(hex.slice(1),16);let r=n>>16,g=n>>8&255,b=n&255;const f=v=>Math.max(0,Math.min(255,Math.round(v+(amt<0?v*amt:(255-v)*amt))));return `rgb(${f(r)},${f(g)},${f(b)})`}
+
+/* ---------- route finding on the height grid ---------- */
+const NOISE=new Float32Array(GW*GH),COAST=new Float32Array(GW*GH);
+const DIRS=[];for(const [dx,dy] of [[1,0],[0,1],[-1,0],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1],[1,2],[2,1],[-1,2],[-2,1],[1,-2],[2,-1],[-1,-2],[-2,-1]])DIRS.push([dx,dy,Math.hypot(dx,dy)]);
+function prepRouting(){const cb=blur(MASK,GW,GH,3);for(let j=0;j<GH;j++)for(let i=0;i<GW;i++){const k=j*GW+i;NOISE[k]=fbm(gLon(i)*.85+11,gLat(j)*.85-4,4);COAST[k]=cb[k]}}
+function astar(si,sj,ti,tj,cost){
+  const N=GW*GH,g=new Float32Array(N).fill(Infinity),came=new Int32Array(N).fill(-1),closed=new Uint8Array(N);
+  const hk=[],hf=[];const push=(k,f)=>{hk.push(k);hf.push(f);let i=hk.length-1;while(i>0){const p=(i-1)>>1;if(hf[p]<=hf[i])break;[hk[p],hk[i]]=[hk[i],hk[p]];[hf[p],hf[i]]=[hf[i],hf[p]];i=p}};
+  const pop=()=>{const k=hk[0],lk=hk.pop(),lf=hf.pop();if(hk.length){hk[0]=lk;hf[0]=lf;let i=0;for(;;){const l=2*i+1,r=l+1;let m=i;if(l<hk.length&&hf[l]<hf[m])m=l;if(r<hk.length&&hf[r]<hf[m])m=r;if(m===i)break;[hk[m],hk[i]]=[hk[i],hk[m]];[hf[m],hf[i]]=[hf[i],hf[m]];i=m}}return k};
+  const s=sj*GW+si,t=tj*GW+ti;g[s]=0;push(s,0);
+  while(hk.length){const cur=pop();if(closed[cur])continue;if(cur===t)break;closed[cur]=1;const ci=cur%GW,cj=(cur/GW)|0;
+    for(const [dx,dy,len] of DIRS){const ni=ci+dx,nj=cj+dy;if(ni<0||nj<0||ni>=GW||nj>=GH)continue;const k=nj*GW+ni;if(closed[k])continue;
+      const ng=g[cur]+cost(cur,k,len);if(ng<g[k]){g[k]=ng;came[k]=cur;push(k,ng+Math.hypot(ni-ti,nj-tj))}}}
+  const out=[];let k=t;if(came[k]<0&&k!==s)return null;while(k>=0){out.push([k%GW,(k/GW)|0]);if(k===s)break;k=came[k]}return out.reverse()}
+const roadCost=(a,b,len)=>{const dh=Math.abs(HGT[b]-HGT[a]);const slope=dh/(len*.1);let c=len*(1+9*slope+2.5*Math.max(0,HGT[b]-.14)+1.1*NOISE[b]);if(MASK[b]<.5)c*=45;return c};
+const seaCost=(a,b,len)=>{let c=len*(1+7*COAST[b]);if(MASK[b]>.45)c*=40;return c};
+function cell(lon,lat){return[Math.round((lon-LON0)/(LON1-LON0)*(GW-1)),Math.round((LAT1-lat)/(LAT1-LAT0)*(GH-1))]}
+function chaikin(P,it){for(let n=0;n<it;n++){const Q=[P[0]];for(let i=0;i<P.length-1;i++){const a=P[i],b=P[i+1];Q.push([a[0]*.75+b[0]*.25,a[1]*.75+b[1]*.25],[a[0]*.25+b[0]*.75,a[1]*.25+b[1]*.75])}Q.push(P[P.length-1]);P=Q}return P}
+function resample(P,step){const out=[P[0]];let acc=0;for(let i=1;i<P.length;i++){let a=P[i-1];const b=P[i];let d=Math.hypot(b[0]-a[0],b[1]-a[1]);while(acc+d>=step){const u=(step-acc)/d;const q=[a[0]+(b[0]-a[0])*u,a[1]+(b[1]-a[1])*u];out.push(q);a=q;d=Math.hypot(b[0]-a[0],b[1]-a[1]);acc=0}acc+=d}const L=P[P.length-1];if(Math.hypot(L[0]-out[out.length-1][0],L[1]-out[out.length-1][1])>step*.3)out.push(L);else out[out.length-1]=L;return out}
+function routeFor(p){const A=CMAP.get(p.from),B=CMAP.get(p.to);const [si,sj]=cell(A.lon,A.lat),[ti,tj]=cell(B.lon,B.lat);
+  let cells=astar(si,sj,ti,tj,p.kind==='sea'?seaCost:roadCost);
+  let P=cells?cells.map(([i,j])=>[toX(gLon(i)),toZ(gLat(j))]):[[toX(A.lon),toZ(A.lat)],[toX(B.lon),toZ(B.lat)]];
+  P[0]=[toX(A.lon),toZ(A.lat)];P[P.length-1]=[toX(B.lon),toZ(B.lat)];
+  // light simplification before smoothing removes the grid staircase
+  const S=[P[0]];for(let i=1;i<P.length-1;i++)if(i%2===0)S.push(P[i]);S.push(P[P.length-1]);
+  return resample(chaikin(S,4),.035)}
+const hXZ=(x,z)=>hAt(fromX(x),fromZ(z));
+
+/* ---------- three.js scene ---------- */
+const canvas=document.getElementById('gl');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true});
+renderer.setPixelRatio(Math.min(2,window.devicePixelRatio||1));renderer.outputEncoding=THREE.sRGBEncoding;
+renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.shadowMap.autoUpdate=false;
+const scene=new THREE.Scene();scene.background=new THREE.Color('#100c08');scene.fog=new THREE.Fog('#100c08',46,95);
+const camera=new THREE.PerspectiveCamera(40,1,.02,200);camera.position.set(-.5,19,15);
+const controls=new THREE.MapControls(camera,canvas);controls.target.set(-.2,0,-1.4);controls.enableDamping=true;controls.dampingFactor=.12;controls.screenSpacePanning=false;
+controls.maxPolarAngle=1.25;controls.minDistance=.9;controls.maxDistance=44;controls.update();
+scene.add(new THREE.HemisphereLight(0xf6f1e6,0x3a2c1c,.7));
+const sun=new THREE.DirectionalLight(0xfff0d8,1.15);sun.position.set(-16,22,-12);sun.castShadow=true;sun.shadow.mapSize.set(innerWidth<800?2048:4096,innerWidth<800?2048:4096);
+Object.assign(sun.shadow.camera,{left:-27,right:27,top:25,bottom:-25,near:1,far:70});sun.shadow.bias=-.0004;sun.shadow.normalBias=.02;scene.add(sun);
+const fillL=new THREE.DirectionalLight(0xb9c8ff,.2);fillL.position.set(14,8,16);scene.add(fillL);
+
+const MC={};function M(color,o={}){const k=(color&&color.uuid||color)+JSON.stringify(o);if(MC[k])return MC[k];const p=Object.assign({roughness:.82,metalness:0},o);if(color&&color.isTexture)p.map=color;else p.color=color;return MC[k]=new THREE.MeshStandardMaterial(p)}
+let terrainGeo,overlay;
+function buildTerrain(plate,borders){
+  const pos=new Float32Array(GW*GH*3),uv=new Float32Array(GW*GH*2);
+  for(let j=0;j<GH;j++)for(let i=0;i<GW;i++){const k=j*GW+i;pos[k*3]=toX(gLon(i));pos[k*3+1]=HGT[k];pos[k*3+2]=toZ(gLat(j));uv[k*2]=i/(GW-1);uv[k*2+1]=1-j/(GH-1)}
+  const idx=new Uint32Array((GW-1)*(GH-1)*6);let q=0;for(let j=0;j<GH-1;j++)for(let i=0;i<GW-1;i++){const a=j*GW+i,b=a+1,c2=a+GW,d=c2+1;idx[q++]=a;idx[q++]=c2;idx[q++]=b;idx[q++]=b;idx[q++]=c2;idx[q++]=d}
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(pos,3));g.setAttribute('uv',new THREE.BufferAttribute(uv,2));g.setIndex(new THREE.BufferAttribute(idx,1));g.computeVertexNormals();terrainGeo=g;
+  const tex=new THREE.CanvasTexture(plate);tex.encoding=THREE.sRGBEncoding;tex.anisotropy=renderer.capabilities.getMaxAnisotropy();
+  const terrain=new THREE.Mesh(g,new THREE.MeshStandardMaterial({map:tex,roughness:.93}));terrain.receiveShadow=terrain.castShadow=true;scene.add(terrain);
+  const bt=new THREE.CanvasTexture(borders);bt.encoding=THREE.sRGBEncoding;bt.anisotropy=renderer.capabilities.getMaxAnisotropy();
+  overlay=new THREE.Mesh(g,new THREE.MeshStandardMaterial({map:bt,transparent:true,depthWrite:false,roughness:.93,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2}));overlay.receiveShadow=true;overlay.renderOrder=1;scene.add(overlay);
+  const base=-.7,sk=[];const P=(i,j)=>{const k=j*GW+i;return[pos[k*3],Math.max(pos[k*3+1],-.3),pos[k*3+2]]};
+  const edge=l=>{for(let s=0;s<l.length-1;s++){const a=l[s],b=l[s+1];sk.push(a[0],a[1],a[2],b[0],b[1],b[2],a[0],base,a[2],b[0],b[1],b[2],b[0],base,b[2],a[0],base,a[2])}};
+  const top=[],bot=[],lef=[],rig=[];for(let i=0;i<GW;i++){top.push(P(i,0));bot.push(P(GW-1-i,GH-1))}for(let j=0;j<GH;j++){rig.push(P(GW-1,j));lef.push(P(0,GH-1-j))}[top,rig,bot,lef].forEach(edge);
+  const sg=new THREE.BufferGeometry();sg.setAttribute('position',new THREE.Float32BufferAttribute(sk,3));sg.computeVertexNormals();scene.add(new THREE.Mesh(sg,new THREE.MeshStandardMaterial({color:'#5a4026',roughness:.9,side:THREE.DoubleSide})));
+  const rim=new THREE.Mesh(new THREE.BoxGeometry(MW+.5,.08,MH+.5),M('#8a6a2c',{metalness:.6,roughness:.4}));rim.position.y=-.72;scene.add(rim);
+  const tc=document.createElement('canvas');tc.width=tc.height=512;const tx=tc.getContext('2d');tx.fillStyle='#2b1d12';tx.fillRect(0,0,512,512);
+  for(let y=0;y<512;y+=2){tx.fillStyle=`rgba(${20+((Math.sin(y*.09)+1)*18)|0},${12+((Math.sin(y*.05)+1)*8)|0},6,.35)`;tx.fillRect(0,y,512,1+(Math.sin(y*.3)>0?1:0))}
+  const tt=new THREE.CanvasTexture(tc);tt.wrapS=tt.wrapT=THREE.RepeatWrapping;tt.repeat.set(6,6);tt.encoding=THREE.sRGBEncoding;
+  const table=new THREE.Mesh(new THREE.PlaneGeometry(220,220),new THREE.MeshStandardMaterial({map:tt,roughness:.7}));table.rotation.x=-Math.PI/2;table.position.y=-.76;table.receiveShadow=true;scene.add(table);
+  const water=new THREE.Mesh(new THREE.PlaneGeometry(MW,MH),new THREE.MeshStandardMaterial({color:'#5f8288',transparent:true,opacity:.2,roughness:.25,metalness:.15}));water.rotation.x=-Math.PI/2;water.position.y=-.004;scene.add(water);
+}
+
+/* ---------- textures for buildings ---------- */
+const TX={};
+function ctex(key,w,h,fn,rep){if(TX[key])return TX[key];const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d');fn(x,w,h);const t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;t.anisotropy=4;if(rep){t.wrapS=t.wrapT=THREE.RepeatWrapping}return TX[key]=t}
+function grain(x,w,h,n=600,a=.07){for(let i=0;i<n;i++){x.fillStyle=`rgba(0,0,0,${Math.random()*a})`;x.fillRect(Math.random()*w,Math.random()*h,2,2)}}
+function facade(key,base,rows,cols,o={}){return ctex(key,128,128,(x,w,h)=>{x.fillStyle=base;x.fillRect(0,0,w,h);grain(x,w,h);
+  if(o.courses){x.strokeStyle='rgba(0,0,0,.08)';for(let y=4;y<h;y+=5){x.beginPath();x.moveTo(0,y);x.lineTo(w,y);x.stroke()}}
+  if(o.pil){x.fillStyle=o.pil;for(let c=0;c<=cols;c++)x.fillRect(c*w/cols-2.5,0,5,h)}
+  if(o.band){x.fillStyle=o.band;x.fillRect(0,0,w,7);x.fillRect(0,h-9,w,9)}
+  const cw=w/cols,rh=(h-16)/rows;for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){const ww=cw*(o.ww||.42),hh=rh*(o.wh||.58),X=c*cw+(cw-ww)/2,Y=8+r*rh+(rh-hh)/2;
+    x.fillStyle=o.frame||'rgba(255,255,255,.5)';x.fillRect(X-1.5,Y-1.5,ww+3,hh+3);x.fillStyle=o.glass||'#2b3138';
+    if(o.arch){x.beginPath();x.moveTo(X,Y+hh);x.lineTo(X,Y+ww/2);x.arc(X+ww/2,Y+ww/2,ww/2,Math.PI,0);x.lineTo(X+ww,Y+hh);x.closePath();x.fill()}else x.fillRect(X,Y,ww,hh)}
+  if(o.rose){x.fillStyle='#2b3138';x.beginPath();x.arc(w/2,h*.42,w*.2,0,7);x.fill();x.strokeStyle='rgba(255,240,200,.6)';x.lineWidth=2;for(let i=0;i<12;i++){x.beginPath();x.moveTo(w/2,h*.42);x.lineTo(w/2+Math.cos(i*.52)*w*.2,h*.42+Math.sin(i*.52)*w*.2);x.stroke()}x.beginPath();x.arc(w/2,h*.42,w*.2,0,7);x.stroke()}})}
+function tiles(key,a,b,o={}){return ctex(key,128,128,(x,w,h)=>{x.fillStyle=a;x.fillRect(0,0,w,h);
+  if(o.chevron){x.fillStyle=b;for(let y=0;y<h;y+=16)for(let i=0;i<w;i+=32){x.beginPath();x.moveTo(i,y+12);x.lineTo(i+16,y);x.lineTo(i+32,y+12);x.lineTo(i+32,y+16);x.lineTo(i+16,y+4);x.lineTo(i,y+16);x.fill()}}
+  else{x.strokeStyle=b;x.lineWidth=1.4;for(let y=0;y<h;y+=7){x.beginPath();x.moveTo(0,y);x.lineTo(w,y);x.stroke();for(let i=(y/7%2)*6;i<w;i+=12){x.beginPath();x.moveTo(i,y);x.lineTo(i,y+7);x.stroke()}}}grain(x,w,h,400,.1)},true)}
+function stripes(key,a,b,diag){return ctex(key,64,64,(x,w,h)=>{x.fillStyle=a;x.fillRect(0,0,w,h);x.strokeStyle=b;x.lineWidth=7;for(let i=-64;i<128;i+=16){x.beginPath();if(diag){x.moveTo(i,0);x.lineTo(i+40,h)}else{x.moveTo(i,0);x.lineTo(i,h)}x.stroke()}})}
+
+/* geometry helpers, local units (1 ≈ one storey) */
+const LMS=.055;
+function mk(geo,m){const o=new THREE.Mesh(geo,typeof m==='string'?M(m):m);return o}
+function box(w,h,d,m){const g=new THREE.BoxGeometry(w,h,d);g.translate(0,h/2,0);return mk(g,m)}
+function cyl(rt,rb,h,m,seg=16,open=false){const g=new THREE.CylinderGeometry(rt,rb,h,seg,1,open);g.translate(0,h/2,0);return mk(g,m)}
+function cone(r,h,m,seg=16){const g=new THREE.ConeGeometry(r,h,seg);g.translate(0,h/2,0);return mk(g,m)}
+function lathe(pts,m,seg=20,sx=1,sy=1){const g=new THREE.LatheGeometry(pts.map(p=>new THREE.Vector2(p[0]*sx,p[1]*sy)),seg);return mk(g,m)}
+function dome(r,m,sy=1,seg=20){const g=new THREE.SphereGeometry(r,seg,10,0,Math.PI*2,0,Math.PI/2);g.scale(1,sy,1);return mk(g,m)}
+function halfDome(r,m,rot=0){const g=new THREE.SphereGeometry(r,16,8,0,Math.PI,0,Math.PI/2);g.rotateY(rot);return mk(g,m)}
+function gable(w,h,d,m){const s=new THREE.Shape();s.moveTo(-w/2,0);s.lineTo(w/2,0);s.lineTo(0,h);s.closePath();const g=new THREE.ExtrudeGeometry(s,{depth:d,bevelEnabled:false});g.translate(0,0,-d/2);return mk(g,m)}
+const ONION=[[0,0],[.55,.04],[.95,.3],[1,.55],[.82,.88],[.45,1.15],[.16,1.42],[.05,1.7],[0,1.85]];
+const OGEE=[[0,0],[1,0],[1,.08],[.9,.35],[.55,.62],[.25,.95],[.08,1.25],[0,1.35]];
+function onion(r,m){return lathe(ONION,m,16,r,r)}
+function at(o,x,y,z,ry){o.position.set(x,y,z);if(ry)o.rotation.y=ry;return o}
+function add(g,...o){o.forEach(x=>g.add(x));return g}
+function crenWall(len,h,t,m,step=.32){const g=new THREE.Group();g.add(box(len,h,t,m));const n=Math.floor(len/step);for(let i=0;i<n;i+=2)g.add(at(box(step,.18,t*1.05,m),-len/2+step*(i+.5),h,0));return g}
+function crenTower(r,h,m,cap){const g=new THREE.Group();g.add(cyl(r,r*1.05,h,m,14));for(let i=0;i<8;i++){const a=i/8*Math.PI*2;g.add(at(box(.14,.18,.14,m),Math.cos(a)*r*.9,h,Math.sin(a)*r*.9,-a))}if(cap)g.add(at(cap,0,h,0));return g}
+
+/* stone, brick, roof materials */
+const MAT=()=>({
+  white:M(facade('white','#e9e3d2',4,4,{arch:true,courses:true})),
+  portland:M(facade('portland','#e4dfd2',3,6,{arch:true,pil:'rgba(255,255,255,.35)',band:'#cfc8b4'})),
+  gothic:M(facade('gothic','#d6ccb4',2,5,{arch:true,ww:.32,wh:.78,pil:'rgba(90,80,60,.18)'})),
+  marble:M(facade('marble','#f1ece2',2,6,{arch:true,ww:.28,wh:.8,pil:'rgba(200,190,170,.5)'})),
+  rose:M(facade('rose','#d6ccb4',1,1,{rose:true,ww:.0,wh:0})),
+  brick:M(facade('brick','#a24b35',3,5,{courses:true,frame:'rgba(240,230,210,.7)'})),
+  redbrick:M(facade('redbrick','#a8402e',1,8,{courses:true,ww:.25,wh:.4,frame:'rgba(0,0,0,0)',glass:'#5e1d14'})),
+  ochre:M(facade('ochre','#d9b36a',3,7,{pil:'rgba(255,250,235,.55)',band:'#f0e6cc'})),
+  green:M(facade('greenpal','#7fae96',3,8,{pil:'rgba(255,255,255,.75)',band:'#f4efe2'})),
+  salmon:M(facade('salmon','#d88a6a',3,6,{band:'#efe2cc'})),
+  yellow:M(facade('yellowbar','#e6cc7c',3,6,{pil:'rgba(255,255,255,.6)',band:'#f4ead2'})),
+  pink:M(facade('pinkstone','#d9a68b',2,5,{arch:true})),
+  slate:M(tiles('slate','#59606a','rgba(0,0,0,.35)')),
+  terracotta:M(tiles('terra','#b4593a','rgba(60,20,10,.4)')),
+  chevron:M(tiles('chev','#2f5b45','#d8b84a',{chevron:true})),
+  lead:M('#69707a',{roughness:.5,metalness:.35}),
+  copper:M('#6fae96',{roughness:.6,metalness:.2}),
+  gold:M('#d4a940',{roughness:.3,metalness:.85}),
+  stone:M('#d8d0bc'),stoneDark:M('#b7ae98'),grass:M('#7d8c55'),water:M('#4f7d8f',{roughness:.25,metalness:.2}),
+  iron:M('#2a2a2c',{roughness:.5,metalness:.6}),bronze:M('#3e5f4c',{metalness:.5,roughness:.4}),wood:M('#6b4a2c'),canvas:M('#efe6d0'),dark:M('#3a332c')
+});
+let Mt;
+
+/* flags */
+const flagTex={};
+function flagTexture(code){if(flagTex[code])return flagTex[code];const f=(STATES[code]||STATES.FR).f||STATES.FR.f;const cv=document.createElement('canvas');cv.width=96;cv.height=64;const c=cv.getContext('2d');
+  if(f.t==='v')f.c.forEach((col,i)=>{c.fillStyle=col;c.fillRect(i*96/f.c.length,0,96/f.c.length+1,64)});
+  else if(f.t==='h')f.c.forEach((col,i)=>{c.fillStyle=col;c.fillRect(0,i*64/f.c.length,96,64/f.c.length+1)});
+  else if(f.t==='nordic'){c.fillStyle=f.bg;c.fillRect(0,0,96,64);c.fillStyle=f.fg;c.fillRect(28,0,12,64);c.fillRect(0,26,96,12)}
+  else if(f.t==='crescent'){c.fillStyle=f.bg;c.fillRect(0,0,96,64);c.fillStyle='#fff';c.beginPath();c.arc(42,32,17,0,7);c.fill();c.fillStyle=f.bg;c.beginPath();c.arc(48,32,14,0,7);c.fill();c.fillStyle='#fff';c.beginPath();c.arc(66,32,5,0,7);c.fill()}
+  else if(f.t==='union'){c.fillStyle='#1d2f6b';c.fillRect(0,0,96,64);c.strokeStyle='#fff';c.lineWidth=13;c.beginPath();c.moveTo(0,0);c.lineTo(96,64);c.moveTo(96,0);c.lineTo(0,64);c.stroke();c.strokeStyle='#c8102e';c.lineWidth=4;c.stroke();c.fillStyle='#fff';c.fillRect(38,0,20,64);c.fillRect(0,22,96,20);c.fillStyle='#c8102e';c.fillRect(42,0,12,64);c.fillRect(0,26,96,12)}
+  const t=new THREE.CanvasTexture(cv);t.encoding=THREE.sRGBEncoding;return flagTex[code]=t}
+const waving=[];
+function flag(code,h=3.2,s=1){const g=new THREE.Group();g.add(cyl(.05*s,.06*s,h,'#3a2a18',6));g.add(at(mk(new THREE.SphereGeometry(.09*s,8,6),Mt.gold),0,h,0));
+  const fg=new THREE.PlaneGeometry(1.5*s,1*s,8,1);fg.translate(.75*s,0,0);const f=new THREE.Mesh(fg,new THREE.MeshStandardMaterial({map:flagTexture(code),side:THREE.DoubleSide,roughness:.8}));f.position.y=h-.55*s;
+  f.userData.base=fg.attributes.position.array.slice();waving.push(f);g.add(f);g.userData.live=true;return g}
+
+/* ---------- landmarks ---------- */
+const spinners=[],smokeSrc=[];
+const LM={
+ london(){const g=new THREE.Group();
+  g.add(box(9,.15,9,Mt.grass));g.add(at(box(8.2,.05,8.2,Mt.water),0,.15,0));g.add(at(box(7.2,.12,7.2,Mt.stoneDark),0,.15,0));
+  for(const [x,z,r] of [[0,-3.3,0],[0,3.3,0],[-3.3,0,Math.PI/2],[3.3,0,Math.PI/2]])g.add(at(crenWall(6.6,.9,.3,Mt.stoneDark),x,.25,z,r));
+  for(const [x,z] of [[-3.3,-3.3],[3.3,-3.3],[-3.3,3.3],[3.3,3.3]])g.add(at(crenTower(.45,1.2,Mt.stoneDark),x,.25,z));
+  for(const [x,z,r] of [[0,-2.2,0],[0,2.2,0],[-2.2,0,Math.PI/2],[2.2,0,Math.PI/2]])g.add(at(crenWall(4.4,1.5,.32,Mt.stone),x,.25,z,r));
+  for(const [x,z] of [[-2.2,-2.2],[2.2,-2.2],[-2.2,2.2],[2.2,2.2],[0,2.2],[-2.2,0]])g.add(at(crenTower(.5,1.9,Mt.stone),x,.25,z));
+  const wt=new THREE.Group();wt.add(box(2.6,3.2,2.2,Mt.white));for(const [x,z,r] of [[0,-1.1,0],[0,1.1,0],[-1.3,0,Math.PI/2],[1.3,0,Math.PI/2]])wt.add(at(crenWall(r?2.2:2.6,.01,.2,Mt.white,.3),x,3.2,z,r));
+  for(const [x,z,round] of [[-1.3,-1.1,0],[1.3,-1.1,1],[-1.3,1.1,0],[1.3,1.1,0]]){const t=round?cyl(.42,.42,4.1,Mt.white,14):box(.75,4.1,.75,Mt.white);wt.add(at(t,x,0,z));wt.add(at(lathe(OGEE,Mt.lead,14,.45,.9),x,4.1,z));wt.add(at(cone(.04,.4,Mt.gold,6),x,5.3,z))}
+  g.add(at(wt,0,.25,0));g.add(at(flag('FR',2.6,1.1),0,3.45,0));
+  // St Paul's
+  const sp=new THREE.Group();sp.add(box(2.4,2.1,7,Mt.portland));sp.add(at(gable(2.4,.9,7,Mt.lead),0,2.1,0));sp.add(at(box(6,2.1,2.2,Mt.portland),0,0,.4));sp.add(at(gable(2.2,.9,6,Mt.lead),0,2.1,.4,Math.PI/2));
+  for(const x of [-1.05,1.05]){sp.add(at(box(.9,3.4,.9,Mt.portland),x,0,-3.6));sp.add(at(cyl(.35,.4,.7,Mt.portland,12),x,3.4,-3.6));sp.add(at(lathe(OGEE,Mt.lead,12,.38,.8),x,4.1,-3.6))}
+  sp.add(at(cyl(1.3,1.35,1.2,M(facade('colonnade','#e4dfd2',1,10,{wh:.75,ww:.3,glass:'#5c5a52'})),24),0,2.1,.4));sp.add(at(lathe([[0,0],[1.35,0],[1.32,.5],[1.15,1.1],[.75,1.6],[.3,1.85],[0,1.9]],Mt.lead,24),0,3.3,.4));
+  sp.add(at(cyl(.22,.26,.8,Mt.portland,10),0,5.15,.4));sp.add(at(mk(new THREE.SphereGeometry(.16,10,8),Mt.gold),0,6.05,.4));sp.add(at(cone(.05,.4,Mt.gold,6),0,6.15,.4));
+  g.add(at(sp,-7,0,1.5,.08));
+  return g},
+ paris(){const g=new THREE.Group();
+  g.add(at(box(14,.06,2.2,Mt.water),0,0,-3.2));g.add(at(box(14,.06,1.6,Mt.water),0,0,3.3));g.add(at(box(14,.18,5.2,Mt.stoneDark),0,0,0));
+  const nd=new THREE.Group();nd.add(box(2.4,2.6,7,Mt.gothic));nd.add(at(gable(2.4,1.5,7,Mt.lead),0,2.6,0));nd.add(at(box(6,2.6,1.8,Mt.gothic),0,0,.6));nd.add(at(gable(1.8,1.5,6,Mt.lead),0,2.6,.6,Math.PI/2));
+  nd.add(at(cyl(1.2,1.2,2.6,Mt.gothic,12,false),0,0,3.5));nd.add(at(cone(1.25,1.4,Mt.lead,12),0,2.6,3.5));
+  for(let i=0;i<6;i++)for(const s of [-1,1]){const b=box(.18,1.9,.35,Mt.stone);b.rotation.z=s*.45;nd.add(at(b,s*1.75,0,-2.6+i*1.0))}
+  const fr=new THREE.Group();fr.add(box(3.6,3.6,1.2,Mt.rose));for(const x of [-1.25,1.25]){fr.add(at(box(1.15,5.2,1.25,Mt.gothic),x,0,0));for(let k=0;k<6;k++)fr.add(at(box(.18,.25,.18,Mt.stone),x-.48+(k%3)*.48,5.2,(k<3?-.5:.5)))}
+  nd.add(at(fr,0,0,-3.9));g.add(at(nd,-2.2,.18,0,Math.PI/2));
+  // Les Invalides, gilded dome
+  const iv=new THREE.Group();iv.add(box(5,1.6,3.2,Mt.portland));iv.add(at(cyl(1.1,1.1,1.5,M(facade('ivcol','#e4dfd2',1,10,{wh:.75,ww:.3})),20),0,1.6,0));iv.add(at(lathe([[0,0],[1.15,0],[1.1,.6],[.85,1.3],[.4,1.75],[0,1.85]],Mt.gold,24),0,3.1,0));
+  iv.add(at(cyl(.15,.18,.7,Mt.gold,8),0,4.9,0));iv.add(at(cone(.08,.8,Mt.gold,8),0,5.6,0));g.add(at(iv,6,0,-7.5));
+  g.add(at(flag('FR',3.6,1.1),1.2,0,-1.6));return g},
+ milan(){const g=new THREE.Group();g.add(box(9,.12,10,Mt.stone));const d=new THREE.Group();d.add(box(4.2,2.8,8,Mt.marble));d.add(at(gable(4.2,1.1,8,M('#e4ded2')),0,2.8,0));d.add(at(box(7,2.8,2.4,Mt.marble),0,0,1));
+  for(let i=0;i<9;i++)for(const s of [-1,1]){d.add(at(cone(.1,1.1,Mt.marble,6),s*2.1,2.8,-3.8+i*.95));d.add(at(cone(.08,.8,Mt.marble,6),s*1.3,3.2,-3.6+i*.95))}
+  for(let i=0;i<7;i++)d.add(at(cone(.1,1.2,Mt.marble,6),-1.8+i*.6,2.8+(i%2)*.3,-4.05));
+  d.add(at(cyl(.8,.9,1.6,Mt.marble,8),0,3.6,1));d.add(at(cone(.55,3,Mt.marble,8),0,5.2,1));d.add(at(cyl(.06,.06,.5,Mt.gold,6),0,8.2,1));d.add(at(mk(new THREE.SphereGeometry(.13,8,6),Mt.gold),0,8.75,1));
+  g.add(at(d,0,.12,0));g.add(at(flag('ITA',3,1),3.4,.12,-3));return g},
+ vienna(){const g=new THREE.Group();const s=new THREE.Group();s.add(box(2.8,2.6,8,Mt.gothic));s.add(at(gable(2.8,2.6,8,Mt.chevron),0,2.6,0));
+  s.add(at(box(1.4,3.2,1.4,Mt.gothic),2.1,0,.6));let y=3.2;for(const [w,h] of [[1.25,1.6],[1.05,1.4],[.85,1.2]]){s.add(at(box(w,h,w,Mt.gothic),2.1,y,.6));y+=h}s.add(at(cone(.6,4.6,Mt.stone,8),2.1,y,.6));s.add(at(mk(new THREE.SphereGeometry(.1,8,6),Mt.gold),2.1,y+4.6,.6));
+  s.add(at(box(1.2,3.4,1.2,Mt.gothic),-2.0,0,.6));s.add(at(lathe(OGEE,Mt.copper,12,.65,1),-2.0,3.4,.6));
+  for(const x of [-.75,.75]){s.add(at(box(.7,3.6,.7,Mt.gothic),x,0,-4.2));s.add(at(cone(.4,1,Mt.copper,8),x,3.6,-4.2))}
+  g.add(at(s,0,0,0,Math.PI/2));g.add(at(flag('AUT',3,1),-2,0,3));return g},
+ berlin(){const g=new THREE.Group();g.add(box(9,.12,4,Mt.stone));const gt=new THREE.Group();
+  for(let i=0;i<6;i++)for(const z of [-.7,.7])gt.add(at(cyl(.2,.24,2.6,Mt.stone,10),-2.5+i,0,z));
+  for(const x of [-2,-1,0,1,2])gt.add(at(box(.18,2.6,1.4,Mt.stoneDark),x+.5-.5*(x>0?0:0),0,0));
+  gt.add(at(box(6,.55,2,M(facade('frieze','#ded5c0',1,12,{ww:.6,wh:.5,glass:'#b9b09a',frame:'rgba(0,0,0,0)'}))),0,2.6,0));gt.add(at(box(2.4,.7,1.6,Mt.stone),0,3.15,0));
+  for(let i=0;i<4;i++)gt.add(at(box(.18,.5,.6,Mt.bronze),-.45+i*.3,3.85,.15));gt.add(at(box(.6,.4,.5,Mt.bronze),0,3.85,-.4));gt.add(at(cyl(.06,.08,.7,Mt.bronze,6),0,4.25,-.4));
+  for(const x of [-4,4]){gt.add(at(box(1.6,1.8,1.6,Mt.stone),x,0,0));gt.add(at(gable(1.6,.5,1.6,Mt.stone),x,1.8,0))}
+  g.add(at(gt,0,.12,0));g.add(at(flag('PRU',3,1),0,.12,-2.6));return g},
+ warsaw(){const g=new THREE.Group();g.add(box(9,.12,8,Mt.stone));const c=new THREE.Group();
+  c.add(at(box(6,2.2,1.5,Mt.salmon),0,0,-2.2));c.add(at(box(1.5,2.2,4,Mt.salmon),-2.3,0,0));c.add(at(box(1.5,2.2,4,Mt.salmon),2.3,0,0));c.add(at(box(6,2.2,1.5,Mt.salmon),0,0,2.2));
+  for(const [x,z,r,l] of [[0,-2.2,0,6],[0,2.2,0,6],[-2.3,0,Math.PI/2,4],[2.3,0,Math.PI/2,4]])c.add(at(gable(1.5,1,l,Mt.terracotta),x,2.2,z,r+Math.PI/2));
+  c.add(at(box(1.3,4.6,1.3,Mt.salmon),0,0,-3.1));c.add(at(lathe([[0,0],[.75,0],[.8,.3],[.5,.7],[.6,1],[.3,1.5],[.15,1.9],[.05,2.6],[0,2.7]],Mt.copper,12),0,4.6,-3.1));
+  g.add(at(c,0,.12,0));g.add(at(cyl(.15,.18,3.2,Mt.stone,10),-3.5,.12,-3.6));g.add(at(box(.3,.6,.3,Mt.bronze),-3.5,3.32,-3.6));g.add(at(flag('WAR',3,1),3.4,.12,-3.4));return g},
+ stpetersburg(){const g=new THREE.Group();g.add(box(14,.06,3,Mt.water));
+  const pp=new THREE.Group();pp.add(box(2.6,2.2,6,Mt.yellow));pp.add(at(gable(2.6,.8,6,Mt.lead),0,2.2,0));pp.add(at(box(1.6,3,1.6,Mt.yellow),0,0,-3.4));pp.add(at(box(1.3,1.6,1.3,Mt.yellow),0,3,-3.4));pp.add(at(box(1,1.2,1,Mt.yellow),0,4.6,-3.4));
+  pp.add(at(lathe([[0,0],[.55,0],[.5,.6],[.2,1]],Mt.gold,8),0,5.8,-3.4));pp.add(at(cone(.12,5.5,Mt.gold,8),0,6.8,-3.4));pp.add(at(cyl(.4,.4,.6,Mt.yellow,10),0,2.2,1.4));pp.add(at(onion(.4,Mt.copper),0,2.8,1.4));
+  g.add(at(pp,-3.5,0,-4.5,Math.PI/2));
+  const wp=new THREE.Group();for(const [x,z,w,d] of [[0,-2.5,9,1.6],[0,2.5,9,1.6],[-3.9,0,1.6,4],[3.9,0,1.6,4]]){wp.add(at(box(w,2.6,d,Mt.green),x,0,z));}
+  wp.add(at(box(9.4,.15,1.9,Mt.lead),0,2.6,-2.5));wp.add(at(box(9.4,.15,1.9,Mt.lead),0,2.6,2.5));for(let i=0;i<12;i++)wp.add(at(cone(.07,.35,Mt.gold,6),-4.3+i*.78,2.75,-3.25));
+  g.add(at(wp,2.5,0,4.6));g.add(at(flag('RUS',3,1),-1,0,1.2));return g},
+ moscow(){const g=new THREE.Group();g.add(box(13,.12,12,M('#8c8a62')));
+  const tri=[[-5.5,4.5],[5.5,4.5],[0,-5.5]];const wallM=Mt.redbrick;const towerTop=M('#3f6e4f');
+  for(let i=0;i<3;i++){const [ax,az]=tri[i],[bx,bz]=tri[(i+1)%3];const len=Math.hypot(bx-ax,bz-az),ang=Math.atan2(bz-az,bx-ax);
+    const w=crenWall(len,1.3,.35,wallM,.28);w.position.set((ax+bx)/2,.12,(az+bz)/2);w.rotation.y=-ang;g.add(w);
+    for(const u of [0,.5]){const x=ax+(bx-ax)*u,z=az+(bz-az)*u,h=u?2.2:3.2;g.add(at(box(.9,h,.9,wallM),x,.12,z,-ang));g.add(at(cone(.62,u?1.2:2,towerTop,4),x,.12+h,z,Math.PI/4-ang));g.add(at(cone(.05,.5,Mt.gold,6),x,.12+h+(u?1.2:2),z))}}
+  const iv=new THREE.Group();let y=0;for(const [r,h] of [[.75,1.6],[.65,1.4],[.55,1.3],[.42,1]]){iv.add(at(cyl(r,r,h,Mt.white,8),0,y,0));y+=h}iv.add(at(cyl(.32,.35,.6,Mt.white,8),0,y,0));iv.add(at(onion(.38,Mt.gold),0,y+.6,0));g.add(at(iv,.8,.12,.2));
+  const ca=new THREE.Group();ca.add(box(2.4,1.8,2,Mt.white));for(const [x,z,r] of [[0,0,.42],[-.7,-.6,.26],[.7,-.6,.26],[-.7,.6,.26],[.7,.6,.26]]){ca.add(at(cyl(r*.9,r*.9,.6+(r>.3?.3:0),Mt.white,10),x,1.8,z));ca.add(at(onion(r,Mt.gold),x,2.4+(r>.3?.3:0),z))}g.add(at(ca,-1.6,.12,1.4));
+  const ca2=new THREE.Group();ca2.add(box(2,1.6,1.8,Mt.white));for(const [x,z] of [[0,0],[-.6,-.5],[.6,-.5],[-.6,.5],[.6,.5]]){ca2.add(at(cyl(.24,.24,.5,Mt.white,10),x,1.6,z));ca2.add(at(onion(.25,M('#c8ccd4',{metalness:.7,roughness:.3})),x,2.1,z))}g.add(at(ca2,-.6,.12,-1.4));
+  // St Basil's
+  const sb=new THREE.Group();const cols=[['#c8402e','#e9c34a'],['#2f7a54','#f0e6c8'],['#2d5aa0','#f0e6c8'],['#e9c34a','#2f7a54'],['#c8402e','#f4f0e6'],['#2f7a54','#c8402e'],['#e3a33a','#2f7a54'],['#2d5aa0','#e9c34a']];
+  sb.add(box(3.6,1.5,3.6,Mt.redbrick));sb.add(at(cyl(.55,.6,3.2,Mt.redbrick,8),0,1.5,0));sb.add(at(cone(.62,2,M('#3f6e4f'),8),0,4.7,0));sb.add(at(onion(.22,Mt.gold),0,6.6,0));
+  cols.forEach((c,i)=>{const a=i/8*Math.PI*2,r=i%2?1.25:1.5,x=Math.cos(a)*r,z=Math.sin(a)*r,h=i%2?1.6:2.3;sb.add(at(cyl(.32,.36,h,Mt.redbrick,10),x,1.5,z));sb.add(at(onion(i%2?.34:.42,M(stripes('sb'+i,c[0],c[1],i%2))),x,1.5+h,z))});
+  g.add(at(sb,4.2,.12,-6.2));g.add(at(flag('RUS',3,1),2.2,.12,-1.8));return g},
+ stockholm(){const g=new THREE.Group();g.add(box(12,.06,3,Mt.water));const p=new THREE.Group();
+  for(const [x,z,w,d] of [[0,-2.6,6.6,1.6],[0,2.6,6.6,1.6],[-2.6,0,1.6,3.6],[2.6,0,1.6,3.6]])p.add(at(box(w,2.8,d,Mt.ochre),x,0,z));
+  p.add(at(box(6.8,.25,6.8,M('#9a7b4a')),0,2.8,0));p.add(at(box(5,.3,5,Mt.ochre),0,2.7,0));g.add(at(p,-1,0,3.6));
+  const ch=new THREE.Group();ch.add(box(2,2.2,4.5,Mt.redbrick));ch.add(at(gable(2,1,4.5,Mt.copper),0,2.2,0));ch.add(at(box(1.3,4.2,1.3,Mt.redbrick),0,0,-2.6));
+  ch.add(at(lathe([[0,0],[.75,0],[.4,.8],[.25,1.6],[.15,3.2],[0,3.6]],Mt.iron,8),0,4.2,-2.6));g.add(at(ch,3.2,0,-4,Math.PI/2.2));g.add(at(flag('SWE',3,1),-1,0,.3));return g},
+ copenhagen(){const g=new THREE.Group();g.add(box(10,.12,9,Mt.stone));
+  const ch=new THREE.Group();ch.add(box(4.5,2.2,2.2,Mt.redbrick));ch.add(at(gable(2.2,1,4.5,Mt.lead),0,2.2,0,Math.PI/2));ch.add(at(box(1.5,4.6,1.5,Mt.redbrick),2.6,0,0));
+  const curve=new THREE.CatmullRomCurve3(Array.from({length:60},(_,i)=>{const t=i/59;const r=.75*(1-t)+.08;const a=t*Math.PI*8;return new THREE.Vector3(Math.cos(a)*r,t*4,Math.sin(a)*r)}));
+  const sp=new THREE.Group();sp.add(cone(.62,4,Mt.dark,8));sp.add(mk(new THREE.TubeGeometry(curve,200,.08,6),Mt.gold));sp.add(at(mk(new THREE.SphereGeometry(.18,10,8),Mt.gold),0,4.1,0));ch.add(at(sp,2.6,4.6,0));
+  g.add(at(ch,-2,.12,-1.5));
+  g.add(at(cyl(1.1,1.15,3.2,Mt.redbrick,20),3,.12,1.5));g.add(at(cyl(1.15,1.15,.15,Mt.lead,20),3,3.32,1.5));
+  g.add(at(box(2.6,2,2.6,Mt.marble),-1.5,.12,3));g.add(at(cyl(1,1,.8,Mt.marble,16),-1.5,2.12,3));g.add(at(dome(1.05,Mt.copper,1.1),-1.5,2.92,3));
+  g.add(at(flag('DEN',3,1),3,3.47,1.5));return g},
+ constantinople(){const g=new THREE.Group();g.add(box(15,.12,10,M('#b9a984')));
+  const hs=new THREE.Group();hs.add(box(5,2.4,5,Mt.pink));for(const [x,z] of [[-2.2,-2.2],[2.2,-2.2],[-2.2,2.2],[2.2,2.2]])hs.add(at(box(1,3,1,Mt.pink),x,0,z));
+  hs.add(at(cyl(1.7,1.75,.6,Mt.pink,24),0,2.4,0));hs.add(at(lathe([[0,0],[1.8,0],[1.7,.5],[1.3,1],[.7,1.3],[0,1.4]],Mt.lead,28),0,3,0));
+  hs.add(at(halfDome(1.6,Mt.lead,0),0,2.4,1.6));hs.add(at(halfDome(1.6,Mt.lead,Math.PI),0,2.4,-1.6));
+  for(const [x,z] of [[-3.4,-3.4],[3.4,-3.4],[-3.4,3.4],[3.4,3.4]]){hs.add(at(cyl(.2,.24,6,Mt.white,10),x,0,z));hs.add(at(mk(new THREE.TorusGeometry(.3,.06,6,12),Mt.white),x,4.6,z));hs.children[hs.children.length-1].rotation.x=Math.PI/2;hs.add(at(cone(.22,1.2,Mt.lead,10),x,6,z))}
+  g.add(at(hs,-3.6,.12,0));
+  const bm=new THREE.Group();bm.add(box(4.6,2,4.6,M(facade('bluemosque','#e3dccb',2,4,{arch:true}))));bm.add(at(cyl(1.4,1.45,.5,Mt.stone,24),0,2,0));bm.add(at(dome(1.45,Mt.lead,.85,24),0,2.5,0));
+  for(let i=0;i<4;i++){const a=i*Math.PI/2;bm.add(at(dome(.9,Mt.lead,.8,16),Math.cos(a)*1.55,2,Math.sin(a)*1.55))}
+  for(const [x,z] of [[-2.8,-2.8],[2.8,-2.8],[-2.8,2.8],[2.8,2.8],[-2.8,-6],[2.8,-6]]){bm.add(at(cyl(.17,.21,6.4,Mt.white,10),x,0,z));for(const hh of [3.4,4.9]){const t=at(mk(new THREE.TorusGeometry(.27,.05,6,12),Mt.white),x,hh,z);t.rotation.x=Math.PI/2;bm.add(t)}bm.add(at(cone(.2,1.4,Mt.lead,10),x,6.4,z))}
+  bm.add(at(box(4.6,1,3,Mt.stone),0,0,-4.4));g.add(at(bm,4.2,.12,.6,Math.PI));g.add(at(flag('OTT',3,1),0,.12,4));return g},
+ amsterdam(){const g=new THREE.Group();g.add(box(12,.06,1.8,Mt.water));const cols=['#7a3a26','#5a3324','#8a4a32','#2f2a28','#9a5a3c','#6b2f22'];
+  for(let r=0;r<2;r++)for(let i=0;i<9;i++){const w=.9+(i%3)*.15,h=2.4+((i*7+r*3)%4)*.4,x=-5+i*1.15,z=r?1.6:-1.6;const m=M(facade('canal'+(i%6),cols[i%6],4,2,{frame:'rgba(250,245,235,.9)',ww:.5}));
+    g.add(at(box(w,h,1.4,m),x,0,z));const gb=gable(w,.9,1.4,m);gb.rotation.y=Math.PI/2*0;g.add(at(gb,x,h,z));g.children[g.children.length-1].rotation.y=0;}
+  const rp=new THREE.Group();rp.add(box(5,2.8,3,M(facade('dam','#e0d8c4',4,9,{band:'#cfc6ae'}))));rp.add(at(box(5.1,.2,3.1,Mt.lead),0,2.8,0));rp.add(at(cyl(.4,.45,1,Mt.stone,8),0,3,0));rp.add(at(dome(.45,Mt.copper,1.3,12),0,4,0));
+  g.add(at(rp,0,0,5));
+  const mill=new THREE.Group();mill.add(cyl(.7,1.1,3.2,M('#5b4a3a'),8));const gal=mk(new THREE.TorusGeometry(1,.06,4,16),Mt.wood);gal.rotation.x=Math.PI/2;mill.add(at(gal,0,1.4,0));
+  mill.add(at(lathe([[0,0],[.8,0],[.7,.4],[.3,.8],[0,.9]],M('#3f342a'),10),0,3.2,0));const sails=new THREE.Group();
+  for(let i=0;i<4;i++){const s=new THREE.Group();s.add(at(box(.08,2.6,.08,Mt.wood),0,0,0));s.add(at(box(.5,2.1,.03,Mt.canvas),.3,.4,0));s.rotation.z=i*Math.PI/2;sails.add(s)}
+  sails.position.set(0,3.6,.95);spinners.push(sails);mill.add(sails);mill.userData.live=true;g.add(at(mill,-6.5,0,4.5));
+  g.add(at(flag('FR',3,1),2.6,0,3.4));return g},
+ barcelona(){const g=new THREE.Group();g.add(box(10,.12,8,Mt.stone));const c=new THREE.Group();c.add(box(2.6,2.6,6.5,Mt.gothic));c.add(at(gable(2.6,.6,6.5,Mt.terracotta),0,2.6,0));
+  for(const x of [-1,1]){let y=0;for(const [r,h] of [[.55,3.4],[.45,1],[.35,.8]]){c.add(at(cyl(r,r,h,Mt.gothic,8),x*1.5,y,1.5));y+=h}c.add(at(cone(.3,1.2,Mt.stone,8),x*1.5,y,1.5))}
+  c.add(at(box(1.6,4.2,1,Mt.gothic),0,0,-3.6));c.add(at(cone(.5,2.2,Mt.stone,8),0,4.2,-3.6));g.add(at(c,-1.5,.12,0));
+  const ft=new THREE.Group();const sh=new THREE.Shape();for(let i=0;i<8;i++){const a=i/8*Math.PI*2,r=i%2?1.5:2.6;sh[i?'lineTo':'moveTo'](Math.cos(a)*r,Math.sin(a)*r)}sh.closePath();
+  const fg=new THREE.ExtrudeGeometry(sh,{depth:.9,bevelEnabled:false});fg.rotateX(-Math.PI/2);ft.add(mk(fg,Mt.stoneDark));ft.add(at(box(1.6,1,1.6,Mt.stone),0,.9,0));g.add(at(ft,3.2,.12,2.2));
+  g.add(at(flag('FR',3,1),3.2,1.0,2.2));return g},
+ birmingham(){const g=new THREE.Group();g.add(box(11,.12,9,M('#7b7458')));g.add(at(box(11,.05,.8,Mt.water),0,.12,3.5));
+  for(let i=0;i<4;i++){const f=new THREE.Group();f.add(box(3,1.6,1.8,Mt.brick));for(let k=0;k<4;k++){const s=gable(.8,.6,1.8,Mt.slate);f.add(at(s,-1.1+k*.75,1.6,0))}f.children.forEach(o=>{});g.add(at(f,-3.5+(i%2)*4.2,.12,-2.5+Math.floor(i/2)*3.2,Math.PI/2*(i%2?0:0)))}
+  for(const [x,z,h] of [[-1.6,-3.6,5],[2.5,-.6,6],[-4.4,1.4,4.5],[4.3,-3.2,5.5]]){g.add(at(cyl(.25,.38,h,Mt.redbrick,10),x,.12,z));smokeSrc.push([x,h+.2,z])}
+  const eh=new THREE.Group();eh.add(box(1.6,2.8,1.6,Mt.brick));eh.add(at(gable(1.6,.8,1.6,Mt.slate),0,2.8,0));eh.add(at(box(2.6,.15,.2,Mt.iron),1,2.4,0));g.add(at(eh,1.2,.12,1.8));
+  g.add(at(flag('GB',3,1),-.5,.12,2.4));return g},
+ wagram(){const g=new THREE.Group();
+  for(let i=0;i<4;i++){const c=new THREE.Group();const b=cyl(.13,.2,2,Mt.bronze,10);b.rotation.z=Math.PI/2-.12;b.position.set(.9,.75,0);c.add(b);
+    for(const z of [-.45,.45]){const w=mk(new THREE.TorusGeometry(.5,.07,6,14),Mt.wood);w.position.set(0,.5,z);c.add(w)}c.add(at(box(1.6,.15,.25,Mt.wood),-.6,.25,0));g.add(at(c,-3+i*2,0,-1.5,-.3))}
+  for(let i=0;i<5;i++){const t=gable(1.2,1,1.4,Mt.canvas);g.add(at(t,-3.4+i*1.6,0,2.2,.2))}
+  g.add(at(flag('FR',3.4,1.1),3.5,0,0));return g}
+};
+function bake(root){root.updateMatrixWorld(true);const byMat=new Map(),live=[];
+  root.traverse(o=>{if(o!==root&&o.userData.live){live.push(o);return}});
+  const liveSet=new Set();live.forEach(l=>l.traverse(x=>liveSet.add(x)));
+  root.traverse(o=>{if(!o.isMesh||liveSet.has(o))return;let g=o.geometry.index?o.geometry.toNonIndexed():o.geometry.clone();g.applyMatrix4(o.matrixWorld);
+    for(const k of Object.keys(g.attributes))if(!['position','normal','uv'].includes(k))g.deleteAttribute(k);if(!g.attributes.uv)g.setAttribute('uv',new THREE.Float32BufferAttribute(new Float32Array(g.attributes.position.count*2),2));
+    g.clearGroups();const key=o.material.uuid;if(!byMat.has(key))byMat.set(key,{m:o.material,gs:[]});byMat.get(key).gs.push(g)});
+  const out=new THREE.Group();for(const {m,gs} of byMat.values()){const mg=THREE.BufferGeometryUtils.mergeBufferGeometries(gs,false);const mesh=new THREE.Mesh(mg,m);mesh.castShadow=mesh.receiveShadow=true;out.add(mesh)}
+  for(const l of live){const wp=new THREE.Vector3(),wq=new THREE.Quaternion(),ws=new THREE.Vector3();l.matrixWorld.decompose(wp,wq,ws);l.parent.remove(l);l.position.copy(wp);l.quaternion.copy(wq);l.scale.copy(ws);out.add(l);l.traverse(x=>{if(x.isMesh)x.castShadow=true})}
+  return out}
+
+/* ---------- settlements, forests ---------- */
+const cityObj=new Map();const pickables={city:[],path:[],node:[]};
+const pickMat=new THREE.MeshBasicMaterial({visible:false});
+const labelsEl=document.getElementById('labels');
+function cityPos(c){return new THREE.Vector3(toX(c.lon),Math.max(hAt(c.lon,c.lat),0),toZ(c.lat))}
+const occupied=new Uint8Array(GW*GH);
+function markOcc(x,z,r){const ci=Math.round((fromX(x)-LON0)/(LON1-LON0)*(GW-1)),cj=Math.round((LAT1-fromZ(z))/(LAT1-LAT0)*(GH-1));for(let j=cj-r;j<=cj+r;j++)for(let i=ci-r;i<=ci+r;i++)if(i>=0&&j>=0&&i<GW&&j<GH)occupied[j*GW+i]=1}
+function isOcc(x,z){const i=Math.round((fromX(x)-LON0)/(LON1-LON0)*(GW-1)),j=Math.round((LAT1-fromZ(z))/(LAT1-LAT0)*(GH-1));return i<0||j<0||i>=GW||j>=GH||occupied[j*GW+i]}
+function buildCities(){
+  const houseGeo=new THREE.BoxGeometry(1,1,1);houseGeo.translate(0,.5,0);
+  const rs=new THREE.Shape();rs.moveTo(-.55,0);rs.lineTo(.55,0);rs.lineTo(0,.55);rs.closePath();const roofGeo=new THREE.ExtrudeGeometry(rs,{depth:1.1,bevelEnabled:false});roofGeo.translate(0,0,-.55);
+  const per=c=>c.kind==='battle'?0:c.tier===1?46:30;const total=CITIES.reduce((a,c)=>a+per(c),0);
+  const hm=new THREE.InstancedMesh(houseGeo,new THREE.MeshStandardMaterial({map:facade('house','#ffffff',2,2,{frame:'rgba(0,0,0,0)',glass:'rgba(40,40,46,.85)',ww:.35,wh:.45}),roughness:.85}),total);
+  const rm=new THREE.InstancedMesh(roofGeo,new THREE.MeshStandardMaterial({map:tiles('rooft','#ffffff','rgba(0,0,0,.28)'),roughness:.8}),total);
+  hm.castShadow=rm.castShadow=hm.receiveShadow=rm.receiveShadow=true;
+  const m4=new THREE.Matrix4(),q=new THREE.Quaternion(),col=new THREE.Color(),Y=new THREE.Vector3(0,1,0);let n=0;seed=5;
+  for(const c of CITIES){const cx=toX(c.lon),cz=toZ(c.lat);markOcc(cx,cz,3);
+    for(let i=0;i<per(c);i++){let x,z,tries=0;do{const a=rnd()*Math.PI*2,r=.34+Math.pow(rnd(),1.4)*(c.tier===1?.42:.3);x=cx+Math.cos(a)*r;z=cz+Math.sin(a)*r;tries++}
+      while(tries<8&&CITIES.some(o=>o!==c&&Math.hypot(toX(o.lon)-x,toZ(o.lat)-z)<.32));
+      const s=.028+rnd()*.018,hh=s*(.9+rnd()*.9),y=Math.max(hXZ(x,z),0)-.004,ang=Math.atan2(z-cz,x-cx)+(rnd()<.5?0:Math.PI/2);q.setFromAxisAngle(Y,ang);
+      m4.compose(new THREE.Vector3(x,y,z),q,new THREE.Vector3(s,hh,s*1.3));hm.setMatrixAt(n,m4);col.set(['#ece2cc','#e0d2b2','#f2ead8','#d6c4a0','#e8d8c0'][(rnd()*5)|0]);hm.setColorAt(n,col);
+      m4.compose(new THREE.Vector3(x,y+hh,z),q,new THREE.Vector3(s,s*1.1,s*1.3));rm.setMatrixAt(n,m4);col.set(c.lat>50.5?['#5f646e','#6e625a','#7a4a36'][(rnd()*3)|0]:['#b05a38','#c06a42','#9a4a2e'][(rnd()*3)|0]);rm.setColorAt(n,col);n++}}
+  hm.count=rm.count=n;scene.add(hm,rm);
+  for(const c of CITIES){const pos=cityPos(c);let lm=LM[c.id]?LM[c.id]():new THREE.Group();lm=bake(lm);lm.scale.setScalar(LMS);lm.position.copy(pos);lm.position.y-=.01;
+    if(c.id==='wagram'){lm.position.x+=.06;lm.position.z-=.05;lm.scale.setScalar(LMS*.8)}
+    scene.add(lm);
+    const ring=new THREE.Mesh(new THREE.RingGeometry(.32,.38,40).rotateX(-Math.PI/2),new THREE.MeshBasicMaterial({color:'#c9a24a',transparent:true,opacity:.95,depthWrite:false}));ring.position.copy(pos).add(new THREE.Vector3(0,.03,0));ring.visible=false;scene.add(ring);
+    const pick=new THREE.Mesh(new THREE.SphereGeometry(c.kind==='battle'?.15:.3,8,6),pickMat);pick.position.copy(pos).add(new THREE.Vector3(0,.15,0));pick.userData={type:'city',id:c.id};scene.add(pick);pickables.city.push(pick);
+    const lb=document.createElement('div');lb.className='lbl '+(c.kind==='battle'?'t3':'t'+c.tier);lb.textContent=c.name;
+    if(c.kind==='occupied'){const o=document.createElement('span');o.className='occ';o.innerHTML='<i></i>occupied';lb.appendChild(o)}
+    labelsEl.appendChild(lb);cityObj.set(c.id,{pos,ring,label:lb,city:c})}
+}
+let trees;
+function buildTrees(){
+  const FOREST=[[8.2,48.3,.7,140],[5.6,50.1,.7,120],[13.3,49.1,.8,140],[10.5,50.6,.9,140],[26,54.2,3.2,1100],[33,55.8,3.2,1100],[27,62,2.6,700],[15.5,61,2.6,700],[20,49.4,1.2,200],[24.8,46.4,1.3,240],[-1.2,51,.6,80],[1.3,47.4,.8,120],[17,53.6,1.4,260],[22.5,57,1.6,340],[13,52,.8,140],[-3,52.5,.8,90],[2.5,49.2,.6,90],[12.5,57.5,1.2,200],[31,52,2,400],[9.5,52.5,.9,140]];
+  const pts=[];seed=77;
+  for(const [lo,la,r,n] of FOREST)for(let qn=0;qn<n;qn++){const a=rnd()*Math.PI*2,d=Math.sqrt(rnd())*r,lon=lo+Math.cos(a)*d/K,lat=la+Math.sin(a)*d;if(maskAt(lon,lat)<.95||mtnAt(lon,lat)>.32)continue;const x=toX(lon),z=toZ(lat);if(isOcc(x,z))continue;pts.push([x,z])}
+  for(let qn=0;qn<2600;qn++){const lon=LON0+rnd()*(LON1-LON0),lat=LAT0+rnd()*(LAT1-LAT0);if(maskAt(lon,lat)<.95||mtnAt(lon,lat)>.4||fbm(lon*.7,lat*.7,3)<.52)continue;const x=toX(lon),z=toZ(lat);if(isOcc(x,z))continue;pts.push([x,z])}
+  const geo=new THREE.ConeGeometry(.5,1.5,6);geo.translate(0,1.05,0);const trunk=new THREE.CylinderGeometry(.1,.12,.4,5);trunk.translate(0,.2,0);
+  const g=THREE.BufferGeometryUtils.mergeBufferGeometries([geo.toNonIndexed(),trunk.toNonIndexed()]);
+  trees=new THREE.InstancedMesh(g,new THREE.MeshStandardMaterial({roughness:.9}),pts.length);trees.castShadow=true;trees.receiveShadow=true;
+  const m4=new THREE.Matrix4(),col=new THREE.Color(),q=new THREE.Quaternion();
+  pts.forEach(([x,z],i)=>{const s=.035+rnd()*.03;const y=Math.max(hXZ(x,z),0)-.005;m4.compose(new THREE.Vector3(x,y,z),q,new THREE.Vector3(s,s*(.9+rnd()*.5),s));trees.setMatrixAt(i,m4);
+    col.setHSL(.27+rnd()*.07,.32+rnd()*.15,.2+rnd()*.1);trees.setColorAt(i,col)});scene.add(trees)}
+
+/* ---------- routes ---------- */
+const roadTex=ctex('road',64,128,(x,w,h)=>{x.fillStyle='#5a3a1e';x.fillRect(0,0,w,h);x.fillStyle='#b88a52';x.fillRect(7,0,w-14,h);x.fillStyle='rgba(120,84,48,.55)';x.fillRect(20,0,4,h);x.fillRect(w-24,0,4,h);grain(x,w,h,500,.12)},true);
+const seaTex=ctex('sealane',64,64,(x,w,h)=>{x.clearRect(0,0,w,h);x.fillStyle='#1d3a6b';x.fillRect(0,0,w,h);x.fillStyle='#f4ecd6';x.fillRect(16,0,w-32,h*.55)},true);
+const routes=new Map();const ships=[];
+const NODE_GEO=new THREE.CylinderGeometry(.2,.23,.08,28).translate(0,.04,0),NODE_TOP=new THREE.OctahedronGeometry(.11,0),NODE_RING=new THREE.RingGeometry(.25,.33,40).rotateX(-Math.PI/2);const NODE_RING_MAT=new THREE.MeshBasicMaterial({color:'#f6d36b',transparent:true,opacity:.9,depthWrite:false});
+const NODE_MAT=new THREE.MeshStandardMaterial({color:'#c9a24a',metalness:.65,roughness:.32}),GEM=new THREE.MeshStandardMaterial({color:'#a3322a',metalness:.2,roughness:.35});
+const NODE_HI=new THREE.MeshStandardMaterial({color:'#e8d08a',metalness:.5,roughness:.3,emissive:'#7a5a10',emissiveIntensity:.6});
+function ribbon(P,width,yOff,mat,vScale,sea){const pos=[],uv=[],idx=[];let d=0;const n=P.length;
+  for(let i=0;i<n;i++){const a=P[Math.max(0,i-1)],b=P[Math.min(n-1,i+1)];let tx=b[0]-a[0],tz=b[1]-a[1];const L=Math.hypot(tx,tz)||1;const nx=-tz/L,nz=tx/L;if(i>0)d+=Math.hypot(P[i][0]-P[i-1][0],P[i][1]-P[i-1][1]);
+    for(const s of [-1,1]){const x=P[i][0]+nx*width/2*s,z=P[i][1]+nz*width/2*s;const h=hXZ(x,z);pos.push(x,(sea?Math.max(h,0):Math.max(h,-.02))+yOff,z);uv.push(s<0?0:1,d*vScale)}
+    if(i>0){const k=i*2;idx.push(k-2,k-1,k,k-1,k+1,k)}}
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));g.setIndex(idx);g.computeVertexNormals();
+  const m=new THREE.Mesh(g,mat);m.receiveShadow=true;return m}
+function shipModel(){const g=new THREE.Group();const hs=new THREE.Shape();hs.moveTo(-.5,0);hs.lineTo(.5,0);hs.lineTo(.62,.2);hs.lineTo(-.62,.2);hs.closePath();
+  const hull=new THREE.Mesh(new THREE.ExtrudeGeometry(hs,{depth:2.4,bevelEnabled:false}).translate(0,0,-1.2),M('#4a2f1c'));g.add(hull);g.add(at(box(1.26,.08,2.3,M('#c9a24a')),0,.17,0));
+  g.add(at(cone(.3,.6,M('#4a2f1c'),4),0,.1,1.3));g.children[g.children.length-1].rotation.x=Math.PI/2;
+  for(const [z,h] of [[-.7,2.1],[.1,2.6],[.85,2]]){g.add(at(cyl(.035,.045,h,'#3a2a18',5),0,.2,z));for(const [y,w] of [[.75,1.3],[1.4,1.05],[1.95,.75]]){if(y>h-.1)continue;const s=new THREE.Mesh(new THREE.PlaneGeometry(w,.55,4,1),new THREE.MeshStandardMaterial({color:'#f2ead6',side:THREE.DoubleSide,roughness:.9}));s.position.set(0,.2+y,z);s.rotation.y=Math.PI/2;g.add(s)}}
+  const f=new THREE.Mesh(new THREE.PlaneGeometry(.45,.3),new THREE.MeshStandardMaterial({map:flagTexture('FR'),side:THREE.DoubleSide}));f.position.set(0,2.9,.1);f.rotation.y=Math.PI/2;g.add(f);
+  g.traverse(o=>{if(o.isMesh)o.castShadow=true});g.scale.setScalar(.045);return g}
+function cumul(P){const c=[0];for(let i=1;i<P.length;i++)c.push(c[i-1]+Math.hypot(P[i][0]-P[i-1][0],P[i][1]-P[i-1][1]));return c}
+function atFrac(P,C,f){const L=C[C.length-1]*f;let i=1;while(i<C.length-1&&C[i]<L)i++;const u=(L-C[i-1])/((C[i]-C[i-1])||1);return[P[i-1][0]+(P[i][0]-P[i-1][0])*u,P[i-1][1]+(P[i][1]-P[i-1][1])*u,i]}
+function kmOf(P){let s=0;for(let i=1;i<P.length;i++)s+=haversine({lon:fromX(P[i-1][0]),lat:fromZ(P[i-1][1])},{lon:fromX(P[i][0]),lat:fromZ(P[i][1])});return s}
+function haversine(a,b){const R=6371,t=Math.PI/180,dLat=(b.lat-a.lat)*t,dLon=(b.lon-a.lon)*t,x=Math.sin(dLat/2)**2+Math.cos(a.lat*t)*Math.cos(b.lat*t)*Math.sin(dLon/2)**2;return 2*R*Math.asin(Math.sqrt(x))}
+function buildRoutes(){
+  const roadMat=new THREE.MeshStandardMaterial({map:roadTex,roughness:.95,polygonOffset:true,polygonOffsetFactor:-4,polygonOffsetUnits:-4});
+  for(const p of DISPATCH.paths){const P=routeFor(p);const C=cumul(P);const sea=p.kind==='sea';
+    const mat=sea?new THREE.MeshStandardMaterial({map:seaTex,alphaMap:null,transparent:false,alphaTest:0,roughness:.6,polygonOffset:true,polygonOffsetFactor:-4,polygonOffsetUnits:-4}):roadMat;
+    const rib=ribbon(P,sea?.075:.06,sea?.012:.012,mat,sea?9:5,sea);if(!sea)P.forEach(([x,z])=>markOcc(x,z,0));
+    const hlMat=new THREE.MeshBasicMaterial({color:'#f3d27a',transparent:true,opacity:.0,depthWrite:false});const hl=ribbon(P,.16,.02,hlMat,1,sea);
+    const curvePts=P.filter((_,i)=>i%3===0||i===P.length-1).map(([x,z])=>new THREE.Vector3(x,Math.max(hXZ(x,z),0)+.03,z));
+    const pick=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(curvePts),Math.max(8,curvePts.length),.14,5,false),pickMat);pick.userData={type:'path',id:p.id};
+    scene.add(rib,hl,pick);pickables.path.push(pick);
+    const ns=(p.nodes||[]).slice().sort((a,b)=>a.t-b.t).map((n,i)=>{const [x,z]=atFrac(P,C,n.t);const g=new THREE.Group();const base=new THREE.Mesh(NODE_GEO,NODE_MAT),top=new THREE.Mesh(NODE_TOP,GEM);top.position.y=.21;const ring=new THREE.Mesh(NODE_RING,NODE_RING_MAT);ring.position.y=.012;base.castShadow=top.castShadow=true;g.add(ring,base,top);
+      g.position.set(x,Math.max(hXZ(x,z),0)+.01,z);const pk=new THREE.Mesh(new THREE.SphereGeometry(.3,8,6),pickMat);pk.position.y=.12;pk.userData={type:'node',id:n.id,pathId:p.id};g.add(pk);pickables.node.push(pk);scene.add(g);
+      return{...n,order:i+1,x,z,lon:fromX(x),lat:fromZ(z),g,base}});
+    const r={p,P,C,km:kmOf(P),nodes:ns,hlMat};routes.set(p.id,r);
+    if(sea){const s=shipModel();s.userData={route:r,ph:rnd(),speed:.035/Math.max(.5,C[C.length-1]/10)};scene.add(s);ships.push(s)}}
+}
+
+/* ---------- interaction ---------- */
+const ray=new THREE.Raycaster(),mouse=new THREE.Vector2();
+const tip=document.getElementById('tip');let hover=null,sel=null;
+function setMouse(e){const r=canvas.getBoundingClientRect();mouse.x=(e.clientX-r.left)/r.width*2-1;mouse.y=-(e.clientY-r.top)/r.height*2+1;ray.setFromCamera(mouse,camera)}
+function pick(){for(const t of ['node','city','path']){const h=ray.intersectObjects(pickables[t],false);if(h.length)return{...h[0].object.userData,hit:h[0]}}return null}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+const rname=p=>CMAP.get(p.from).name+' – '+CMAP.get(p.to).name;
+function tipFor(h){if(!h)return null;if(h.type==='city'){const c=CMAP.get(h.id);const n=DISPATCH.paths.filter(p=>p.from===c.id||p.to===c.id).length;return `<b>${esc(c.name)}</b><em>${esc(STATES[c.state].n)}</em><br>${esc(c.note)}<br>${n} route${n===1?'':'s'}`}
+  const r=routes.get(h.type==='path'?h.id:h.pathId);if(h.type==='path')return `<b>${esc(rname(r.p))}</b>${r.p.kind==='sea'?'Sea lane':'Road'} · ${Math.round(r.km).toLocaleString()} km · ${r.nodes.length} node${r.nodes.length===1?'':'s'}`;
+  const n=r.nodes.find(x=>x.id===h.id);return `<b>${n.name?esc(n.name):'Node '+n.order}</b>${esc(n.id)} · on ${esc(rname(r.p))}<br><span style="font-family:var(--f-mono);font-size:12px">${n.lat.toFixed(2)}° N, ${n.lon.toFixed(2)}° E</span>`}
+function highlight(){for(const r of routes.values()){const on=(sel&&sel.id===r.p.id)||(hover&&(hover.id===r.p.id||hover.pathId===r.p.id));r.hlMat.opacity=on?.45:0;
+    r.nodes.forEach(n=>{const h=hover&&hover.type==='node'&&hover.id===n.id;n.g.scale.setScalar(h?1.35:1);n.base.material=h?NODE_HI:NODE_MAT})}
+  for(const [id,o] of cityObj){const on=hover&&hover.type==='city'&&hover.id===id;o.ring.visible=!!on;o.label.classList.toggle('hl',!!on)}
+  document.querySelectorAll('#pathList li').forEach(li=>li.classList.toggle('on',!!sel&&li.dataset.id===sel.id))}
+canvas.addEventListener('pointermove',e=>{setMouse(e);const h=pick();const ch=JSON.stringify(h&&[h.type,h.id])!==JSON.stringify(hover&&[hover.type,hover.id]);hover=h;if(ch)highlight();canvas.style.cursor=h?'pointer':'';
+  const t=tipFor(h);if(t){tip.innerHTML=t;tip.hidden=false;const r=canvas.getBoundingClientRect();let x=e.clientX-r.left+16,y=e.clientY-r.top+16;if(x+tip.offsetWidth>r.width-8)x-=tip.offsetWidth+28;if(y+tip.offsetHeight>r.height-8)y-=tip.offsetHeight+28;tip.style.transform=`translate(${x}px,${y}px)`}else tip.hidden=true});
+canvas.addEventListener('pointerleave',()=>{tip.hidden=true;hover=null;highlight()});
+let down=null;canvas.addEventListener('pointerdown',e=>down={x:e.clientX,y:e.clientY});
+canvas.addEventListener('pointerup',e=>{if(!down||Math.hypot(e.clientX-down.x,e.clientY-down.y)>5){down=null;return}down=null;setMouse(e);const h=pick();
+  if(h&&(h.type==='path'||h.type==='node')){sel={id:h.type==='path'?h.id:h.pathId}}else if(h&&h.type==='city'){const o=cityObj.get(h.id);flyTo(o.pos.x,o.pos.z);sel=null}else sel=null;highlight()});
+let fly=null;function flyTo(x,z){fly={from:controls.target.clone(),to:new THREE.Vector3(x,0,z),t:0}}
+
+/* ---------- ledger ---------- */
+function renderPanel(){const rs=[...routes.values()];cCities.textContent=CITIES.length;cRoads.textContent=rs.filter(r=>r.p.kind==='road').length;cSeas.textContent=rs.filter(r=>r.p.kind==='sea').length;cNodes.textContent=rs.reduce((a,r)=>a+r.nodes.length,0);
+  const km=rs.reduce((a,r)=>a+r.km,0);cLen.textContent=`Network length ${Math.round(km).toLocaleString()} km, about ${Math.round(km/3.898).toLocaleString()} lieues de poste, measured along the drawn roads and lanes.`;
+  const ul=document.getElementById('pathList');ul.innerHTML='';rs.slice().sort((a,b)=>rname(a.p).localeCompare(rname(b.p))).forEach(r=>{const li=document.createElement('li');li.dataset.id=r.p.id;
+    li.innerHTML=`<span class="sw ${r.p.kind}"></span><span class="nm">${esc(rname(r.p))}</span><span class="meta">${Math.round(r.km).toLocaleString()} km</span>`;
+    li.onclick=()=>{sel={id:r.p.id};const m=r.P[Math.floor(r.P.length/2)];flyTo(m[0],m[1]);highlight();if(innerWidth<=760)panel.classList.remove('open')};ul.appendChild(li)});
+  const lg=document.getElementById('legend');const seen=[...new Set(['FR','OCC','GB','ES','PT','ITA','NAP','SIC','SAR','SUI','RHN','AUT','PRU','WAR','RUS','SWE','DEN','OTT'])];
+  lg.innerHTML=seen.map(k=>`<li><span class="chip" style="background:${k==='OCC'?'repeating-linear-gradient(45deg,#21468b 0 3px,#f3e7c7 3px 6px,#c8102e 6px 9px)':STATES[k].c}"></span><span>${esc(STATES[k].n)}</span></li>`).join('')}
+function exportData(){const r4=v=>Math.round(v*1e4)/1e4,r3=v=>Math.round(v*1e3)/1e3;
+  return{map:'Europe 1812: the London campaign',game:'Zombie Bazi',format:'europe-1812-final/1',coordinates:'WGS84 degrees',
+    cities:CITIES.map(c=>({id:c.id,name:c.name,lat:c.lat,lon:c.lon,state:c.state,stateName:STATES[c.state].n,capital:c.capital,kind:c.kind})),
+    routes:[...routes.values()].map(r=>({id:r.p.id,from:r.p.from,to:r.p.to,kind:r.p.kind,lengthKm:Math.round(r.km),
+      nodes:r.nodes.map(n=>({id:n.id,order:n.order,t:r4(n.t),lat:r4(n.lat),lon:r4(n.lon),name:n.name||null})),sequence:[r.p.from,...r.nodes.map(n=>n.id),r.p.to],
+      polyline:r.P.filter((_,i)=>i%4===0||i===r.P.length-1).map(([x,z])=>[r3(fromZ(z)),r3(fromX(x))])}))}}
+document.getElementById('copyBtn').onclick=()=>{const txt=JSON.stringify(exportData());const ta=document.getElementById('jsonOut');const fb=()=>{ta.hidden=false;ta.value=JSON.stringify(exportData(),null,1);ta.focus();ta.select();toast('Selected. Press Ctrl+C to copy')};
+  try{navigator.clipboard.writeText(txt).then(()=>toast('Map data copied'),fb)}catch(e){fb()}};
+document.getElementById('showJson').onclick=e=>{const ta=document.getElementById('jsonOut');ta.hidden=!ta.hidden;e.currentTarget.setAttribute('aria-pressed',!ta.hidden);if(!ta.hidden)ta.value=JSON.stringify(exportData(),null,1)};
+let toastT;function toast(m){let t=document.querySelector('.toast');if(!t){t=document.createElement('div');t.className='toast';document.getElementById('app').appendChild(t)}t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,1800)}
+const panel=document.getElementById('panel');document.getElementById('ledgerToggle').onclick=()=>panel.classList.toggle('open');document.getElementById('closePanel').onclick=()=>panel.classList.remove('open');
+const layers={borders:true,labels:true,trees:true,ships:true};
+document.querySelectorAll('[data-layer]').forEach(b=>b.onclick=()=>{const k=b.dataset.layer;layers[k]=!layers[k];b.setAttribute('aria-pressed',layers[k]);
+  if(k==='borders')overlay.visible=layers[k];if(k==='labels')labelsEl.classList.toggle('off',!layers[k]);if(k==='trees'){trees.visible=layers[k];renderer.shadowMap.needsUpdate=true}if(k==='ships')ships.forEach(s=>s.visible=layers[k])});
+
+/* labels */
+let labelsDirty=true;controls.addEventListener('change',()=>labelsDirty=true);const v3=new THREE.Vector3();
+function updateLabels(){const w=canvas.clientWidth,h=canvas.clientHeight;const cand=[];
+  for(const o of cityObj.values()){const c=o.city;v3.copy(o.pos);v3.y+=c.tier===1?.45:.3;v3.project(camera);if(v3.z>1||Math.abs(v3.x)>1.1||Math.abs(v3.y)>1.1){o.label.style.display='none';continue}
+    cand.push({o,pri:o.ring.visible?0:c.kind==='battle'?3:c.tier,x:(v3.x+1)/2*w,y:(1-v3.y)/2*h})}
+  cand.sort((a,b)=>a.pri-b.pri);const placed=[];
+  for(const k of cand){const L=k.o.label;L.style.display='';if(!k.o.w){k.o.w=L.offsetWidth;k.o.h=L.offsetHeight}const r=[k.x-k.o.w/2-2,k.y-k.o.h-2,k.x+k.o.w/2+2,k.y+2];
+    if(k.pri>0&&placed.some(p=>r[0]<p[2]&&r[2]>p[0]&&r[1]<p[3]&&r[3]>p[1])){L.style.display='none';continue}placed.push(r);L.style.transform=`translate(${k.x}px,${k.y}px) translate(-50%,-100%)`}}
+
+/* smoke */
+const smokes=[];
+function buildSmoke(){const sc=document.createElement('canvas');sc.width=sc.height=64;const x=sc.getContext('2d');const g=x.createRadialGradient(32,32,2,32,32,30);g.addColorStop(0,'rgba(80,74,68,.8)');g.addColorStop(1,'rgba(80,74,68,0)');x.fillStyle=g;x.fillRect(0,0,64,64);const st=new THREE.CanvasTexture(sc);
+  const bh=CMAP.get('birmingham');const src=smokeSrc.map(([x2,y,z])=>new THREE.Vector3(toX(bh.lon)+x2*LMS,Math.max(hAt(bh.lon,bh.lat),0)+y*LMS,toZ(bh.lat)+z*LMS));
+  const ld=CMAP.get('london');src.push(new THREE.Vector3(toX(ld.lon)+.15,Math.max(hAt(ld.lon,ld.lat),0)+.1,toZ(ld.lat)+.05));
+  src.forEach((base,si)=>{for(let i=0;i<10;i++){const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:st,transparent:true,depthWrite:false,opacity:.4}));sp.userData={base,ph:i/10,big:si===src.length-1};scene.add(sp);smokes.push(sp)}})}
+
+function resize(){const w=canvas.clientWidth,h=canvas.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();labelsDirty=true}
+addEventListener('resize',resize);
+let placedShips=false;const clock=new THREE.Clock(),reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+function loop(){requestAnimationFrame(loop);const dt=Math.min(.05,clock.getDelta()),T=clock.elapsedTime;
+  if(fly){fly.t=Math.min(1,fly.t+dt*1.8);const e=fly.t<.5?2*fly.t*fly.t:1-Math.pow(-2*fly.t+2,2)/2;const nt=fly.from.clone().lerp(fly.to,e);const d=nt.sub(controls.target);controls.target.add(d);camera.position.add(d);labelsDirty=true;if(fly.t>=1)fly=null}
+  const tg=controls.target;const cx=Math.max(-MW/2,Math.min(MW/2,tg.x)),cz=Math.max(-MH/2,Math.min(MH/2,tg.z));if(cx!==tg.x||cz!==tg.z){camera.position.x+=cx-tg.x;camera.position.z+=cz-tg.z;tg.x=cx;tg.z=cz}
+  controls.update();
+  if(!reduced||!placedShips){placedShips=true;spinners.forEach(s=>s.rotation.z+=dt*.9);
+    ships.forEach(s=>{const r=s.userData.route;let u=(s.userData.ph+T*s.userData.speed)%2;const f=u<1?u:2-u;const fr=.04+f*.92;const [x,z]=atFrac(r.P,r.C,fr);const [x2,z2]=atFrac(r.P,r.C,Math.min(.999,fr+(u<1?.004:-.004)));
+      s.position.set(x,.006+Math.sin(T*1.7+s.userData.ph*9)*.004,z);s.rotation.y=Math.atan2(x2-x,z2-z);s.rotation.z=Math.sin(T*1.2+s.userData.ph*5)*.05});
+    smokes.forEach(sp=>{const u=(sp.userData.ph+T*.07)%1;sp.position.copy(sp.userData.base);sp.position.y+=u*(sp.userData.big?.8:.45);sp.position.x+=u*.18+Math.sin(u*5+sp.userData.ph*9)*.03;sp.scale.setScalar((sp.userData.big?.12:.05)+u*(sp.userData.big?.45:.22));sp.material.opacity=.42*(1-u)*Math.min(1,u*6)});
+    waving.forEach(f=>{const a=f.geometry.attributes.position,b=f.userData.base;for(let i=0;i<a.count;i++){const x=b[i*3];a.array[i*3+2]=Math.sin(x*4-T*5)*x*.12}a.needsUpdate=true})}
+  if(labelsDirty){updateLabels();labelsDirty=false}
+  renderer.render(scene,camera)}
+
+const step=t=>document.getElementById('loadStep').textContent=t;const tick=()=>new Promise(r=>setTimeout(r,20));
+async function boot(){
+  try{await Promise.race([Promise.all(['40px "IM Fell English SC"','italic 20px "IM Fell English"'].map(f=>document.fonts.load(f))),new Promise(r=>setTimeout(r,3500))])}catch(e){}
+  step('بالا بردن کوه‌های آلپ و کارپات…');await tick();buildHeights();prepRouting();
+  step('حک رودها، سواحل و مرزها…');await tick();const plate=buildPlate(),borders=buildBorders();buildTerrain(plate,borders);Mt=MAT();
+  step('نقشه‌برداری جاده‌ها و مسیرهای دریایی…');await tick();buildRoutes();
+  step('ساختن پایتخت‌ها…');await tick();buildCities();buildTrees();buildSmoke();
+  resize();renderPanel();highlight();renderer.shadowMap.needsUpdate=true;loop();
+  const ld=document.getElementById('loading');ld.style.opacity='0';setTimeout(()=>ld.remove(),650);
+}
+
+/* ================= Zombie Bazi game layer ================= */
+const TG = window.Telegram && Telegram.WebApp; if (TG) { try { TG.ready(); TG.expand(); } catch (e) {} }
+const INIT = (TG && TG.initData) || new URLSearchParams(location.search).get("init") || "";
+const FA = n => String(n).replace(/\d/g, d => "۰۱۲۳۴۵۶۷۸۹"[d]);
+const G = {S: null, markers: [], token: null, chosen: null, busy: false};
+async function gApi(path, opts = {}) {
+  const r = await fetch(path, {...opts, headers: {"Content-Type": "application/json", "X-Init-Data": INIT, ...(opts.headers || {})}});
+  if (!r.ok) { let t = await r.text(); try { t = JSON.parse(t).error || t; } catch (e) {} throw new Error(t); }
   return r.json();
 }
-
-function setVB(){ svg.setAttribute("viewBox", `${vb.x} ${vb.y} ${vb.w} ${vb.h}`); }
-function fitTo(points, pad=160){
-  const r = svg.getBoundingClientRect(); const aspect = r.width/Math.max(1,r.height);
-  let xs = points.map(p=>p[0]), ys = points.map(p=>p[1]);
-  let x0=Math.min(...xs)-pad, x1=Math.max(...xs)+pad, y0=Math.min(...ys)-pad-90, y1=Math.max(...ys)+pad;
-  let w=x1-x0, h=y1-y0; if (w/h < aspect) { const nw=h*aspect; x0-=(nw-w)/2; w=nw; } else { const nh=w/aspect; y0-=(nh-h)/2; h=nh; }
-  vb={x:x0,y:y0,w,h}; clampVB(); setVB();
+function sqPos(id) {
+  if (cityObj.has(id)) return cityObj.get(id).pos.clone();
+  for (const r of routes.values()) { const n = r.nodes.find(n => n.id === id); if (n) return n.g.position.clone(); }
+  const s = G.S && G.S.squares.find(s => s.id === id);
+  return s ? new THREE.Vector3(toX(s.lon), Math.max(hAt(s.lon, s.lat), 0), toZ(s.lat)) : null;
 }
-function clampVB(){ vb.w=Math.min(Math.max(vb.w,260),W*1.6); const a=svg.getBoundingClientRect(); vb.h=vb.w*a.height/Math.max(1,a.width); }
-
-function draw(coast){
-  svg.innerHTML = "";
-  el("rect",{x:-W,y:-H,width:W*3,height:H*3,fill:"var(--sea)"},svg);
-  const land = el("g",{fill:"var(--land)",stroke:"#9b7b55","stroke-width":1.2},svg);
-  for (const ring of coast){ if (ring.length<3) continue; el("path",{d:"M"+ring.map(([lo,la])=>P(lo,la).map(v=>v.toFixed(1)).join(",")).join("L")+"Z"},land); }
-  const gr = el("g",{},svg);
-  for (const r of S.routes){
-    const pts = r.seq.map(id=>SQ[id].xy);
-    const d = "M"+pts.map(p=>p.map(v=>v.toFixed(1)).join(",")).join("L");
-    const bad = r.status!=="ok";
-    if (r.kind==="sea") el("path",{d,fill:"none",stroke:bad?"var(--crimson)":"var(--lane)","stroke-width":4,"stroke-dasharray":"12 8"},gr);
-    else el("path",{d,fill:"none",stroke:bad?"var(--crimson)":"var(--road)","stroke-width":6,"stroke-dasharray":bad?"6 10":"none","stroke-linecap":"round"},gr);
-    if (bad){ const m = pts[Math.floor(pts.length/2)]; el("path",{d:`M${m[0]-13},${m[1]-13}L${m[0]+13},${m[1]+13}M${m[0]+13},${m[1]-13}L${m[0]-13},${m[1]+13}`,stroke:"var(--crimson)","stroke-width":6},gr); }
-  }
-  const gn = el("g",{},svg);
-  for (const s of S.squares){
-    const [x,y]=s.xy;
-    if (s.kind==="node"){ el("circle",{cx:x,cy:y,r:12,fill:"#c9a24a",stroke:"var(--ink)","stroke-width":2},gn);
-      const t=el("text",{x,y:y+1,"font-size":13,"text-anchor":"middle","dominant-baseline":"central",fill:"var(--ink)"},gn); t.textContent=FA(s.id.slice(1)); }
-  }
-  for (const u of S.units){
-    const [x,y]=SQ[u.square].xy; const g=el("g",{transform:`translate(${x+16},${y-28})`},gn);
-    if (u.kind==="cannon"){ el("rect",{width:24,height:20,rx:3,fill:"#222"},g); const t=el("text",{x:12,y:11,"font-size":13,"text-anchor":"middle","dominant-baseline":"central",fill:"#fff"},g); t.textContent="توپ"; }
-    else { el("path",{d:"M0,2H26L20,18H6Z",fill:"var(--lane)"},g); }
-  }
-  for (const s of S.squares){
-    if (s.kind!=="city") continue; const [x,y]=s.xy; const dmg=S.damage[s.id]||0;
-    const g = el("g",{class:"city"},gn);
-    el("circle",{cx:x,cy:y,r:11,fill:"var(--ink)",stroke:"#fff","stroke-width":3},g);
-    const t=el("text",{x,y:y-(S.me.pos===s.id?30:19),"font-size":24,"font-weight":800,"text-anchor":"middle",fill:dmg?"var(--crimson)":"var(--ink)"},g);
-    t.textContent = s.city + (dmg?` −${FA(dmg)}٪`:"");
-  }
-  if (S.me.pos && SQ[S.me.pos]){ const [x,y]=SQ[S.me.pos].xy; el("circle",{id:"me-ring",cx:x,cy:y,r:24},svg); }
-  const gp = el("g",{},svg);
-  for (const o of S.options){
-    const [x,y]=SQ[o.sq].xy; const cx=x+24, cy=y+24;
-    const g = el("g",{class:"pin","data-sq":o.sq,tabindex:0},gp);
-    el("line",{x1:x,y1:y,x2:cx,y2:cy,stroke:"var(--crimson)","stroke-width":4},g);
-    el("circle",{class:"pulse",cx,cy,r:16},g);
-    el("circle",{class:"b",cx,cy,r:19},g);
-    const t=el("text",{x:cx,y:cy+1},g); t.textContent=FA(o.n);
-    el("circle",{cx:x,cy:y,r:30,fill:"transparent"},g);
-    g.addEventListener("click", e => { e.stopPropagation(); pick(o); });
-  }
-  if (S.me.pos && SQ[S.me.pos]){ const [x,y]=SQ[S.me.pos].xy; el("circle",{id:"token",cx:x,cy:y,r:13},svg); }
-  setVB();
+function pinTexture(n, gold) {
+  const c = document.createElement("canvas"); c.width = c.height = 128; const x = c.getContext("2d");
+  x.beginPath(); x.arc(64, 58, 50, 0, 7); x.fillStyle = gold ? "#d9b65e" : "#a3322a"; x.fill();
+  x.lineWidth = 8; x.strokeStyle = gold ? "#24180e" : "#fff"; x.stroke();
+  x.beginPath(); x.moveTo(44, 100); x.lineTo(84, 100); x.lineTo(64, 126); x.closePath(); x.fillStyle = gold ? "#d9b65e" : "#a3322a"; x.fill();
+  x.fillStyle = gold ? "#24180e" : "#fff"; x.font = "900 62px Vazir, Tahoma, sans-serif"; x.textAlign = "center"; x.textBaseline = "middle";
+  x.fillText(FA(n), 64, 62);
+  const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; return t;
 }
-
-function pick(o){
-  if (busy) return; chosen = o;
-  document.querySelectorAll(".pin").forEach(p=>p.classList.toggle("sel", p.dataset.sq===o.sq));
-  const s = SQ[o.sq];
-  document.getElementById("sName").textContent = s.name;
-  const steps = o.path.length;
-  document.getElementById("sMeta").textContent = S.mode==="roll" ? `${FA(steps)} خانه · گزینه ${FA(o.n)}` : `گزینه ${FA(o.n)}`;
+function makePin(o) {
+  const mat = new THREE.SpriteMaterial({map: pinTexture(o.n, false), depthTest: false, transparent: true});
+  const s = new THREE.Sprite(mat); s.center.set(.5, 0); s.renderOrder = 10;
+  const p = sqPos(o.sq); const city = cityObj.has(o.sq);
+  s.position.copy(p).add(new THREE.Vector3(city ? .42 : 0, .08, city ? .22 : 0)); s.userData = {opt: o, base: .62};
+  s.scale.setScalar(.62); scene.add(s); G.markers.push(s); return s;
+}
+function makePawn(p) {
+  const g = new THREE.Group();
+  const green = new THREE.MeshStandardMaterial({color: "#1f7a45", roughness: .45, metalness: .25, emissive: "#0b3a1f", emissiveIntensity: .5});
+  const gold = new THREE.MeshStandardMaterial({color: "#c9a24a", roughness: .3, metalness: .7});
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(.13, .16, .06, 24).translate(0, .03, 0), gold);
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(.06, .11, .24, 20).translate(0, .18, 0), green);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(.08, 20, 14).translate(0, .34, 0), green);
+  base.castShadow = body.castShadow = head.castShadow = true;
+  const ring = new THREE.Mesh(new THREE.RingGeometry(.22, .28, 40).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({color: "#2fbf6a", transparent: true, opacity: .9, depthWrite: false}));
+  ring.position.y = .02; g.add(base, body, head, ring); g.userData.ring = ring;
+  g.position.copy(p); scene.add(g); return g;
+}
+function markClosedRoutes(S) {
+  for (const r of S.routes) {
+    if (r.status === "ok") continue; const rr = routes.get(r.id); if (!rr) continue;
+    const mat = new THREE.MeshBasicMaterial({color: "#b3261e", transparent: true, opacity: .8, depthWrite: false});
+    scene.add(ribbon(rr.P, .13, .03, mat, 1, r.kind === "sea"));
+    const m = rr.P[Math.floor(rr.P.length / 2)]; const y = Math.max(hXZ(m[0], m[1]), 0) + .05;
+    const xm = new THREE.MeshBasicMaterial({color: "#b3261e"});
+    for (const a of [Math.PI / 4, -Math.PI / 4]) { const b = new THREE.Mesh(new THREE.BoxGeometry(.42, .03, .07), xm); b.position.set(m[0], y, m[1]); b.rotation.y = a; scene.add(b); }
+  }
+}
+function placeUnits(S) {
+  for (const u of S.units) {
+    const p = sqPos(u.square); if (!p) continue; let o;
+    if (u.kind === "ship") { o = shipModel(); o.scale.multiplyScalar(.9); o.position.copy(p).add(new THREE.Vector3(.22, .01, .1)); }
+    else { o = new THREE.Group(); const m = new THREE.MeshStandardMaterial({color: "#1d1b19", metalness: .6, roughness: .35});
+      const barrel = new THREE.Mesh(new THREE.CylinderGeometry(.035, .05, .34, 14), m); barrel.rotation.z = Math.PI / 2.4; barrel.position.y = .1;
+      const wood = new THREE.MeshStandardMaterial({color: "#6b4423"}); const w1 = new THREE.Mesh(new THREE.CylinderGeometry(.07, .07, .03, 16), wood); w1.rotation.x = Math.PI / 2; w1.position.set(0, .07, .07);
+      const w2 = w1.clone(); w2.position.z = -.07; o.add(barrel, w1, w2); o.position.copy(p).add(new THREE.Vector3(.24, 0, .08)); }
+    o.traverse(m => { if (m.isMesh) m.castShadow = true; }); scene.add(o);
+  }
+}
+function persianLabels(S) {
+  for (const s of S.squares) {
+    if (s.kind !== "city" || !cityObj.has(s.id)) continue; const lb = cityObj.get(s.id).label;
+    const dmg = S.damage[s.id] || 0; lb.firstChild.textContent = s.city + (dmg ? ` (${FA(dmg)}٪ ویران)` : "");
+    if (dmg) lb.style.color = "#8a1c14"; cityObj.get(s.id).w = 0;
+  }
+  labelsDirty = true;
+}
+function lookAt(p, near) {
+  const off = camera.position.clone().sub(controls.target); const want = near ? 8 : 22;
+  off.setLength(want); controls.target.set(p.x, 0, p.z); camera.position.copy(controls.target).add(off); labelsDirty = true;
+}
+function focusOptions() {
+  const pts = G.markers.map(m => m.position); if (G.token) pts.push(G.token.position);
+  if (!pts.length) return;
+  const box = new THREE.Box3().setFromPoints(pts); const c = box.getCenter(new THREE.Vector3()); const size = box.getSize(new THREE.Vector3());
+  const off = camera.position.clone().sub(controls.target); off.setLength(Math.max(6, Math.max(size.x, size.z) * 1.35 + 3));
+  controls.target.set(c.x, 0, c.z); camera.position.copy(controls.target).add(off); labelsDirty = true;
+}
+function hud(S) {
+  document.getElementById("gName").textContent = S.me.name; document.getElementById("gRole").textContent = S.me.role;
+  document.getElementById("gHp").textContent = "❤️ " + FA(S.me.hp); document.getElementById("gCoins").textContent = "💰 " + FA(S.me.coins);
+  document.getElementById("gPhase").textContent = S.phase;
+  document.getElementById("gHintText").textContent = S.options.length ? S.hint + " روی یک شماره بزن." : S.hint;
+  if (S.mode === "roll") { const d = document.getElementById("gDie"); d.hidden = false; d.textContent = FA(S.me.roll + (S.me.plus || 0)); }
+}
+function select(o) {
+  if (G.busy) return; G.chosen = o;
+  for (const m of G.markers) { const on = m.userData.opt === o; m.material.map = pinTexture(m.userData.opt.n, on); m.material.needsUpdate = true; m.userData.base = on ? .8 : .62; }
+  const s = G.S.squares.find(s => s.id === o.sq);
+  document.getElementById("gSName").textContent = s.name;
+  document.getElementById("gSMeta").textContent = G.S.mode === "roll" ? `${FA(o.path.length)} خانه · گزینه ${FA(o.n)}` : `گزینه ${FA(o.n)}`;
   let desc = s.desc || (s.sea ? "خانه‌ای روی مسیر دریایی." : "خانه‌ای روی جاده بین دو شهر.");
-  if (o.tolls.length) desc += `\n⚠️ از ${FA(o.tolls.length)} خانه دارای توپ/کشتی دیگران رد می‌شوی: هر کدام ۱۰ سکه عوارض.`;
-  const d = document.getElementById("sDesc"); d.textContent = desc; d.className = o.tolls.length ? "warn" : "";
-  document.getElementById("sheet").classList.add("open");
-  if (tg){ tg.MainButton.setText("حرکت به " + (s.city || ("خانه " + FA(s.id.slice(1))))); tg.MainButton.show(); }
+  if (o.tolls.length) desc += `\n⚠️ از ${FA(o.tolls.length)} خانه با توپ/کشتی دیگران رد می‌شوی: هر کدام ۱۰ سکه عوارض.`;
+  const d = document.getElementById("gSDesc"); d.textContent = desc; d.className = o.tolls.length ? "warn" : "";
+  document.getElementById("gSheet").classList.add("open");
+  const p = sqPos(o.sq); fly = {from: controls.target.clone(), to: new THREE.Vector3(p.x, 0, p.z), t: 0};
+  if (TG) { TG.MainButton.setText("حرکت به " + (s.city || ("خانه " + FA(s.id.slice(1))))); TG.MainButton.show(); }
 }
-function unpick(){ chosen=null; document.getElementById("sheet").classList.remove("open"); document.querySelectorAll(".pin.sel").forEach(p=>p.classList.remove("sel")); if (tg) tg.MainButton.hide(); }
-
-async function go(){
-  if (!chosen || busy) return; busy = true;
-  const btn = document.getElementById("sGo"); btn.disabled = true; if (tg) tg.MainButton.showProgress();
-  try {
-    const r = await api("/api/move",{method:"POST",body:JSON.stringify({dest:chosen.sq,init:INIT})});
-    document.getElementById("sheet").classList.remove("open"); if (tg){ tg.MainButton.hideProgress(); tg.MainButton.hide(); }
-    document.querySelectorAll(".pin").forEach(p=>p.style.opacity = p.dataset.sq===chosen.sq ? 1 : .15);
-    await walk(S.me.pos ? [S.me.pos, ...r.path] : r.path);
-    if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred("success");
-    document.getElementById("coins").textContent = "💰 " + FA(r.coins);
-    showMsg("📍 رسیدی!", r.name + (r.tolls.length ? "\n" + r.tolls.join("\n") : ""), "برگشت به ربات", () => tg ? tg.close() : null);
-  } catch (e) {
-    busy = false; btn.disabled = false; if (tg) tg.MainButton.hideProgress();
-    showMsg("نشد", e.message, "باشه", hideMsg);
-  }
+function unselect() {
+  G.chosen = null; document.getElementById("gSheet").classList.remove("open");
+  for (const m of G.markers) { m.material.map = pinTexture(m.userData.opt.n, false); m.material.needsUpdate = true; m.userData.base = .62; }
+  if (TG) TG.MainButton.hide();
 }
-
-function walk(ids){
+function walk(ids) {
   return new Promise(res => {
-    const tok = document.getElementById("token") || el("circle",{id:"token",r:13},svg);
-    const pts = ids.map(id=>SQ[id].xy); if (pts.length<2){ tok.setAttribute("cx",pts[0][0]); tok.setAttribute("cy",pts[0][1]); return res(); }
-    fitTo(pts, 220);
-    let i=0, t0=null; const per=420;
-    function step(ts){ if(!t0) t0=ts; const k=Math.min(1,(ts-t0)/per); const a=pts[i], b=pts[i+1];
-      const e = k<.5 ? 2*k*k : 1-Math.pow(-2*k+2,2)/2;
-      tok.setAttribute("cx", a[0]+(b[0]-a[0])*e); tok.setAttribute("cy", a[1]+(b[1]-a[1])*e);
-      if (k<1) return requestAnimationFrame(step);
-      i++; t0=null; if (i>=pts.length-1) return res(); requestAnimationFrame(step); }
+    const pts = ids.map(sqPos).filter(Boolean);
+    if (!G.token) G.token = makePawn(pts[0]);
+    if (pts.length < 2) { G.token.position.copy(pts[0]); return res(); }
+    let i = 0, t0 = null; const per = 520;
+    function step(ts) {
+      if (!t0) t0 = ts; const k = Math.min(1, (ts - t0) / per); const a = pts[i], b = pts[i + 1];
+      const e = k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+      G.token.position.lerpVectors(a, b, e); G.token.position.y += Math.sin(k * Math.PI) * .35;
+      const tg = G.token.position; fly = null; const d = new THREE.Vector3(tg.x, 0, tg.z).sub(controls.target).multiplyScalar(.12);
+      controls.target.add(d); camera.position.add(d); labelsDirty = true;
+      if (k < 1) return requestAnimationFrame(step);
+      i++; t0 = null; if (i >= pts.length - 1) return res(); requestAnimationFrame(step);
+    }
     requestAnimationFrame(step);
   });
 }
-
-function showMsg(title, text, label, fn){ document.getElementById("mTitle").textContent=title; document.getElementById("mText").innerText=text;
-  const b=document.getElementById("mBtn"); b.textContent=label; b.onclick=fn; document.getElementById("msg").style.display="grid"; }
-function hideMsg(){ document.getElementById("msg").style.display="none"; }
-
-// pan & zoom
-const pts = new Map(); let last=null, lastDist=null;
-function toSvg(cx, cy){ const r=svg.getBoundingClientRect(); return [vb.x+(cx-r.left)/r.width*vb.w, vb.y+(cy-r.top)/r.height*vb.h]; }
-function zoomAt(f, cx, cy){ const [sx,sy]=toSvg(cx,cy); const nw=Math.min(Math.max(vb.w*f,260),W*1.6); const k=nw/vb.w;
-  vb.x = sx-(sx-vb.x)*k; vb.y = sy-(sy-vb.y)*k; vb.w = nw; clampVB(); setVB(); }
-svg.addEventListener("pointerdown", e => { pts.set(e.pointerId,[e.clientX,e.clientY]); last=[e.clientX,e.clientY]; });
-svg.addEventListener("pointermove", e => {
-  if (!pts.has(e.pointerId)) return; pts.set(e.pointerId,[e.clientX,e.clientY]);
-  const r = svg.getBoundingClientRect();
-  if (pts.size===2){ const [a,b]=[...pts.values()]; const d=Math.hypot(a[0]-b[0],a[1]-b[1]);
-    if (lastDist) zoomAt(lastDist/d,(a[0]+b[0])/2,(a[1]+b[1])/2); lastDist=d; return; }
-  if (last){ vb.x -= (e.clientX-last[0])/r.width*vb.w; vb.y -= (e.clientY-last[1])/r.height*vb.h; setVB(); }
-  last=[e.clientX,e.clientY];
-});
-const up = e => { pts.delete(e.pointerId); if (pts.size<2) lastDist=null; if (!pts.size) last=null; };
-svg.addEventListener("pointerup", up); svg.addEventListener("pointercancel", up);
-svg.addEventListener("wheel", e => { e.preventDefault(); zoomAt(e.deltaY>0?1.15:0.87, e.clientX, e.clientY); }, {passive:false});
-document.getElementById("zin").onclick = () => { const r=svg.getBoundingClientRect(); zoomAt(.75, r.left+r.width/2, r.top+r.height/2); };
-document.getElementById("zout").onclick = () => { const r=svg.getBoundingClientRect(); zoomAt(1.33, r.left+r.width/2, r.top+r.height/2); };
-document.getElementById("sCancel").onclick = unpick;
-document.getElementById("sGo").onclick = go;
-if (tg) tg.MainButton.onClick(go);
-
-(async function main(){
+function showMsg(title, text, label, fn) {
+  document.getElementById("gMTitle").textContent = title; document.getElementById("gMText").textContent = text;
+  const b = document.getElementById("gMBtn"); b.textContent = label; b.onclick = fn; document.getElementById("gMsg").style.display = "grid";
+}
+async function go() {
+  if (!G.chosen || G.busy) return; G.busy = true; const btn = document.getElementById("gGo"); btn.disabled = true;
+  if (TG) TG.MainButton.showProgress();
   try {
-    const [coast, state] = await Promise.all([fetch("/api/coast").then(r=>r.json()), api("/api/state")]);
-    S = state; for (const s of S.squares){ s.xy = P(s.lon, s.lat); SQ[s.id]=s; }
-    document.getElementById("name").textContent = S.me.name;
-    document.getElementById("role").textContent = S.me.role;
-    document.getElementById("hp").textContent = "❤️ " + FA(S.me.hp);
-    document.getElementById("coins").textContent = "💰 " + FA(S.me.coins);
-    document.getElementById("phase").textContent = S.phase;
-    document.getElementById("hinttext").textContent = S.options.length ? S.hint + " روی یک شماره بزن." : S.hint;
-    if (S.mode==="roll"){ const d=document.getElementById("die"); d.hidden=false; d.textContent=FA(S.me.roll + (S.me.plus||0)); }
-    draw(coast);
-    const focus = S.options.map(o=>SQ[o.sq].xy); if (S.me.pos) focus.push(SQ[S.me.pos].xy);
-    if (focus.length) fitTo(focus); else { vb={x:0,y:0,w:W,h:H}; clampVB(); setVB(); }
+    const r = await gApi("/api/move", {method: "POST", body: JSON.stringify({dest: G.chosen.sq, init: INIT})});
+    document.getElementById("gSheet").classList.remove("open"); if (TG) { TG.MainButton.hideProgress(); TG.MainButton.hide(); }
+    for (const m of G.markers) if (m.userData.opt !== G.chosen) m.visible = false;
+    await walk(G.S.me.pos ? [G.S.me.pos, ...r.path] : r.path);
+    for (const m of G.markers) m.visible = false;
+    if (TG && TG.HapticFeedback) TG.HapticFeedback.notificationOccurred("success");
+    document.getElementById("gCoins").textContent = "💰 " + FA(r.coins);
+    document.getElementById("gHintText").textContent = "📍 " + r.name;
+    showMsg("📍 رسیدی!", r.name + (r.tolls.length ? "\n" + r.tolls.join("\n") : ""), "برگشت به ربات", () => { if (TG) TG.close(); else document.getElementById("gMsg").style.display = "none"; });
   } catch (e) {
-    document.getElementById("hinttext").textContent = "⚠️ " + e.message;
+    G.busy = false; btn.disabled = false; if (TG) TG.MainButton.hideProgress();
+    showMsg("نشد", e.message, "باشه", () => document.getElementById("gMsg").style.display = "none");
   }
-})();
-addEventListener("resize", () => { clampVB(); setVB(); });
+}
+(function pulse() { requestAnimationFrame(pulse); const t = performance.now() / 1000;
+  for (const m of G.markers) m.scale.setScalar(m.userData.base * (1 + Math.sin(t * 3 + m.userData.opt.n) * .07));
+  if (G.token) { const r = G.token.userData.ring; r.scale.setScalar(1 + (t * .8 % 1) * .6); r.material.opacity = .9 * (1 - t * .8 % 1); } })();
+let gDown = null;
+canvas.addEventListener("pointerdown", e => gDown = {x: e.clientX, y: e.clientY}, true);
+canvas.addEventListener("pointerup", e => {
+  if (!gDown || Math.hypot(e.clientX - gDown.x, e.clientY - gDown.y) > 6 || !G.markers.length) return;
+  setMouse(e); const hits = ray.intersectObjects(G.markers.filter(m => m.visible), false);
+  let o = hits.length ? hits[0].object.userData.opt : null;
+  if (!o) { const h = pick(); const id = h && (h.type === "city" || h.type === "node") ? h.id : null; o = id && G.S.options.find(x => x.sq === id); }
+  if (o) { e.stopImmediatePropagation(); select(o); }
+}, true);
+document.getElementById("gCancel").onclick = unselect;
+document.getElementById("gGo").onclick = go;
+document.getElementById("gMe").onclick = () => { if (G.token) lookAt(G.token.position, true); else focusOptions(); };
+document.getElementById("gAll").onclick = () => lookAt(new THREE.Vector3(-.2, 0, -1.4), false);
+if (TG) TG.MainButton.onClick(go);
+async function gameInit() {
+  try {
+    const S = await gApi("/api/state"); G.S = S;
+    hud(S); persianLabels(S); markClosedRoutes(S); placeUnits(S);
+    if (S.me.pos) G.token = makePawn(sqPos(S.me.pos));
+    S.options.forEach(makePin);
+    renderer.shadowMap.needsUpdate = true;
+    if (S.options.length) focusOptions(); else if (G.token) lookAt(G.token.position, true);
+  } catch (e) { document.getElementById("gHintText").textContent = "⚠️ " + e.message; }
+}
+
+boot().then(gameInit);
 </script>
-</body>
-</html>
+
+</body></html>
