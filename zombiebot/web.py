@@ -90,8 +90,7 @@ def static_map():
     units = [{"kind": u["kind"], "type": UNIT_NAMES[u["kind"]][0], "name": u.get("name") or "", "square": u["square"]}
              for u in g["units_on_map"]]
     reports = [{"name": b.get("name") or "", "target": b["target"], "seen": b["result"]} for b in mapview.published_balloons(g)]
-    chars = [{"square": sq, "names": names} for sq, names in actions.public_chars(g).items()]
-    return {"squares": squares, "routes": routes, "units": units, "reports": reports, "damage": g["loc_damage"], "chars": chars}
+    return {"squares": squares, "routes": routes, "units": units, "reports": reports, "damage": g["loc_damage"]}
 
 
 def move_mode(g, p):

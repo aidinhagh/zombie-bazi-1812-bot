@@ -466,7 +466,7 @@ def lock_map(g, rng=random):
         if b["result"] is not None or b["cycle"] != g["cycle"] or b.get("phase") != g["phase"]:
             continue
         if b["kind"] == "spy":
-            seen = sorted(char_of(p) for p in alive_players(g) if p["pos"] == b["target"] and not p["flags"].get("hide"))
+            seen = balloon_sees(g, b["target"])
             b["result"] = seen
         else:
             b["result"] = "await_pct"
@@ -584,16 +584,14 @@ def death_announcement(P):
             f"☠️ {P['name']} has died. Character: {char}. Role: {role_name(shown,'en')}")
 
 
-def public_chars(g):
-    """{square: [character names]} as published at the last 20:00 map — real and fake characters mixed,
-    in alphabetical order so nobody can tell which is which."""
-    at = {}
-    for p in alive_players(g):
-        if p.get("public_pos"):
-            at.setdefault(p["public_pos"], []).append(char_of(p))
-        if needs_fake_char(p) and p.get("fake_char") and p.get("fake_public_pos"):
-            at.setdefault(p["fake_public_pos"], []).append(p["fake_char"])
-    return {sq: sorted(v) for sq, v in at.items()}
+def balloon_sees(g, sq):
+    """What a spy balloon over a square reports: the story characters standing there — the real ones
+    (unless hidden) and any fake characters placed there — alphabetically, so nobody can tell which is fake.
+    The map itself is never public: only places with a balloon over them are reported."""
+    seen = [char_of(p) for p in alive_players(g) if p["pos"] == sq and not p["flags"].get("hide")]
+    seen += [p["fake_char"] for p in alive_players(g)
+             if needs_fake_char(p) and p.get("fake_char") and p.get("fake_pos") == sq]
+    return sorted(seen)
 
 
 def set_fake_pos(g, p, sq):

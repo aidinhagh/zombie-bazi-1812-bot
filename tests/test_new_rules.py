@@ -679,10 +679,10 @@ def test_death_reads_out_player_character_and_role_but_godfather_lies():
     run(go())
 
 
-def test_fake_character_is_placed_by_its_owner_and_shown_on_the_8pm_map():
+def test_fake_character_only_shows_up_under_a_spy_balloon():
     async def go():
         w = World(seed=72)
-        await setup(w, ["zombie", "doctor", "clown"])
+        await setup(w, ["zombie", "spy", "clown"])
         await next_step(w)
         await place(w, 1, "paris"); await place(w, 2, "berlin"); await place(w, 3, "milan")
         ans = await w.press(2, "p:fc")
@@ -691,19 +691,23 @@ def test_fake_character_is_placed_by_its_owner_and_shown_on_the_8pm_map():
         assert "p:fcg:london" in w.last_to(1).buttons() and "p:fcn" in w.last_to(1).buttons()
         await w.press(1, "p:fcg:london")
         assert P(w, 1)["fake_pos"] == "london"
-        await next_step(w)                       # 20:00 lock → public map
-        at = actions.public_chars(w.g)
-        assert P(w, 1)["fake_char"] in at["london"] and P(w, 1)["char"] in at["paris"]
-        assert P(w, 3)["fake_char"] in sum(at.values(), [])     # never placed → the bot put it somewhere
+        await w.press(2, "p:bag"); await w.press(2, "p:ub:spy"); await w.press(2, "p:ubt:spy:london")
+        await next_step(w)                       # 20:00 lock → the spy's balloon is published
         posted = "\n".join(w.texts_to(GROUP))
-        assert P(w, 1)["fake_char"] in posted and P(w, 2)["char"] in posted
-        assert P(w, 1)["name"] not in posted.split("شخصیت‌ها")[-1].split("\n\n")[0]
-        st = web.static_map()
-        assert any(P(w, 1)["fake_char"] in c["names"] for c in st["chars"])
+        report = [t for t in w.texts_to(GROUP) if "گزارش بالن" in t]
+        assert report and P(w, 1)["fake_char"] in report[0]          # the fake character is "seen" in London
+        # the map itself is not public: nobody else's character is posted anywhere
+        for i in (1, 2, 3):
+            assert P(w, i)["char"] not in posted
+        assert P(w, 3)["fake_char"] not in posted
+        assert P(w, 3)["fake_pos"]                                    # never placed → the bot put it somewhere
+        assert "chars" not in web.static_map()
+        # a balloon over Paris would see the zombie's real character, not his fake one
+        assert actions.balloon_sees(w.g, "paris") == [P(w, 1)["char"]]
         with pytest.raises(GameError):
             actions.set_fake_pos(w.g, P(w, 1), "paris")          # locked
         actions.kill(w.g, P(w, 1))
-        assert P(w, 1)["fake_char"] not in sum(actions.public_chars(w.g).values(), [])
+        assert P(w, 1)["fake_char"] not in actions.balloon_sees(w.g, "london")
     run(go())
 
 

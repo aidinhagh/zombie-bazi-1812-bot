@@ -207,7 +207,7 @@ async def handle(update, ctx, p, head, args):
                 raise GameError("نقشه تا فاز بعد قفل است.", "The map is locked until the next phase.")
             where = board.square_name(p["fake_pos"]) if p.get("fake_pos") else "هنوز جایی نیست"
             title = (f"👤 شخصیت جعلی تو: «{p['fake_char']}» · الان: {where}\n"
-                     f"تا ساعت {num(LOCK_HOUR)}:۰۰ هر جای نقشه که بخواهی بگذارش؛ ساعت ۸ کنار بقیه شخصیت‌ها روی نقشه نشان داده می‌شود."
+                     f"تا ساعت {num(LOCK_HOUR)}:۰۰ هر جای نقشه که بخواهی بگذارش. اگر بالن جاسوسی بالای آن مکان برود، این شخصیت هم در گزارش بالن دیده می‌شود."
                      "\n(یادت باشد آدم‌ها دو شب پشت سر هم یک جا نمی‌مانند و با تاس جابه‌جا می‌شوند.)")
             return await mapview.send_city_pick(bot, p, title, "", "p:fcg", nodes_cb="p:fcn")
         if head == "fcn":

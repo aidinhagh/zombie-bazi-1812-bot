@@ -60,20 +60,8 @@ def unit_lines(g, lang, owners=False):
     return out
 
 
-def char_lines(g):
-    """Where each story character was at the last 20:00 map (real and fake characters, mixed)."""
-    at = actions.public_chars(g)
-    out = []
-    for sq in sorted(at, key=lambda s: (s not in CITIES, list(CITIES).index(s) if s in CITIES else int(s.lstrip("n")))):
-        out.append(f"{'🏙' if sq in CITIES else '◦'} {sq_name(sq, 'fa')}: {'، '.join(at[sq])}")
-    return out
-
-
 def public_list(g, lang):
     lines = [L(lang, f"🗺 نقشه — {phase_label(lang, g)}", f"🗺 Map — {phase_label(lang, g)}")]
-    chars = char_lines(g)
-    if chars:
-        lines += ["", "🎭 شخصیت‌ها (نقشه ساعت ۸):"] + chars
     units = unit_lines(g, lang)
     routes = route_lines(g, lang)
     lines.append("")
@@ -151,7 +139,7 @@ async def send_photo_and_list(bot, chat_or_uid, photo, text, to_player=True, rep
 async def send_player_map(bot, p, reply_markup=None):
     g = G()
     lang = lang_of(p["id"])
-    pic = render(g, title=f"{p['name']} · {phase_label('fa', g)}", you=p.get("pos"), names=actions.public_chars(g))
+    pic = render(g, title=f"{p['name']} · {phase_label('fa', g)}", you=p.get("pos"))
     await send_photo_and_list(bot, p["id"], pic, player_list(g, p, lang), reply_markup=reply_markup)
 
 
@@ -166,7 +154,7 @@ async def post_public_map(bot):
     target = g["channel_id"] or g["group_id"]
     if not target:
         return
-    pic = render(g, title=f"نقشه {phase_label('fa', g)}", reports=published_balloons(g), names=actions.public_chars(g))
+    pic = render(g, title=f"نقشه {phase_label('fa', g)}", reports=published_balloons(g))
     text = public_list(g, "fa")
     await send_photo_and_list(bot, target, pic, text, to_player=False)
 
