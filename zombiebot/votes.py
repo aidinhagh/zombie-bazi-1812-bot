@@ -14,6 +14,7 @@ import time
 from collections import OrderedDict
 
 from telegram import MessageEntity
+from telegram.error import RetryAfter, TelegramError
 
 from . import actions, matching
 from .animator import make_gif
@@ -174,18 +175,30 @@ async def render_gif(label, photo_key, photo, lightning):
     return data
 
 
-async def announce(bot, chat_id, status, voter, target, extra, reply_to=None, gif=True):
-    """Post the vote result: the sand-and-blood GIF (or lightning) with a caption, or a text line."""
+_file_ids = {}   # rendered GIF -> Telegram file_id, so each animation is uploaded once
+
+
+async def announce(bot, chat_id, status, voter, target, extra, reply_to=None, gif=True, header=""):
+    """Post the vote result as ONE message: the sand-and-blood GIF (or lightning) with a caption, or a text line.
+    Group sends are limited (~20 a minute), so a vote never costs more than one message."""
     caption = caption_for(status, voter, target, extra)
     if caption is None:
         return
+    caption = header + caption
     if not gif:
         await bot.send_message(chat_id, "🗳 " + caption, reply_to_message_id=reply_to)
         return
     photo = await fetch_photo(bot, target["id"])
+    key = f"{target['name'][:MAX_CHARS]}|{target['id'] if photo else '-'}|{int(status == 'lightning')}"
+    if key in _file_ids:
+        await bot.send_animation(chat_id, animation=_file_ids[key], caption=caption, reply_to_message_id=reply_to)
+        return
     data = await render_gif(target["name"][:MAX_CHARS], str(target["id"]) if photo else "-", photo, status == "lightning")
-    await bot.send_animation(chat_id, animation=io.BytesIO(data), filename="vote.gif", caption=caption,
-                             reply_to_message_id=reply_to)
+    msg = await bot.send_animation(chat_id, animation=io.BytesIO(data), filename="vote.gif", caption=caption,
+                                   reply_to_message_id=reply_to)
+    anim = getattr(msg, "animation", None) or getattr(msg, "document", None)
+    if getattr(anim, "file_id", None):
+        _file_ids[key] = anim.file_id
 
 
 # ---------------- group handler ----------------
@@ -245,16 +258,18 @@ async def on_group_text(update, ctx):
 
 
 async def vote_from_menu(bot, voter, target, gif=True):
-    """A vote cast from the private menu (or by a test player) is posted in the group like a #رای message."""
+    """A vote cast from the private menu (or by a test player) is posted in the group like a #رای message —
+    as a single message. If Telegram says to slow down, the vote still counts; only the post is skipped."""
     status, extra = cast(voter, target)
     gid = G()["group_id"]
     if status in ("ok", "lightning", "already") and gid:
-        await bot.send_message(gid, f"{voter['name']}: #رای {target['name']}")
+        header = f"{voter['name']}: #رای {target['name']}\n"
         try:
-            await announce(bot, gid, status, voter, target, extra, gif=gif)
-        except Exception:
-            logger.exception("vote animation failed")
-            await bot.send_message(gid, caption_for(status, voter, target, extra))
+            await announce(bot, gid, status, voter, target, extra, gif=gif, header=header)
+        except RetryAfter as e:
+            logger.warning("group flood control (%ss): vote by %s counted but not posted", e.retry_after, voter["name"])
+        except TelegramError:
+            logger.exception("vote post failed")
     return status, extra
 
 

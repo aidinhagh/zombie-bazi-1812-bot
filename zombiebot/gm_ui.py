@@ -28,7 +28,8 @@ TEST_ROLES = ["godfather", "zombie", "zombie", "zombie_doctor", "undead", "bombe
               "clown", "cultist", "thief",
               "hero", "priest", "priest", "doctor", "spy", "saboteur", "apothecary", "sniper",
               "cult_hunter", "musketeer", "judge", "doctor", "saboteur", "priest"]
-VOTE_GAP = 3.5   # seconds between test players' group votes (Telegram allows ~20 group messages a minute)
+VOTE_GAP = 5.0   # seconds between test players' group votes: Telegram allows ~20 group messages a minute,
+                 # and flooding it freezes the bot for minutes
 
 
 def test_players(g=None):

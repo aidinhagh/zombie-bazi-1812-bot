@@ -447,3 +447,28 @@ def test_fuzz_random_buttons_through_fast_games():
         await w.press(GM, "g:map")
     for seed in range(4):
         run(go(seed))
+
+
+def test_test_votes_stay_under_telegram_group_limits():
+    """Telegram allows ~20 messages a minute in a group; going over freezes the bot for minutes (it happened live)."""
+    async def go():
+        w = World(seed=31)
+        await w.cmd(GM, "setgroup", chat_type="group", chat_id=GROUP)
+        await w.press(GM, "g:mk")
+        await next_step(w); await next_step(w); await w.press(GM, "g:apply")
+        before = len([m for m in w.sent if m.chat_id == GROUP])
+        w.scheduled.clear()
+        await next_step(w)                       # day: test players vote
+        votes_scheduled = sorted(t for name, t in w.scheduled if name == "job_test_vote")
+        assert len(votes_scheduled) >= 15
+        gaps = [b - a for a, b in zip(votes_scheduled, votes_scheduled[1:])]
+        assert min(gaps) >= 5
+        per_minute = max(sum(1 for t in votes_scheduled if s <= t < s + 60) for s in votes_scheduled)
+        assert per_minute <= 12
+        group_after = [m for m in w.sent if m.chat_id == GROUP][before:]
+        vote_posts = [m for m in group_after if m.animation]
+        assert len(vote_posts) == len(w.g["votes"]) + sum(1 for e in w.g.get("vote_log", []) if not e["counted"])
+        assert all(": #رای " in m.text for m in vote_posts)
+        # day announcement + one message per vote + the tally — nothing else
+        assert len(group_after) == len(vote_posts) + 2
+    run(go())

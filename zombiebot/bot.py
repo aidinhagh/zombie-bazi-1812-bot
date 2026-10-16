@@ -333,10 +333,13 @@ def build_app(token):
     builder = Application.builder().token(token)
     try:
         from telegram.ext import AIORateLimiter
-        builder = builder.rate_limiter(AIORateLimiter(max_retries=3))
+        # Throttle sends ahead of time, but never retry a flood-control error: PTB's limiter pauses EVERY request
+        # while it waits out a RetryAfter, which freezes the whole bot for minutes. A dropped message is logged instead.
+        builder = builder.rate_limiter(AIORateLimiter(group_max_rate=15, max_retries=0))
     except Exception:   # the rate-limiter extra isn't installed (tests): run without it
         pass
-    app = builder.build()
+    # a post waiting for its turn in the group must never hold up everyone else's buttons
+    app = builder.concurrent_updates(True).build()
     cmds = {"start": cmd_start, "menu": player_ui.cmd_menu, "gm": cmd_gm, "lang": player_ui.cmd_lang, "help": cmd_help,
             "whoami": cmd_whoami, "setgroup": cmd_setgroup, "setchannel": cmd_setchannel, "nick": gm_ui.cmd_nick,
             "delete": votes.cmd_delete, "assign": cmd_assign, "hp": cmd_hp, "coins": cmd_coins, "pos": cmd_pos,

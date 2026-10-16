@@ -104,6 +104,7 @@ class FakeJobQueue:
 
     def run_once(self, cb, when, data=None, **kw):
         self.world.jobs.append((cb, data))
+        self.world.scheduled.append((getattr(cb, "__name__", ""), when))
 
     def run_daily(self, *a, **kw):
         pass
@@ -120,7 +121,7 @@ class World:
         votes.make_gif = _REAL_GIF if real_gifs else (lambda *a, **k: b"GIF89a-test")
         votes._seen.clear()
         votes._last_tally.clear()
-        self.sent, self.jobs, self.forced_dice = [], [], []
+        self.sent, self.jobs, self.forced_dice, self.scheduled = [], [], [], []
         self.bot = FakeBot(self, self.rng)
         self.jq = FakeJobQueue(self)
         self.user_data = {}
