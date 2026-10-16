@@ -63,7 +63,7 @@ def dashed(d, a, b, fill, width, dash=12, gap=8):
         d.line([(x1 + (x2 - x1) * s, y1 + (y2 - y1) * s), (x1 + (x2 - x1) * e, y1 + (y2 - y1) * e)], fill=fill, width=width)
 
 
-def render(g, gm=False, title=None, highlight=None, you=None, names=None):
+def render(g, gm=False, title=None, highlight=None, you=None, names=None, reports=None):
     """highlight: {square: number} drawn as big numbered pins (movement choices).
     you: the viewer's square. names: {square: [names]} written next to squares (GM view)."""
     img = Image.new("RGB", (W, H), SEA)
@@ -103,7 +103,8 @@ def render(g, gm=False, title=None, highlight=None, you=None, names=None):
         x, y = xy(c["lon"], c["lat"])
         d.ellipse([x - 12, y - 12, x + 12, y + 12], fill=INK, outline=(255, 255, 255), width=3)
         dmg = g["loc_damage"].get(cid, 0)
-        label = c["name"] + (f"  -{dmg}%" if dmg else "")
+        from .data.locations import CITY_SHORT
+        label = CITY_SHORT[cid][0] + (f" ({dmg}٪ ویران)" if dmg else "")
         col = RED if dmg else INK
         if cid == "vienna":
             text(d, (x - 10, y + 16), label, f_city, fill=col, anchor="rt", stroke_width=4, stroke_fill=LAND)
@@ -121,15 +122,31 @@ def render(g, gm=False, title=None, highlight=None, you=None, names=None):
         else:
             d.polygon([(x, y - 22), (x + 26, y - 22), (x + 20, y - 6), (x + 6, y - 6)], fill=SEALANE)
             text(d, (x + 13, y - 15), "S", f_small, fill="white", anchor="mm")
+        label = u.get("name") or ""
         if gm:
             o = g["players"].get(str(u["owner"]))
             if o:
-                text(d, (x + 28, y - 15), o["name"][:12], f_small, fill=INK, anchor="lm")
+                label = f"{label} ({o['name'][:10]})"
+        if label:
+            text(d, (x + 28, y - 15), label[:26], f_small, fill=INK, anchor="lm", stroke_width=3, stroke_fill=LAND)
 
     for sq, ns in (names or {}).items():
         x, y = sq_xy(sq)
         for i, n in enumerate(ns[:8]):
             text(d, (x + 16, y + 8 + i * 22), n[:16], f_small, fill=(120, 20, 20), anchor="lt", stroke_width=3, stroke_fill=LAND)
+
+    for b in reports or []:
+        if b["target"] not in SQUARES:
+            continue
+        x, y = sq_xy(b["target"])
+        seen = "، ".join(b["result"]) if b["result"] else "هیچ‌کس"
+        lines = [f"🎈 {b.get('name') or ''}", seen]
+        bx, by = x - 10, y + 30
+        tw = max(d.textlength(shape(l), font=f_small) for l in lines) + 20
+        d.rounded_rectangle([bx - tw / 2, by, bx + tw / 2, by + 52], radius=8, fill=(246, 238, 214), outline=(40, 75, 140), width=3)
+        d.line([(x, y + 8), (bx, by)], fill=(40, 75, 140), width=3)
+        text(d, (bx, by + 15), lines[0], f_small, fill=(40, 75, 140), anchor="mm")
+        text(d, (bx, by + 37), lines[1][:40], f_small, fill=INK, anchor="mm")
 
     if you and you in SQUARES:
         x, y = sq_xy(you)

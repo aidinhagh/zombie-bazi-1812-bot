@@ -113,6 +113,36 @@ function markClosedRoutes(S) {
     for (const a of [Math.PI / 4, -Math.PI / 4]) { const b = new THREE.Mesh(new THREE.BoxGeometry(.42, .03, .07), xm); b.position.set(m[0], y, m[1]); b.rotation.y = a; scene.add(b); }
   }
 }
+function textSprite(lines, color) {
+  const c = document.createElement("canvas"); const x = c.getContext("2d"); const fs = 34;
+  x.font = `800 ${fs}px Vazir, Tahoma, sans-serif`;
+  const w = Math.max(...lines.map(l => x.measureText(l).width)) + 40, h = lines.length * (fs + 12) + 22;
+  c.width = Math.ceil(w); c.height = Math.ceil(h); x.font = `800 ${fs}px Vazir, Tahoma, sans-serif`;
+  x.fillStyle = "rgba(246,238,214,.95)"; x.strokeStyle = color || "#2c4f86"; x.lineWidth = 5;
+  x.beginPath(); x.roundRect(3, 3, c.width - 6, c.height - 6, 14); x.fill(); x.stroke();
+  x.textAlign = "center"; x.textBaseline = "middle"; x.direction = "rtl";
+  lines.forEach((l, i) => { x.fillStyle = i === 0 ? (color || "#2c4f86") : "#24180e"; x.fillText(l, c.width / 2, 22 + i * (fs + 12) + fs / 2); });
+  const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding;
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({map: t, depthTest: false, transparent: true})); s.renderOrder = 9;
+  s.center.set(.5, 0); s.scale.set(.0042 * c.width, .0042 * c.height, 1); return s;
+}
+function balloonModel() {
+  const g = new THREE.Group();
+  const env = new THREE.Mesh(new THREE.SphereGeometry(.2, 20, 16), new THREE.MeshStandardMaterial({color: "#c9a24a", roughness: .5}));
+  env.scale.set(1, 1.2, 1); env.position.y = .95;
+  const stripe = new THREE.Mesh(new THREE.SphereGeometry(.202, 20, 16, 0, Math.PI * 2, Math.PI * .45, Math.PI * .1), new THREE.MeshStandardMaterial({color: "#2c4f86"}));
+  stripe.scale.copy(env.scale); stripe.position.copy(env.position);
+  const basket = new THREE.Mesh(new THREE.BoxGeometry(.08, .06, .08), new THREE.MeshStandardMaterial({color: "#6b4423"})); basket.position.y = .66;
+  g.add(env, stripe, basket); g.traverse(m => { if (m.isMesh) m.castShadow = true; }); return g;
+}
+function placeReports(S) {
+  for (const b of S.reports || []) {
+    const p = sqPos(b.target); if (!p) continue;
+    const m = balloonModel(); m.position.copy(p).add(new THREE.Vector3(-.3, 0, -.1)); scene.add(m);
+    const l = textSprite(["🎈 " + b.name, b.seen.length ? b.seen.join("، ") : "هیچ‌کس"], "#2c4f86");
+    l.position.copy(p).add(new THREE.Vector3(-.3, 1.25, -.1)); scene.add(l);
+  }
+}
 function placeUnits(S) {
   for (const u of S.units) {
     const p = sqPos(u.square); if (!p) continue; let o;
@@ -122,6 +152,7 @@ function placeUnits(S) {
       const wood = new THREE.MeshStandardMaterial({color: "#6b4423"}); const w1 = new THREE.Mesh(new THREE.CylinderGeometry(.07, .07, .03, 16), wood); w1.rotation.x = Math.PI / 2; w1.position.set(0, .07, .07);
       const w2 = w1.clone(); w2.position.z = -.07; o.add(barrel, w1, w2); o.position.copy(p).add(new THREE.Vector3(.24, 0, .08)); }
     o.traverse(m => { if (m.isMesh) m.castShadow = true; }); scene.add(o);
+    if (u.name) { const l = textSprite([u.type + " «" + u.name + "»"], "#24180e"); l.position.copy(o.position).add(new THREE.Vector3(0, .32, 0)); l.scale.multiplyScalar(.7); scene.add(l); }
   }
 }
 function persianLabels(S) {
@@ -228,7 +259,7 @@ if (TG) TG.MainButton.onClick(go);
 async function gameInit() {
   try {
     const S = await gApi("/api/state"); G.S = S;
-    hud(S); persianLabels(S); markClosedRoutes(S); placeUnits(S);
+    hud(S); persianLabels(S); markClosedRoutes(S); placeUnits(S); placeReports(S);
     if (S.me.pos) G.token = makePawn(sqPos(S.me.pos));
     S.options.forEach(makePin);
     renderer.shadowMap.needsUpdate = true;

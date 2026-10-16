@@ -37,12 +37,15 @@ def move_options(g, p, roll):
 
 
 def do_move(g, p, dest, path):
-    """Move along path, paying tolls. Returns list of (pid, fa, en) notices."""
+    """Move along path, paying tolls. Returns list of (pid, fa, en) notices.
+
+    Piracy: a cannon or ship planted on a route charges everyone who travels along that route — they don't
+    have to stop on its square; passing any part of the route is enough (once per unit per move)."""
     notes = []
-    for sq in path[:-1] if p["pos"] is not None else []:
-        notes += _toll(g, p, sq)
-    if p["pos"] is not None:
-        notes += _toll(g, p, dest)
+    start = p["pos"]
+    if start is not None:
+        notes += _tolls(g, p, [start] + list(path))
+    p.setdefault("flags", {})["passed"] = list(path)   # squares crossed this phase (a unit can be planted on any of them)
     p["pos"] = dest
     p["moved"] = True
     p["flags"].pop("move_plus", None)
@@ -51,16 +54,36 @@ def do_move(g, p, dest, path):
     return notes
 
 
-def _toll(g, p, sq):
+def routes_used(g, squares):
+    """Route ids travelled by a sequence of squares."""
+    adj = board.adjacency(g, include_blocked=True)
+    used = []
+    for a, b in zip(squares, squares[1:]):
+        for nb, rid in adj.get(a, []):
+            if nb == b and rid not in used:
+                used.append(rid)
+    return used
+
+
+def unit_label(u):
+    from .data.locations import UNIT_NAMES
+    return f"{UNIT_NAMES[u['kind']][0]} «{u.get('name') or '?'}»"
+
+
+def _tolls(g, p, squares):
     out = []
+    used = set(routes_used(g, squares))
     for u in g["units_on_map"]:
-        if u["square"] != sq or str(u["owner"]) == str(p["id"]):
+        if str(u["owner"]) == str(p["id"]) or u["kind"] not in ("cannon", "ship"):
+            continue
+        sq = SQUARES.get(u["square"])
+        if not sq or (sq["route"] not in used and u["square"] not in squares[1:]):
             continue
         owner = g["players"].get(str(u["owner"]))
-        if not owner:
+        if not owner or not owner["alive"]:
             continue
         if p["flags"].pop("toll_free", None):
-            out.append((p["id"], "جواز عبورت عوارض رو پوشش داد.", "Your laissez-passer covered the toll."))
+            out.append((p["id"], f"جواز عبورت عوارض {unit_label(u)} رو پوشش داد.", ""))
             continue
         paid = min(p["coins"], TOLL)
         p["coins"] -= paid
@@ -68,10 +91,9 @@ def _toll(g, p, sq):
         short = TOLL - paid
         hp_loss = -(-short // COINS_PER_HP) if short else 0
         p["hp"] -= hp_loss
-        out.append((p["id"], f"از {board.square_name(sq)} رد شدی: {paid} سکه عوارض" + (f" و {hp_loss} اچ‌پی" if hp_loss else ""),
-                    f"You passed {board.square_name(sq,'en')}: paid {paid} coins toll" + (f" and {hp_loss} hp" if hp_loss else "")))
-        out.append((owner["id"], f"{p['name']} از {board.square_name(sq)} رد شد؛ {paid} سکه گرفتی.",
-                    f"{p['name']} passed {board.square_name(sq,'en')}; you received {paid} coins."))
+        where = board.route_name(g, sq["route"])
+        out.append((p["id"], f"🏴‍☠️ از مسیر {where} گذشتی و {unit_label(u)} عوارض گرفت: {paid} سکه" + (f" و {hp_loss} اچ‌پی" if hp_loss else ""), ""))
+        out.append((owner["id"], f"🏴‍☠️ {p['name']} از مسیر {where} گذشت؛ {unit_label(u)} برایت {paid} سکه گرفت" + (f" (و {hp_loss} اچ‌پی از او کم شد)" if hp_loss else "") + ".", ""))
     return out
 
 
@@ -224,22 +246,55 @@ def use_item(g, p, item_key):
 
 # ---------------- units on the board ----------------
 
-def place_unit(g, p, unit):
+def place_spots(g, p, unit):
+    """Empty squares where this unit can be planted: where you stand, or any you crossed this phase."""
+    cands = [p["pos"]] + [x for x in p["flags"].get("passed", []) if x != p["pos"]]
+    want_sea = unit == "ship"
+    return [x for x in dict.fromkeys(cands) if x in SQUARES and SQUARES[x]["kind"] == "node" and SQUARES[x]["sea"] == want_sea]
+
+
+def place_unit(g, p, unit, where=None, name=None):
     if g["locked"]:
         raise GameError("نقشه قفل شده؛ تا فاز بعد صبر کن.", "The map is locked until the next phase.")
     if p["units"].get(unit, 0) < 1:
         raise GameError("این واحد رو نداری.", "You don't have that unit.")
-    sq = SQUARES.get(p["pos"])
+    sq = SQUARES.get(where or p["pos"])
+    if where and where != p["pos"] and where not in p["flags"].get("passed", []):
+        raise GameError("فقط جایی که هستی یا از آن رد شدی.", "")
     if not sq or sq["kind"] != "node":
         raise GameError("فقط روی خانه خالی (بین شهرها) می‌شه کاشت.", "You can only place it on an empty square between cities.")
     if unit == "cannon" and sq["sea"]:
         raise GameError("توپ جنگی فقط روی مسیر زمینی.", "Cannons go on land routes only.")
     if unit == "ship" and not sq["sea"]:
         raise GameError("کشتی فقط روی مسیر دریایی.", "Ships go on sea routes only.")
-    if any(u["square"] == p["pos"] and u["kind"] == unit and str(u["owner"]) == str(p["id"]) for u in g["units_on_map"]):
+    spot = where or p["pos"]
+    if any(u["square"] == spot and u["kind"] == unit and str(u["owner"]) == str(p["id"]) for u in g["units_on_map"]):
         raise GameError("قبلاً اینجا گذاشتی.", "You already have one here.")
     p["units"][unit] -= 1
-    g["units_on_map"].append({"id": next_id(g, "u"), "kind": unit, "owner": p["id"], "square": p["pos"]})
+    u = {"id": next_id(g, "u"), "kind": unit, "owner": p["id"], "square": spot, "name": name or random_unit_name()}
+    g["units_on_map"].append(u)
+    return u
+
+
+UNIT_NAME_POOL = ["عقاب", "طوفان", "شاهین", "آذرخش", "ققنوس", "پلنگ", "توفان", "سیمرغ", "شبح", "رعد", "گرگ", "تندر",
+                  "اژدها", "کلاغ", "نهنگ", "صخره", "شمشیر", "سپیده", "شب‌تاب", "سایه"]
+
+
+def random_unit_name():
+    return random.choice(UNIT_NAME_POOL) + " " + str(random.randint(2, 99))
+
+
+def rename(g, p, kind, oid, name):
+    """Name a planted unit or a launched balloon (only its owner can)."""
+    name = " ".join(str(name).split())[:24]
+    if not name:
+        raise GameError("اسم خالی است.", "")
+    pool = g["balloons"] if kind == "balloon" else g["units_on_map"]
+    obj = next((x for x in pool if x["id"] == oid and str(x["owner"]) == str(p["id"])), None)
+    if not obj:
+        raise GameError("پیدا نشد.", "")
+    obj["name"] = name
+    return obj
 
 
 def strike_route(g, p, unit, rid):
@@ -294,7 +349,7 @@ def launch_balloon(g, p, kind, target):
     if p["units"][key] == 0:
         p.setdefault("unit_origin", {})[key] = "bought"
     b = {"id": next_id(g, "b"), "kind": kind, "owner": p["id"], "target": target, "origin": origin,
-         "cycle": g["cycle"], "phase": g["phase"], "result": None, "publish": None, "pct": None}
+         "cycle": g["cycle"], "phase": g["phase"], "result": None, "publish": None, "pct": None, "name": random_unit_name()}
     if kind == "spy":
         if p["role"] == "spy" and origin == "start":
             b["publish"] = True
@@ -340,9 +395,9 @@ def lock_map(g, rng=random):
             private.append((p["id"], f"بانک: {coins} سکه گرفتی؛ امشب اچ‌پی‌ات نصف حساب می‌شه.",
                             f"Bank: you got {coins} coins; your hp counts as half tonight."))
         if "double_act_50" in fl and dmg < 100:
-            p["double_act"] = rng.random() < 0.5
-            private.append((p["id"], "خانقاه: امشب دو اکت داری!" if p["double_act"] else "خانقاه: امشب فقط یک اکت.",
-                            "Monastery: you get two acts tonight!" if p["double_act"] else "Monastery: one act tonight."))
+            p["double_act"] = False
+            p["flags"]["wagram_roll"] = None    # the player throws a die: even = two acts tonight
+            private.append((p["id"], "🎲 در خانقاه هستی: از منو تاس بریز — زوج بیاید امشب دو اکت داری.", ""))
         if "vote_plus" in fl:
             p["flags"]["vote_mod"] = p["flags"].get("vote_mod", 0) + 1
         if "vote_minus" in fl:
@@ -439,7 +494,8 @@ def apply_effects(g, result):
             g["poisons"].append(po)
             out.append(("poison", po))
         elif t == "bomb" and P:
-            bo = {"id": next_id(g, "k"), "target": P["id"], "by": e["by"], "wire": e["wire"], "status": "armed", "cycle": cyc}
+            bo = {"id": next_id(g, "k"), "target": P["id"], "by": e["by"], "wire": e["wire"], "status": "armed", "cycle": cyc,
+                  "where": e.get("where") or loc_of(P)}
             g["bombs"].append(bo)
             out.append(("bomb", bo))
         elif t == "bullet" and P:
@@ -502,6 +558,9 @@ def start_phase(g, phase):
     for p in g["players"].values():
         p["moved"] = False
         p["move_roll"] = None
+        p["flags"].pop("passed", None)
+        p["flags"].pop("wagram_roll", None)
+        p["double_act"] = False
         p["darts"] = {"money": False, "item": False}
         if phase == "night":
             p["flags"].pop("hotel_immune", None)
@@ -557,3 +616,14 @@ def winner_check(g):
     if not indeps and zombies and len(zombies) >= len(humans):
         res.append(("زامبی‌ها برابر/بیشتر از انسان‌ها → برد زامبی‌ها.", "Zombies equal or outnumber humans → zombies win."))
     return res
+
+
+def wagram_roll(g, p, value):
+    """The monastery die: an even number gives two acts tonight."""
+    if g["phase"] != "night" or not g["locked"] or "double_act_50" not in flags_at(loc_of(p)):
+        raise GameError("این تاس فقط شب و بعد از قفل نقشه در خانقاه است.", "")
+    if p["flags"].get("wagram_roll") is not None:
+        raise GameError("تاس خانقاه را ریخته‌ای.", "")
+    p["flags"]["wagram_roll"] = int(value)
+    p["double_act"] = int(value) % 2 == 0
+    return p["double_act"]

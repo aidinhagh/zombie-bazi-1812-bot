@@ -146,7 +146,13 @@ class Night:
                     base = st[ACT_STAT[a["type"]]]
                 else:
                     base = st["stealth"]
-                tot, d = self.roll()
+                thrown = a.get("dice")
+                if isinstance(thrown, (list, tuple)) and len(thrown) == 2 and all(1 <= int(v) <= 6 for v in thrown):
+                    d = (int(thrown[0]), int(thrown[1]))          # the player's own 2d6
+                    tot = d[0] + d[1]
+                else:
+                    tot, d = self.roll()                           # not thrown: the bot throws for them
+                    a["note"].append("auto dice")
                 a["dice"] = d
                 a["power"] = max(0, base + tot)
                 acts.append(a)
@@ -359,7 +365,10 @@ class Night:
                 continue
             self.eff("bomb", f"بمب به {T['name']} رسید (سیم درست: {a['extra'].get('wire')}).",
                      f"Bomb delivered to {T['name']} (correct wire: {a['extra'].get('wire')}).",
-                     pid=a["target"], by=a["by"], wire=a["extra"].get("wire"))
+                     pid=a["target"], by=a["by"], wire=a["extra"].get("wire"), where=loc_of(T))
+            if not a.get("as_role"):
+                self.eff("charge", "بمب بمب‌گذار مصرف شد (فقط یک بمب دارد).", "The bomber's only bomb is used.",
+                         pid=a["by"], key="bomb", delta=-1)
 
         # ---- 10. musketeer ----
         for a in [x for x in acts if x["type"] == "bullets"]:

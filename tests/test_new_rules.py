@@ -48,7 +48,7 @@ def test_thief_sees_role_at_once_and_acts_as_them():
         assert "stolen" in lines
         # the borrowed attack used the sniper's attack stat (15), not the thief's (2)
         borrowed = next(l for l in lines.split("\n") if "attack" in l and P(w, 1)["name"] in l.split("→")[0])
-        power = int(borrowed.split("قدرت")[1].split()[0])
+        power = int(borrowed.split("قدرت")[1].split()[0].rstrip(";"))
         assert power >= 15 + 2
     run(go())
 
@@ -324,3 +324,184 @@ def test_roll_offers_the_web_app_when_configured(monkeypatch):
         assert m.buttons()[0] == "webapp:https://example.up.railway.app/map"
         assert any(b.startswith("p:go:") for b in m.buttons())
     run(go())
+
+
+# ---------------- round 3: Oct 16 afternoon ----------------
+
+def test_player_throws_their_own_act_dice():
+    async def go():
+        w = World(seed=60)
+        await setup(w, ["zombie", "doctor"])
+        await next_step(w)
+        await place(w, 1, "berlin"); await place(w, 2, "milan")
+        await w.press(1, "p:a:attack"); await w.press(1, "p:t:attack:2")
+        m = w.last_to(1)
+        assert "p:dice:0" in m.buttons()
+        w.forced_dice = [6, 5]
+        await w.press(1, "p:dice:0", message=m)
+        assert w.g["acts"]["1"][0]["dice"] == [6, 5]
+        ans = await w.press(1, "p:dice:0")
+        assert ans and ans[-1]                       # only once
+        res = resolve_night(w.g)
+        line = next(fa for fa, _ in res["lines"] if "attack" in fa)
+        assert "(6, 5)" in line and "قدرت 25" in line   # 14 attack + 11
+    run(go())
+
+
+def test_every_act_can_target_yourself():
+    async def go():
+        w = World(seed=61)
+        await setup(w, ["spy", "doctor"])
+        await next_step(w)
+        await place(w, 1, "berlin")
+        for t in ("attack", "defuse", "spy", "protect"):
+            await w.press(1, f"p:a:{t}")
+            assert f"p:t:{t}:1" in w.last_to(1).buttons(), t
+    run(go())
+
+
+def test_monastery_two_acts_only_on_an_even_die_and_only_there():
+    async def go():
+        w = World(seed=62)
+        await setup(w, ["doctor", "spy", "zombie"])
+        await next_step(w)
+        await place(w, 1, "wagram"); await place(w, 2, "berlin"); await place(w, 3, "milan")
+        await next_step(w)                           # lock
+        assert not P(w, 1)["double_act"]
+        home = (await w.press(1, "p:home"), w.last_to(1))[1]
+        assert "p:wroll" in home.buttons()
+        w.forced_dice = [4]
+        await w.press(1, "p:wroll")
+        assert P(w, 1)["double_act"]
+        await w.press(1, "p:a:spy"); await w.press(1, "p:t:spy:2")
+        await w.press(1, "p:a:protect"); await w.press(1, "p:t:protect:1")
+        assert len(w.g["acts"]["1"]) == 2
+        ans = await w.press(1, "p:wroll")
+        assert ans and ans[-1]
+        # outside the monastery a leftover flag gives nothing
+        P(w, 2)["double_act"] = True
+        await w.press(2, "p:a:spy"); await w.press(2, "p:t:spy:1")
+        ans = await w.press(2, "p:a:protect")
+        await w.press(2, "p:t:protect:2")
+        assert len(w.g["acts"]["2"]) == 1
+    run(go())
+    async def odd():
+        w = World(seed=63)
+        await setup(w, ["doctor", "spy"])
+        await next_step(w)
+        await place(w, 1, "wagram"); await place(w, 2, "berlin")
+        await next_step(w)
+        w.forced_dice = [3]
+        await w.press(1, "p:wroll")
+        assert not P(w, 1)["double_act"]
+    run(odd())
+
+
+def test_piracy_charges_anyone_passing_along_the_route():
+    async def go():
+        w = World(seed=64)
+        await setup(w, ["doctor", "spy", "zombie"])
+        await next_step(w)
+        await place(w, 1, "paris"); await place(w, 2, "milan"); await place(w, 3, "berlin")
+        await to_day(w)
+        # علی (2) walks Milan → n21 (Paris–Milan road) and plants a cannon there, naming it
+        P(w, 2)["units"]["cannon"] = 1
+        w.forced_dice = [1]
+        await w.press(2, "p:move"); await w.press(2, "p:go:n21")
+        await w.press(2, "p:up:cannon")
+        assert w.g["units_on_map"][0]["square"] == "n21"
+        assert P(w, 2)["flags"]["naming"]
+        from types import SimpleNamespace
+        from zombiebot import player_ui
+        msg = SimpleNamespace(text="شیر جاده", reply_text=lambda *a, **k: w.bot.send_message(2, *a, **k))
+        await player_ui.on_private_text(SimpleNamespace(effective_chat=SimpleNamespace(type="private"), message=msg,
+                                                        effective_user=w.user(2)), w.ctx(2))
+        assert w.g["units_on_map"][0]["name"] == "شیر جاده"
+        # next phase: مریم (1) goes Paris → Milan along that road: she pays without stopping on n21
+        await next_step(w); await w.press(GM, "g:vclose") if w.g["phase"] == "day" else None
+        await next_step(w)
+        coins1, coins2 = P(w, 1)["coins"], P(w, 2)["coins"]
+        w.forced_dice = [2]
+        await w.press(1, "p:move"); await w.press(1, "p:go:milan")
+        assert P(w, 1)["coins"] == max(0, coins1 - 10) and P(w, 2)["coins"] == coins2 + min(10, coins1)
+        assert any("شیر جاده" in t for t in w.texts_to(1))
+        assert not any("علی" in t for t in w.texts_to(1) if "عوارض" in t)   # the owner stays anonymous
+    run(go())
+
+
+def test_planting_on_a_square_you_passed():
+    async def go():
+        w = World(seed=65)
+        await setup(w, ["doctor", "spy"])
+        await next_step(w)
+        await place(w, 1, "paris"); await place(w, 2, "berlin")
+        await to_day(w)
+        P(w, 1)["units"]["cannon"] = 1
+        w.forced_dice = [2]
+        await w.press(1, "p:move"); await w.press(1, "p:go:milan")     # Paris → n21 → Milan
+        await w.press(1, "p:up:cannon")
+        assert w.g["units_on_map"][0]["square"] == "n21"
+    run(go())
+
+
+def test_spy_balloon_report_is_anonymous_named_and_on_the_map():
+    async def go():
+        w = World(seed=66)
+        await setup(w, ["spy", "doctor"])
+        await next_step(w)
+        await place(w, 1, "paris"); await place(w, 2, "berlin")
+        await w.press(1, "p:bag"); await w.press(1, "p:ub:spy"); await w.press(1, "p:ubt:spy:berlin")
+        b = w.g["balloons"][0]
+        from zombiebot import actions as A
+        A.rename(w.g, P(w, 1), "balloon", b["id"], "چشم آسمان")
+        await next_step(w)      # lock → the spy's balloon is always public
+        report = [t for t in w.texts_to(GROUP) if "گزارش بالن" in t]
+        assert report and "چشم آسمان" in report[0] and "مریم" not in report[0] and "علی" in report[0]
+        st = web.static_map()
+        assert st["reports"] and st["reports"][0]["name"] == "چشم آسمان"
+        from zombiebot import mapview
+        assert any("چشم آسمان" in l for l in mapview.unit_lines(w.g, "fa"))
+    run(go())
+
+
+def test_bomb_is_used_up_and_blasts_where_the_night_was_spent():
+    async def go():
+        w = World(seed=67)
+        await setup(w, ["bomber", "doctor", "spy", "zombie"])
+        await next_step(w)
+        for i, c in zip(range(1, 5), ["paris", "berlin", "berlin", "milan"]):
+            await place(w, i, c)
+        await w.press(1, "p:a:bomb"); await w.press(1, "p:t:bomb:2"); await w.press(1, "p:tb:2:3")
+        await next_step(w); await next_step(w); await w.press(GM, "g:apply")
+        assert P(w, 1)["charges"]["bomb"] == 0
+        assert w.g["bombs"][0]["where"] == "berlin"
+        await next_step(w)      # day: سارا (3) walks away from Berlin before the wire is cut
+        await place_any(w, 3)
+        import random as R
+        R.seed(1)
+        bomb_msg = next(m for m in reversed(w.sent) if m.chat_id == GROUP and any(b.startswith("x:bw:") for b in m.buttons()))
+        await w.press(2, f"x:bw:{w.g['bombs'][0]['id']}:1", message=bomb_msg)
+        assert not P(w, 2)["alive"]
+        assert P(w, 4)["alive"]          # was in Milan that night
+        # the next night the bomber has no bomb left
+        await w.press(GM, "g:vclose"); await next_step(w)
+        await w.press(1, "p:act")
+        await w.press(1, "p:a:bomb"); ans = await w.press(1, "p:t:bomb:4"); ans += await w.press(1, "p:tb:4:1")
+        assert not any(a["type"] == "bomb" for a in w.g["acts"].get("1", []))
+    run(go())
+
+
+async def place_any(w, i):
+    await w.press(i, "p:move")
+    m = w.last_to(i)
+    b = next(x for x in m.buttons() if x.startswith("p:go:"))
+    await w.press(i, b)
+
+
+def test_guillotine_gif_renders():
+    from zombiebot import guillotine
+    data = guillotine.make_gif("مریم", 1)
+    assert data[:3] == b"GIF" and len(data) > 20000
+    assert guillotine.make_gif("Ali", 1, lightning=True)[:3] == b"GIF"
+    from zombiebot import votes
+    assert votes.make_gif.__module__.endswith("guillotine") or "GIF89a-test" in str(votes.make_gif(""))

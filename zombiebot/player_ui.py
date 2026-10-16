@@ -84,6 +84,9 @@ def home_rows(p):
         extra.append((L(lang, "🚕 تاکسی", "🚕 Taxi"), "p:taxi"))
     if g["phase"] == "night" and g["locked"] and set(flags_at(here)) & {"vienna_slots", "berlin_slots"} and not (p.get("slots") or {}).get("done"):
         extra.append((L(lang, "🎰 اسلات", "🎰 Slots"), "p:slots"))
+    if (g["phase"] == "night" and g["locked"] and "double_act_50" in flags_at(here)
+            and p["flags"].get("wagram_roll") is None):
+        extra.append(("🎲 تاس خانقاه", "p:wroll"))
     if g["phase"] == "day" and p["bullets"]:
         extra.append((L(lang, f"🔫 شلیک ({num(len(p['bullets']))})", f"🔫 Shoot ({len(p['bullets'])})"), "p:shoot"))
     if p["pos"] == "stockholm":
@@ -282,10 +285,16 @@ async def handle(update, ctx, p, head, args):
             return await edit_or_send(q, L(lang, "تاس دوباره: «حرکت» رو بزن.", "Reroll ready: tap Move."), [back(lang)])
         return await edit_or_send(q, *bag_view(p, lang))
     if head == "up":
-        actions.place_unit(g, p, args[0])
-        save()
-        return await edit_or_send(q, L(lang, f"✅ {unit_name(args[0], 'fa')} در {board.square_name(p['pos'])} مستقر شد.",
-                                       f"✅ {unit_name(args[0], 'en')} placed at {board.square_name(p['pos'], 'en')}."), [back(lang, "p:bag")])
+        unit = args[0]
+        spots = actions.place_spots(g, p, unit) if len(args) < 2 else [args[1]]
+        if not spots:
+            raise GameError("باید روی یک خانه خالی " + ("دریایی" if unit == "ship" else "زمینی") +
+                            " باشی یا در همین فاز از آن رد شده باشی.")
+        if len(spots) > 1:
+            rows = [[(board.square_name(x)[:40], f"p:up:{unit}:{x}")] for x in spots]
+            return await edit_or_send(q, f"{unit_name(unit, 'fa')} را کجا بکارم؟ (جایی که هستی یا از آن رد شدی)", rows + [back(lang, "p:bag")])
+        u = actions.place_unit(g, p, unit, spots[0])
+        return await ask_name(q, p, "unit", u, f"✅ {unit_name(unit, 'fa')} در {board.square_name(spots[0])} مستقر شد.")
     if head == "us":
         unit = args[0]
         kind = "sea" if unit in ("mine", "ship") else "road"
@@ -320,10 +329,8 @@ async def handle(update, ctx, p, head, args):
         return await edit_or_send(q, L(lang, f"بالن رو بالای کجا بفرستی؟ نتیجه ساعت {num(LOCK_HOUR)}:۰۰.",
                                        f"Send the balloon over which place? Result at {LOCK_HOUR}:00."), rows + [back(lang, "p:bag")])
     if head == "ubt":
-        actions.launch_balloon(g, p, args[0], args[1])
-        save()
-        return await edit_or_send(q, L(lang, f"🎈 بالن به سمت {LOCATIONS[args[1]]['fa']} رفت.", f"🎈 Balloon sent toward {LOCATIONS[args[1]]['en']}."),
-                                  [back(lang)])
+        b = actions.launch_balloon(g, p, args[0], args[1])
+        return await ask_name(q, p, "balloon", b, f"🎈 بالن به سمت {LOCATIONS[args[1]]['fa']} رفت. نتیجه ساعت {num(LOCK_HOUR)}:۰۰.")
 
     # ----- clown / godfather settings -----
     if head == "cd" and p["role"] == "clown":
@@ -344,6 +351,33 @@ async def handle(update, ctx, p, head, args):
         p["fake_role"] = args[0]
         save()
         return await send_home(bot, p, q)
+
+    if head == "dice":
+        lst = g["acts"].get(str(p["id"]), [])
+        i = int(args[0])
+        if i >= len(lst) or lst[i].get("dice"):
+            raise GameError("تاس این اکت ریخته شده.")
+        if g.get("pending"):
+            raise GameError("گاد در حال محاسبه شب است.")
+        d1 = await bot.send_dice(q.message.chat_id, emoji="🎲")
+        d2 = await bot.send_dice(q.message.chat_id, emoji="🎲")
+        lst[i]["dice"] = [d1.dice.value, d2.dice.value]
+        save()
+        text = (f"🎲 {num(d1.dice.value)} + {num(d2.dice.value)} = {num(d1.dice.value + d2.dice.value)} "
+                f"برای «{act_name(lst[i]['type'], lang)}» ثبت شد.")
+        ctx.job_queue.run_once(job_result_rows, DICE_WAIT, data=(p["id"], text, text, [[("🌙 اکت‌ها", "p:act")], back(lang)]))
+        return
+    if head == "wroll":
+        msg = await bot.send_dice(q.message.chat_id, emoji="🎲")
+        two = actions.wagram_roll(g, p, msg.dice.value)
+        save()
+        text = (f"🎲 {num(msg.dice.value)} — " + ("زوج! امشب دو اکت داری. 🙏" if two else "فرد؛ امشب یک اکت."))
+        ctx.job_queue.run_once(job_result, DICE_WAIT, data=(p["id"], text, text))
+        return
+    if head == "nm":
+        p["flags"].pop("naming", None)
+        save()
+        return await edit_or_send(q, "✅ اسم تصادفی ماند.", [back(lang)])
 
     # ----- night acts -----
     if head in ("act", "a", "t", "tg", "tb", "td", "bl", "bn", "bx", "acx"):
@@ -476,9 +510,9 @@ def bag_view(p, lang):
     if u:
         lines.append(L(lang, "\nواحدها: ", "\nUnits: ") + ", ".join(f"{unit_name(k, lang)}×{num(v, lang)}" for k, v in u.items()))
         if u.get("cannon"):
-            rows.append([(L(lang, "💣 توپ: کاشتن اینجا", "💣 Cannon: place here"), "p:up:cannon"), (L(lang, "💣 توپ: خراب کردن جاده", "💣 Cannon: destroy road"), "p:us:cannon")])
+            rows.append([("💣 توپ: کاشتن (همین‌جا یا مسیرم)", "p:up:cannon"), (L(lang, "💣 توپ: خراب کردن جاده", "💣 Cannon: destroy road"), "p:us:cannon")])
         if u.get("ship"):
-            rows.append([(L(lang, "⛵ کشتی: کاشتن اینجا", "⛵ Ship: place here"), "p:up:ship"), (L(lang, "⛵ کشتی: پاک کردن مین", "⛵ Ship: clear mine"), "p:us:ship")])
+            rows.append([("⛵ کشتی: کاشتن (همین‌جا یا مسیرم)", "p:up:ship"), (L(lang, "⛵ کشتی: پاک کردن مین", "⛵ Ship: clear mine"), "p:us:ship")])
         if u.get("mine"):
             rows.append([(L(lang, "🌊 مین: بستن مسیر دریایی", "🌊 Mine: block a sea lane"), "p:us:mine")])
         if u.get("shovel"):
@@ -503,7 +537,7 @@ def bag_view(p, lang):
 # ---------------- night acts ----------------
 
 def act_limit(p):
-    base = 2 if p.get("double_act") else 1
+    base = 2 if (p.get("double_act") and "double_act_50" in flags_at(loc_of(p))) else 1
     if any(a["type"] == "steal" for a in G()["acts"].get(str(p["id"]), [])):
         base += 1   # the borrowed act
     return base
@@ -522,7 +556,8 @@ def acts_text(p, lang):
         if a["type"] == "duel" and ex.get("target2") and pl(ex["target2"]):
             t += " ⚔️ " + pl(ex["target2"])["name"]
         tag = f" (به‌جای {role_name(a['as_role'])})" if a.get("as_role") else ""
-        out.append(f"• {act_name(a['type'], lang)}{tag} → {t}")
+        dice = f" · 🎲 {num(a['dice'][0])}+{num(a['dice'][1])}" if a.get("dice") else " · 🎲 تاس نریخته"
+        out.append(f"• {act_name(a['type'], lang)}{tag} → {t}{dice}")
     return "\n".join(out)
 
 
@@ -553,7 +588,10 @@ def add_act(p, act):
 
 
 async def act_done(q, p, lang):
-    await edit_or_send(q, "✅ " + acts_text(p, lang), [back(lang, "p:act"), back(lang)])
+    lst = G()["acts"].get(str(p["id"]), [])
+    rows = [[(f"🎲🎲 ریختن ۲ تاس برای «{act_name(a['type'], lang)}»", f"p:dice:{i}")] for i, a in enumerate(lst) if not a.get("dice")]
+    note = "\n\n🎲 حالا تاس‌های اکتت را بریز: قدرت اکت = جمع ۲ تاس + استت تو. (اگر نریزی، ربات موقع محاسبه می‌ریزد.)" if rows else ""
+    await edit_or_send(q, "✅ " + acts_text(p, lang) + note, rows + [[("🌙 اکت‌ها", "p:act")], back(lang)])
 
 
 async def act_flow(update, ctx, p, head, args):
@@ -594,7 +632,7 @@ async def act_flow(update, ctx, p, head, args):
             ctx.user_data["bul"] = []
             return await edit_or_send(q, *bullet_view(p, ctx, lang))
         return await edit_or_send(q, L(lang, f"{act_name(t, 'fa')} روی چه کسی؟", f"{act_name(t, 'en')} on whom?"),
-                                  people_rows(f"p:t:{t}", alive_others(p, include_self=(t == "protect")), lang, "p:act"))
+                                  people_rows(f"p:t:{t}", alive_others(p, include_self=True), lang, "p:act"))
     if head == "t":
         t, tid = args[0], args[1]
         if t == "guess":
@@ -651,7 +689,7 @@ async def act_flow(update, ctx, p, head, args):
 
 def bullet_view(p, ctx, lang):
     sel = ctx.user_data.get("bul", [])
-    btns = [(("✅ " if str(x["id"]) in sel else "") + x["name"][:22], f"p:bl:{x['id']}") for x in alive_others(p)]
+    btns = [(("✅ " if str(x["id"]) in sel else "") + x["name"][:22], f"p:bl:{x['id']}") for x in alive_others(p, include_self=True)]
     rows = chunks(btns, 2) + [[(L(lang, "ادامه ➡️", "Next ➡️"), "p:bn")], back(lang, "p:act")]
     return L(lang, "حداکثر ۳ نفر انتخاب کن:", "Pick up to 3 people:"), rows
 
@@ -708,11 +746,41 @@ def unit_use_rows(p, unit):
         kind = unit.split("_")[0]
         return chunks([(LOCATIONS[c]["fa"][:22], f"p:ubt:{kind}:{c}") for c in CITIES], 2)
     if unit == "cannon":
-        return [[("💣 کاشتن همین‌جا", "p:up:cannon"), ("💣 خراب کردن جاده", "p:us:cannon")]]
+        return [[("💣 کاشتن (همین‌جا یا مسیرم)", "p:up:cannon"), ("💣 خراب کردن جاده", "p:us:cannon")]]
     if unit == "ship":
-        return [[("⛵ کاشتن همین‌جا", "p:up:ship"), ("⛵ پاک کردن مین", "p:us:ship")]]
+        return [[("⛵ کاشتن (همین‌جا یا مسیرم)", "p:up:ship"), ("⛵ پاک کردن مین", "p:us:ship")]]
     if unit == "mine":
         return [[("🌊 بستن مسیر دریایی", "p:us:mine")]]
     if unit == "shovel":
         return [[("⛏ تعمیر جاده", "p:us:shovel"), ("⛏ جاده جدید", "p:ud")]]
     return []
+
+
+async def ask_name(q, p, kind, obj, done_text):
+    """Units and balloons are known by the name their owner gives them — never by the owner's name."""
+    p["flags"]["naming"] = {"kind": kind, "id": obj["id"]}
+    save()
+    what = "بالن" if kind == "balloon" else unit_name(obj["kind"], "fa")
+    text = (done_text + f"\n\n✍️ یک اسم برای این {what} بنویس و همین‌جا بفرست (تا ۲۴ حرف).\n"
+            f"همه آن را با این اسم می‌بینند، نه با اسم تو. اسم فعلی: «{obj['name']}»")
+    await edit_or_send(q, text, [[("🎲 همین اسم بماند", "p:nm:keep")], back("fa")])
+
+
+async def on_private_text(update, ctx):
+    """A player typing a name for a unit or balloon they just placed or launched."""
+    if update.effective_chat.type != "private" or not update.message or not update.message.text:
+        return
+    p = pl(acting_uid(update.effective_user.id))
+    if not p:
+        return
+    naming = p["flags"].get("naming")
+    if not naming:
+        return
+    try:
+        obj = actions.rename(G(), p, naming["kind"], naming["id"], update.message.text)
+    except GameError as e:
+        await update.message.reply_text(e.text("fa"))
+        return
+    p["flags"].pop("naming", None)
+    save()
+    await update.message.reply_text(f"✅ اسمش شد «{obj['name']}».", reply_markup=kb(home_rows(p)))

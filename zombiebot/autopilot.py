@@ -219,8 +219,10 @@ def choose_acts(g, p, r):
                     b["as_role"] = victim["role"]
     if not acts:
         acts.append(basic_act(g, p, r))
-    if p.get("double_act"):
+    if p.get("double_act") and "double_act_50" in flags_at(loc_of(p)):
         acts.append(basic_act(g, p, r))
+    for a in acts:
+        a["dice"] = [r.randint(1, 6), r.randint(1, 6)]   # test players throw their own 2d6 too
     if "church" in flags_at(loc_of(p)):
         acts = [a for a in acts if a["type"] != "attack"] or [{"type": "protect", "target": str(p["id"]), "extra": {}}]
     g["acts"][str(p["id"])] = acts
@@ -247,6 +249,10 @@ def after_lock(g=None, r=None):
                     dead = [x for x in g["players"].values() if not x["alive"] and x.get("role") and not x.get("unrevivable")]
                     if dead and _try(actions.berlin_revive, g, p, r.choice(dead)):
                         notes.append(f"⚰️→🧍 {p['name']} یک نفر را در برلین زنده کرد.")
+        if g["phase"] == "night" and "double_act_50" in fl and p["flags"].get("wagram_roll") is None:
+            if actions.wagram_roll(g, p, r.randint(1, 6)):
+                notes.append(f"🙏 {p['name']} در خانقاه زوج آورد: امشب دو اکت.")
+                g["acts"].get(str(p["id"]), []).append(dict(basic_act(g, p, r), dice=[r.randint(1, 6), r.randint(1, 6)]))
         if g["phase"] == "night" and here == "london" and r.random() < 0.4:
             dest = r.choice([c for c in CITIES if c != "london"])
             if _try(actions.taxi, g, p, dest):
@@ -277,7 +283,8 @@ async def decide_pending(bot, r=None):
         autos = {str(p["id"]): p for p in g["players"].values() if is_auto(p, g)}
         try:
             for bo in list(g["bombs"]):
-                if bo["status"] == "armed" and str(bo["target"]) in autos:
+                # wires are cut in the daytime, so the GM sees the bomb arrive first
+                if bo["status"] == "armed" and str(bo["target"]) in autos and g["phase"] == "day":
                     await events.cut_wire(bot, bo["target"], bo["id"], r.randint(1, 4))
                     acted = True
             if g["phase"] == "day":

@@ -39,12 +39,21 @@ def route_lines(g, lang):
     return out
 
 
+def published_balloons(g):
+    """Spy-balloon reports made public in the current cycle (shown on the public map)."""
+    return [b for b in g["balloons"] if b["kind"] == "spy" and b.get("published") and b["cycle"] == g["cycle"]
+            and isinstance(b.get("result"), list)]
+
+
 def unit_lines(g, lang, owners=False):
     out = []
     for u in g["units_on_map"]:
         nm = L(lang, *UNIT_NAMES[u["kind"]])
         who = f" — {g['players'][str(u['owner'])]['name']}" if owners and str(u["owner"]) in g["players"] else ""
-        out.append(f"{'💣' if u['kind'] == 'cannon' else '⛵'} {nm}: {sq_name(u['square'], lang)}{who}")
+        out.append(f"{'💣' if u['kind'] == 'cannon' else '⛵'} {nm} «{u.get('name') or '?'}»: {sq_name(u['square'], lang)}{who}")
+    for b in published_balloons(g):
+        seen = "، ".join(b["result"]) if b["result"] else "هیچ‌کس"
+        out.append(f"🎈 بالن «{b.get('name') or '?'}» بر فراز {sq_name(b['target'], lang)}: {seen}")
     for city, pct in sorted(g["loc_damage"].items()):
         if pct:
             out.append(L(lang, f"🔥 {LOCATIONS[city]['fa']}: {num(pct)}٪ تخریب", f"🔥 {LOCATIONS[city]['en']}: {pct}% destroyed"))
@@ -126,13 +135,13 @@ async def send_photo_and_list(bot, chat_or_uid, photo, text, to_player=True, rep
 async def send_player_map(bot, p, reply_markup=None):
     g = G()
     lang = lang_of(p["id"])
-    pic = render(g, title=f"{p['name']} · {phase_label('en', g)}", you=p.get("pos"))
+    pic = render(g, title=f"{p['name']} · {phase_label('fa', g)}", you=p.get("pos"))
     await send_photo_and_list(bot, p["id"], pic, player_list(g, p, lang), reply_markup=reply_markup)
 
 
 async def send_gm_map(bot, chat_id, lang):
     g = G()
-    pic = render(g, gm=True, title=f"GM · {phase_label('en', g)}", names=positions(g))
+    pic = render(g, gm=True, title=f"نقشه گاد · {phase_label('fa', g)}", names=positions(g))
     await send_photo_and_list(bot, chat_id, pic, gm_list(g, lang), to_player=False)
 
 
@@ -141,7 +150,7 @@ async def post_public_map(bot):
     target = g["channel_id"] or g["group_id"]
     if not target:
         return
-    pic = render(g, title=f"{phase_label('en', g)} · map")
+    pic = render(g, title=f"نقشه {phase_label('fa', g)}", reports=published_balloons(g))
     text = public_list(g, "fa")
     await send_photo_and_list(bot, target, pic, text, to_player=False)
 
@@ -171,7 +180,7 @@ async def send_move_map(bot, p):
         text = head + "\n\nنقشه را باز کن و روی یکی از شماره‌ها بزن — یا از دکمه‌های زیر انتخاب کن."
         await dm(bot, p["id"], text, reply_markup=kb(rows))
         return
-    pic = render(g, title=f"{p['name']} · roll {roll}", highlight={s: n for n, s, _ in choices}, you=p.get("pos"))
+    pic = render(g, title=f"{p['name']} · تاس {num(roll)}", highlight={s: n for n, s, _ in choices}, you=p.get("pos"))
     text = "\n".join(lines)
     await dm_photo(bot, p["id"], pic)
     await dm(bot, p["id"], text, text, reply_markup=kb(rows))

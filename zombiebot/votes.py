@@ -17,7 +17,7 @@ from telegram import MessageEntity
 from telegram.error import RetryAfter, TelegramError
 
 from . import actions, matching
-from .animator import make_gif
+from .guillotine import make_gif   # the vote animation: the guillotine
 from .common import G, save, pl, is_gm, acting_uid, lang_of, num, logger, group
 from .matching import Candidate, best_match
 from .state import alive_players, roster

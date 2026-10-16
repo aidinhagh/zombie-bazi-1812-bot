@@ -86,24 +86,24 @@ async def cut_wire(bot, uid, bomb_id, wire, q=None):
     T = pl(bo["target"])
     if wire == bo["wire"]:
         bo["status"] = "defused"
-        B = pl(bo["by"])
-        if B:
-            B["charges"]["bomb"] = 0
         save()
         text = f"✂️ {T['name']} سیم {num(wire)} را برید… بمب خنثی شد!"
         await (say_to(q, text) if q else group(bot, text, None))
         return
     bo["status"] = "exploded"
+    # the blast hits where the bomb reached them: everyone who spent that night in the same place, 80% each
+    where = bo.get("where") or T.get("last_night_pos") or T["pos"]
     victims = [T]
-    for x in alive_players(g):
-        if x is T or x["role"] == "cultist" or x["pos"] != T["pos"]:
-            continue
+    near = [x for x in alive_players(g) if x is not T and x["role"] != "cultist"
+            and (x.get("last_night_pos") or x["pos"]) == where]
+    for x in near:
         if random.random() < 0.8:
             victims.append(x)
     for v in victims:
         actions.kill(g, v, "bomb")
     save()
-    text = f"💥 {T['name']} سیم {num(wire)} را برید… بوم!"
+    others = [v["name"] for v in victims if v is not T]
+    text = f"💥 {T['name']} سیم {num(wire)} را برید… بوم!" + (f"\nموج انفجار {'، '.join(others)} را هم گرفت." if others else "")
     await (say_to(q, text) if q else group(bot, text, None))
     for v in victims:
         await announce_death(bot, v)
@@ -492,9 +492,8 @@ async def judge_default(bot, note):
 # ---------------- spy balloons ----------------
 
 async def publish_balloon(bot, b):
-    O = pl(b["owner"])
     names = "، ".join(b["result"]) if b["result"] else "هیچ‌کس"
-    text = f"🎈 گزارش بالن جاسوسی {O['name']} بر فراز {board.square_name(b['target'])}: {names}"
+    text = f"🎈 گزارش بالن جاسوسی «{b.get('name') or '?'}» بر فراز {board.square_name(b['target'])}: {names}"
     target = G()["channel_id"] or G()["group_id"]
     if target:
         await bot.send_message(target, text)
