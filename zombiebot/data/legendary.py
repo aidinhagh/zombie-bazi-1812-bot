@@ -1,6 +1,5 @@
 """Legendary items: the only items that are not single-use. Whoever finds one keeps its power for the rest of the game.
-They appear one at a time (one per day, starting day 1) in a random city; whoever stands there at the 20:00 lock takes it.
-If several people are there, they bid coins for it in a sealed auction. Add more entries here to make more spawn."""
+They appear one at a time (one per day, starting day 1) in a secret city only the GM knows. Add more entries here to make more spawn."""
 
 LEGENDARY = {
     "fouche_cipher": {"fa": "رمزنامه سیاه فوشه", "stats": {"spy": 20, "defuse": 20}, "hp": 0,

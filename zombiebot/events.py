@@ -581,8 +581,8 @@ def pending_for(p):
     if p["flags"].get("yakuza_pending"):
         out.append(("🗡 چه کسی را با خودت می‌بری؟", yakuza_rows()))
     au = legendary.state(g)["auction"]
-    if au and pid in au["bidders"] and pid not in au["bids"]:
-        out.append((legend_bid_text(au), legend_bid_rows(p)))
+    if au and pid in legendary.active_bidders(g, au):
+        out.append((legend_bid_text(g, au, p), legend_bid_rows(g, au, p)))
     jd = g.get("judgement")
     if jd and jd["status"] == "waiting" and jd["judge"] == pid:
         out.append((judge_text(jd), judge_rows(jd)))
@@ -622,39 +622,51 @@ async def shared_button(update, ctx, data):
         await judge_press(bot, uid, parts[1], q)
     elif head == "lb":
         await legend_bid(bot, uid, int(parts[1]), q)
+    elif head == "lp":
+        await legend_pass(bot, uid, q)
     from . import autopilot
     await autopilot.decide_pending(bot)
 
 
-# ---------------- legendary items ----------------
+# ---------------- legendary items (everything secret: only the GM and the people involved are told) ----------------
 
-def legend_bid_text(au):
+def legend_bid_text(g, au, p):
     it = LEGENDARY[au["key"]]
-    return (f"🌟 مزایده آیتم لجندری «{it['fa']}» ({it['desc_fa']}).\n"
-            f"چند نفر در {board.square_name(au['where'])} بودید. پیشنهادت چند سکه است؟ (پنهانی؛ بیشترین پیشنهاد می‌برد و همان را می‌پردازد، تساوی = قرعه)")
+    lead = "\n✅ الان بالاترین پیشنهاد مال توست." if au["leader"] == str(p["id"]) else ""
+    high = f"{num(au['high'])} سکه" if au["leader"] else "هنوز پیشنهادی نیست"
+    return (f"🌟 مزایده مخفی آیتم لجندری «{it['fa']}» ({it['desc_fa']}).\n"
+            f"کسی نمی‌فهمد چه کسانی در مزایده‌اند یا چه کسی پیشنهاد داده؛ فقط بالاترین پیشنهاد را می‌بینی.\n"
+            f"📈 بالاترین پیشنهاد: {high}{lead}\n💰 سکه‌های تو: {num(p['coins'])}")
 
 
-def legend_bid_rows(p):
-    return chunks([(f"{num(b)} سکه", f"x:lb:{b}") for b in legendary.bid_options(p)], 4)
+def legend_bid_rows(g, au, p):
+    if au["leader"] == str(p["id"]):
+        return [[("🔄 تازه کن", "p:pend")]]
+    rows = chunks([(f"⬆️ {num(b)} سکه", f"x:lb:{b}") for b in legendary.bid_options(p, au)], 3)
+    return rows + [[("🙅 کنار می‌کشم", "x:lp:0")]]
+
+
+async def legend_tell_bidders(bot, g, au, skip=None):
+    for b in legendary.active_bidders(g, au):
+        if b != skip:
+            P = pl(b)
+            await dm(bot, P["id"], legend_bid_text(g, au, P), reply_markup=kb(legend_bid_rows(g, au, P)))
 
 
 async def legend_after_lock(bot):
-    """At the lock: hand the legendary item to the one person standing on it, or open the auction."""
+    """At the lock: hand the legendary item to the one person standing on it, or open the secret auction."""
     g = G()
     kind, info = legendary.at_lock(g)
     save()
     if kind == "taken":
-        it = LEGENDARY[g["players"][str(info["id"])]["legend"][-1]]
-        await dm(bot, info["id"], f"🌟 آیتم لجندری «{it['fa']}» مال تو شد! {it['desc_fa']}")
-        await group(bot, f"🌟 آیتم لجندری «{it['fa']}» برداشته شد.", None)
+        it = LEGENDARY[info["legend"][-1]]
+        await dm(bot, info["id"], f"🌟 آیتم لجندری «{it['fa']}» را پیدا کردی! {it['desc_fa']}\n(به کسی اعلام نمی‌شود.)")
         await gm_notes(bot, [(f"🌟 {info['name']} آیتم لجندری «{it['fa']}» را برداشت.", "")])
     elif kind == "auction":
         au = legendary.state(g)["auction"]
-        for p in info:
-            await dm(bot, p["id"], legend_bid_text(au), reply_markup=kb(legend_bid_rows(p)))
-        await group(bot, f"🌟 چند نفر سر آیتم لجندری «{LEGENDARY[au['key']]['fa']}» رسیدند؛ مزایده شروع شد.", None)
-        await gm_notes(bot, [(f"🌟 مزایده لجندری بین {'، '.join(p['name'] for p in info)}. وقتی همه پیشنهاد بدهند خودکار بسته می‌شود؛ "
-                              "یا خودت ببند: /legend close", "")])
+        await legend_tell_bidders(bot, g, au)
+        await gm_notes(bot, [(f"🌟 مزایده مخفی لجندری «{LEGENDARY[au['key']]['fa']}» بین {'، '.join(p['name'] for p in info)}. "
+                              "وقتی همه جز نفر اول کنار بکشند تمام می‌شود؛ یا خودت ببند: /legend close", "")])
 
 
 async def legend_bid(bot, uid, amount, q=None):
@@ -662,8 +674,25 @@ async def legend_bid(bot, uid, amount, q=None):
     p = pl(uid)
     done = legendary.place_bid(g, p, amount)
     save()
+    au = legendary.state(g)["auction"]
+    await gm_notes(bot, [(f"🌟 مزایده: {p['name']} {num(amount)} سکه پیشنهاد داد.", "")])
     if q:
-        await say_to(q, f"✅ پیشنهاد {num(amount)} سکه ثبت شد.")
+        await say_to(q, legend_bid_text(g, au, p))
+    if done:
+        await legend_close(bot)
+    else:
+        await legend_tell_bidders(bot, g, au, skip=str(p["id"]))
+
+
+async def legend_pass(bot, uid, q=None):
+    g = G()
+    p = pl(uid)
+    done = legendary.pass_bid(g, p)
+    save()
+    au = legendary.state(g)["auction"]
+    await gm_notes(bot, [(f"🌟 مزایده: {p['name']} کنار کشید.", "")])
+    if q:
+        await say_to(q, "🙅 از مزایده کنار کشیدی.")
     if done:
         await legend_close(bot)
 
@@ -673,19 +702,18 @@ async def legend_close(bot):
     au = legendary.state(g)["auction"]
     if not au:
         return False
-    bids = dict(au["bids"])
-    key = au["key"]
-    win, best, tied = legendary.close_auction(g)
+    it = LEGENDARY[au["key"]]
+    bidders = list(au["bidders"])
+    win, best = legendary.close_auction(g)
     save()
-    it = LEGENDARY[key]
     if not win:
-        await gm_notes(bot, [("🌟 مزایده بدون برنده ماند؛ آیتم سر جایش می‌ماند.", "")])
+        for b in bidders:
+            await dm(bot, pl(b)["id"], f"🌟 مزایده «{it['fa']}» بدون برنده تمام شد.")
+        await gm_notes(bot, [("🌟 مزایده بدون پیشنهاد ماند؛ آیتم سر جایش می‌ماند.", "")])
         return True
     await dm(bot, win["id"], f"🌟 مزایده را با {num(best)} سکه بردی! «{it['fa']}» مال تو شد. {it['desc_fa']}")
-    for b in au["bidders"]:
+    for b in bidders:
         if b != str(win["id"]):
-            await dm(bot, int(b), f"🌟 مزایده «{it['fa']}» را باختی.")
-    await group(bot, f"🌟 مزایده آیتم لجندری «{it['fa']}» تمام شد." + (" (تساوی؛ با قرعه)" if tied else ""), None)
-    detail = "، ".join(f"{name_of(k)}: {num(v)}" for k, v in bids.items()) or "هیچ پیشنهادی"
-    await gm_notes(bot, [(f"🌟 {win['name']} «{it['fa']}» را با {num(best)} سکه برد. پیشنهادها: {detail}", "")])
+            await dm(bot, pl(b)["id"], f"🌟 مزایده «{it['fa']}» تمام شد و تو نبردی.")
+    await gm_notes(bot, [(f"🌟 {win['name']} «{it['fa']}» را با {num(best)} سکه برد.", "")])
     return True

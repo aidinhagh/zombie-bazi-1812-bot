@@ -6,7 +6,6 @@ from .board import CITIES
 from .data.legendary import LEGENDARY
 from .state import alive_players, log
 
-BID_STEPS = (0, 1, 2, 3, 5, 8, 10, 15, 20, 30, 50)
 
 
 def state(g):
@@ -32,8 +31,8 @@ def spawn_next(g, where=None, rng=random):
 
 def spawn_text(a):
     it = LEGENDARY[a["key"]]
-    return (f"🌟 آیتم لجندری «{it['fa']}» در {board.square_name(a['where'])} ظاهر شد!\n{it['desc_fa']}\n"
-            "هر کس ساعت ۸ آنجا باشد آن را برمی‌دارد؛ اگر چند نفر باشند، بینشان مزایده می‌شود.")
+    return (f"🌟 (فقط برای گاد) آیتم لجندری «{it['fa']}» مخفیانه در {board.square_name(a['where'])} ظاهر شد.\n{it['desc_fa']}\n"
+            "هر کس ساعت ۸ آنجا باشد آن را برمی‌دارد؛ اگر چند نفر باشند، مزایده مخفی. به کسی اعلام نمی‌شود.")
 
 
 def give(g, p, key):
@@ -56,43 +55,68 @@ def at_lock(g, rng=random):
         give(g, here[0], a["key"])
         L["active"] = None
         return "taken", here[0]
-    L["auction"] = {"key": a["key"], "where": a["where"], "bidders": [str(p["id"]) for p in here], "bids": {}}
+    L["auction"] = {"key": a["key"], "where": a["where"], "bidders": [str(p["id"]) for p in here],
+                    "high": 0, "leader": None, "out": []}
     L["active"] = None
     return "auction", here
 
 
-def bid_options(p):
-    return [b for b in BID_STEPS if b <= p["coins"]] + ([p["coins"]] if p["coins"] not in BID_STEPS else [])
+def active_bidders(g, au):
+    return [b for b in au["bidders"] if b not in au["out"] and g["players"][b]["alive"]]
+
+
+def bid_options(p, au):
+    """Raises above the current highest bid that this player can afford."""
+    hi = au["high"]
+    opts = sorted({hi + d for d in (1, 2, 5, 10, 20)} | {p["coins"]})
+    return [x for x in opts if hi < x <= p["coins"]]
+
+
+def _finished(g, au):
+    act = active_bidders(g, au)
+    return (au["leader"] and act == [au["leader"]]) or not act
 
 
 def place_bid(g, p, amount):
+    """Open, anonymous auction: everyone sees only the current highest bid. Returns True when it's over."""
     from .actions import GameError
     au = state(g)["auction"]
-    if not au or str(p["id"]) not in au["bidders"]:
+    pid = str(p["id"])
+    if not au or pid not in au["bidders"] or pid in au["out"]:
         raise GameError("مزایده‌ای برای تو باز نیست.")
-    if str(p["id"]) in au["bids"]:
-        raise GameError("پیشنهادت رو قبلاً دادی.")
-    if amount < 0 or amount > p["coins"]:
+    if pid == au["leader"]:
+        raise GameError("الان بالاترین پیشنهاد مال خودته.")
+    if amount <= au["high"]:
+        raise GameError(f"باید بیشتر از {au['high']} سکه پیشنهاد بدی.")
+    if amount > p["coins"]:
         raise GameError("این‌قدر سکه نداری.")
-    au["bids"][str(p["id"])] = amount
-    return all(b in au["bids"] or not g["players"][b]["alive"] for b in au["bidders"])
+    au["high"], au["leader"] = amount, pid
+    return _finished(g, au)
+
+
+def pass_bid(g, p):
+    from .actions import GameError
+    au = state(g)["auction"]
+    pid = str(p["id"])
+    if not au or pid not in au["bidders"] or pid in au["out"]:
+        raise GameError("مزایده‌ای برای تو باز نیست.")
+    if pid == au["leader"]:
+        raise GameError("بالاترین پیشنهاد مال توست؛ نمی‌تونی کنار بکشی.")
+    au["out"].append(pid)
+    return _finished(g, au)
 
 
 def close_auction(g, rng=random):
-    """Highest bid wins and pays; a tie is settled by lot. Missing bids count as 0. Returns (winner, bid, tied)."""
+    """The highest bidder wins and pays. If nobody bid, the item stays where it is. Returns (winner, bid)."""
     L = state(g)
     au = L["auction"]
     if not au:
-        return None, 0, []
-    alive = [b for b in au["bidders"] if g["players"][b]["alive"]]
-    if not alive:
-        L["auction"] = None
-        L["active"] = {"key": au["key"], "where": au["where"], "cycle": g["cycle"]}   # nobody left: it stays there
-        return None, 0, []
-    best = max(au["bids"].get(b, 0) for b in alive)
-    tied = [b for b in alive if au["bids"].get(b, 0) == best]
-    win = g["players"][rng.choice(tied)]
-    win["coins"] -= min(best, win["coins"])
-    give(g, win, au["key"])
+        return None, 0
     L["auction"] = None
-    return win, best, tied if len(tied) > 1 else []
+    win = g["players"].get(au["leader"]) if au["leader"] else None
+    if not win or not win["alive"]:
+        L["active"] = {"key": au["key"], "where": au["where"], "cycle": g["cycle"]}
+        return None, 0
+    win["coins"] -= min(au["high"], win["coins"])
+    give(g, win, au["key"])
+    return win, au["high"]

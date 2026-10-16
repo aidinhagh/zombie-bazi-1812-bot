@@ -138,7 +138,7 @@ async def do_phase(bot, phase, job_queue=None):
         a = legendary.spawn_next(g)          # one legendary item a day, one at a time
         save()
         if a:
-            await group(bot, legendary.spawn_text(a), None)
+            await gm_notes(bot, [(legendary.spawn_text(a), "")])   # secret: only the GM knows where it is
     from .player_ui import home_rows, home_text
     for p in alive_players(g):
         await dm(bot, p["id"], home_text(p), home_text(p), reply_markup=kb(home_rows(p)))

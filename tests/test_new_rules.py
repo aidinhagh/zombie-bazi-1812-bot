@@ -853,28 +853,39 @@ def test_factory_result_is_permanent_through_death_and_revival():
     assert p["perm"] == 0                 # second visit lost: +20 − 20
 
 
-def test_legendary_spawns_daily_goes_to_the_one_there_or_to_auction():
+def test_legendary_is_secret_and_auctioned_anonymously():
     async def go():
         w = World(seed=81)
         await setup(w, ["doctor", "zombie", "spy"])
         await next_step(w)                                   # night 1
         await place(w, 1, "paris"); await place(w, 2, "berlin"); await place(w, 3, "milan")
         await to_day(w)
-        assert w.g["phase"] == "day"
         L = legendary.state(w.g)
         assert L["active"] and L["active"]["key"] == "fouche_cipher"
-        assert any("لجندری" in t for t in w.texts_to(GROUP))
+        assert not any("لجندری" in t for t in w.texts_to(GROUP))          # nothing in the group
+        assert any("لجندری" in t for t in w.texts_to(GM))                 # the GM knows where
         where = L["active"]["where"]
-        for i in (1, 2):
+        for i in (1, 2, 3):
             P(w, i)["pos"] = where
             P(w, i)["coins"] = 20
         from zombiebot import gm_ui
-        await gm_ui.do_lock(w.bot)                           # 20:00 lock → two people there → auction
-        assert L["auction"] and set(L["auction"]["bidders"]) == {"1", "2"}
+        n_group = len(w.texts_to(GROUP))
+        await gm_ui.do_lock(w.bot)                           # 20:00 lock → three people there → secret auction
+        assert L["auction"] and set(L["auction"]["bidders"]) == {"1", "2", "3"}
+        assert not any("لجندری" in t or "مزایده" in t for t in w.texts_to(GROUP)[n_group:])
         await w.press(1, "p:pend")
-        await events.legend_bid(w.bot, 1, 5)
-        await events.legend_bid(w.bot, 2, 8)
+        assert "x:lb:1" in w.last_to(1).buttons() and "x:lp:0" in w.last_to(1).buttons()
+        await w.press(1, "x:lb:5")
+        to2 = w.texts_to(2)[-1]
+        assert "۵ سکه" in to2 and P(w, 1)["name"] not in to2                 # only the highest bid, not who
+        assert "x:lb:6" in w.last_to(2).buttons()
+        await w.press(2, "x:lb:8")
+        await w.press(3, "x:lp:0")
+        assert L["auction"]                                   # player 1 can still raise
+        await w.press(1, "x:lp:0")
         assert not L["auction"] and "fouche_cipher" in P(w, 2)["legend"] and P(w, 2)["coins"] == 12
+        assert not any("لجندری" in t or "مزایده" in t for t in w.texts_to(GROUP)[n_group:])
+        assert any(P(w, 2)["name"] in t and "۸" in t for t in w.texts_to(GM))   # the GM knows who won
         from zombiebot.engine import night_stats
         assert night_stats(w.g, P(w, 2))[0]["spy"] >= ROLES["zombie"]["spy"] + 20
     run(go())

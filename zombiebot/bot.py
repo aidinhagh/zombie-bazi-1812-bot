@@ -238,7 +238,6 @@ async def cmd_legend(update, ctx):
         save()
         if not a:
             return await update.message.reply_text("الان نمی‌شه (یکی روی نقشه یا در مزایده است، یا همه ظاهر شده‌اند).")
-        await common.group(ctx.bot, legendary.spawn_text(a), None)
         return await update.message.reply_text("✅ " + legendary.spawn_text(a))
     if args[0] == "close":
         ok = await events.legend_close(ctx.bot)

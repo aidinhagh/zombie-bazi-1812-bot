@@ -311,9 +311,14 @@ async def decide_pending(bot, r=None):
             if au:
                 for b in list(au["bidders"]):
                     au = (g.get("legend") or {}).get("auction")
-                    if au and b in autos and b not in au["bids"]:
-                        await events.legend_bid(bot, b, r.choice(legendary.bid_options(autos[b])))
-                        acted = True
+                    if not au or b not in autos or b not in legendary.active_bidders(g, au) or au["leader"] == b:
+                        continue
+                    opts = legendary.bid_options(autos[b], au)
+                    if opts and r.random() < 0.6:
+                        await events.legend_bid(bot, b, opts[0])
+                    else:
+                        await events.legend_pass(bot, b)
+                    acted = True
             for d in list(g["duels"]):
                 if d["status"] == "live":
                     for side in (d["a"], d["b"]):
