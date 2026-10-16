@@ -66,7 +66,7 @@ def test_control_room_walks_the_whole_cycle():
         await next_step(w)
         assert w.g["locked"]
         grp = [m for m in w.sent if m.chat_id == GROUP]
-        assert any(m.photo for m in grp) and any("Closed routes" in m.text for m in grp)
+        assert any(m.photo for m in grp) and any("مسیرهای بسته" in m.text for m in grp)
         # resolve, toggle one effect off and on, apply
         await next_step(w)
         assert w.g["pending"]
@@ -101,11 +101,13 @@ def test_control_room_walks_the_whole_cycle():
         # tally
         await w.say(6, "#رایگیری")
         assert any("🥇" in t for t in w.texts_to(GROUP))
-        # close the vote and execute the clown (kian)
+        # captions never show vote weights
+        assert not any("وزن" in m.text for m in w.sent if m.chat_id == GROUP)
+        # close the vote: no judge in this game → the top name (kian) is executed
         await next_step(w)
-        assert "g:ex:6" in w.last_to(GM).buttons()
-        await w.press(GM, "g:ex:6")
-        await w.press(GM, "g:exy:6")
+        assert "g:vclose" in w.last_to(GM).buttons()
+        await w.press(GM, "g:vclose")
+        assert any(t.startswith("🗳 نتیجه نهایی") for t in w.texts_to(GROUP))
         assert not P(w, 6)["alive"]
         assert any("دلقک" in t and "برد" in t for t in w.texts_to(GROUP))
         await next_step(w)
@@ -229,7 +231,7 @@ def test_specials_bomb_poison_duel_bullets_yakuza():
         await w.press(7, "p:sh:3")
         assert P(w, 3)["alive"]
         await w.press(GM, "g:votes")
-        await w.press(GM, "g:exy:5")
+        await w.press(GM, "g:exy:5")    # GM override: execute directly
         assert P(w, 5)["flags"].get("yakuza_pending")
         await w.press(5, "x:yk:8")      # the cultist can't be taken
         assert P(w, 8)["alive"]
@@ -357,7 +359,7 @@ def test_test_lab_fast_game_with_group_votes():
         assert any(t.startswith("#رایگیری") and "🥇" in t for t in group_texts)
         assert len(w.g["votes"]) >= 15
         await next_step(w)
-        assert any(b.startswith("g:ex:") for b in w.last_to(GM).buttons())
+        assert "g:vclose" in w.last_to(GM).buttons()
     run(go())
 
 
@@ -441,8 +443,9 @@ def test_fuzz_random_buttons_through_fast_games():
                 if w.g["phase"] == "day" and w.g.get("closed_cycle") != w.g["cycle"]:
                     await next_step(w)
                     m = w.last_to(GM)
-                    ex = [d for d in m.buttons() if d.startswith("g:ex:")]
-                    await w.press(GM, ex[0].replace("g:ex:", "g:exy:") if ex else "g:noex")
+                    await w.press(GM, "g:vclose")
+                    if w.g.get("closed_cycle") != w.g["cycle"]:
+                        await w.press(GM, "g:jdef")
                     await next_step(w)
         await w.press(GM, "g:map")
     for seed in range(4):
@@ -466,9 +469,7 @@ def test_test_votes_stay_under_telegram_group_limits():
         per_minute = max(sum(1 for t in votes_scheduled if s <= t < s + 60) for s in votes_scheduled)
         assert per_minute <= 12
         group_after = [m for m in w.sent if m.chat_id == GROUP][before:]
-        vote_posts = [m for m in group_after if m.animation]
+        vote_posts = [m for m in group_after if ": #رای " in m.text and not m.text.startswith("☀️")]
         assert len(vote_posts) == len(w.g["votes"]) + sum(1 for e in w.g.get("vote_log", []) if not e["counted"])
-        assert all(": #رای " in m.text for m in vote_posts)
-        # day announcement + one message per vote + the tally — nothing else
-        assert len(group_after) == len(vote_posts) + 2
+        assert all(m.animation for m in vote_posts)      # each vote is ONE message: the GIF with its caption
     run(go())

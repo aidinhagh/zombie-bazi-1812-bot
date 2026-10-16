@@ -1,4 +1,4 @@
-"""Bilingual text helpers. Private messages follow the player's language; group posts carry both."""
+"""Text helpers. The game runs in Persian only; the (fa, en) pairs are kept so English can come back later."""
 from .data.roles import ROLES, SPECIALS, role_name
 from .data.items import ITEMS
 from .data.locations import LOCATIONS, UNIT_NAMES, POWER_PRICES, UNIT_PRICES
@@ -6,11 +6,11 @@ from . import board
 
 
 def L(lang, fa, en):
-    return fa if lang == "fa" else en
+    return fa
 
 
 def bi(fa, en):
-    return f"{fa}\n\n{en}"
+    return fa
 
 
 BTN = {

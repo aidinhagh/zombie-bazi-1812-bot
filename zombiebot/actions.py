@@ -431,8 +431,7 @@ def apply_effects(g, result):
                 if T:
                     T["items"].append(e["item"])
         elif t == "stolen_role":
-            out.append(("private", e["by"], f"نقش {P['name']}: {role_name(e['role'])}", f"{P['name']}'s role: {role_name(e['role'],'en')}"))
-            out.append(("private", P["id"], "نقشت دزدیده شد؛ امشب اکتت انجام نشد.", "Your role was stolen; your act didn't happen tonight."))
+            out.append(("private", P["id"], "🦹 نقشت دزدیده شد؛ امشب اکتت انجام نشد.", ""))
         elif t == "charge" and P:
             P["charges"][e["key"]] = max(0, P["charges"].get(e["key"], 0) + e["delta"])
         elif t == "poison" and P:

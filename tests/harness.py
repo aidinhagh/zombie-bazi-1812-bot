@@ -38,7 +38,7 @@ class Msg:
     def buttons(self):
         if not self.markup:
             return []
-        return [b.callback_data for row in self.markup.inline_keyboard for b in row]
+        return [b.callback_data or ("webapp:" + b.web_app.url) for row in self.markup.inline_keyboard for b in row]
 
     async def reply_text(self, text, reply_markup=None, **kw):
         return await self.world.bot.send_message(self.chat_id, text, reply_markup=reply_markup)
@@ -58,8 +58,11 @@ class FakeBot:
         if reply_markup:
             for row in reply_markup.inline_keyboard:
                 for b in row:
-                    assert len(b.callback_data.encode()) <= 64, f"callback_data too long: {b.callback_data}"
                     assert b.text, "button without text"
+                    if b.web_app:
+                        assert b.web_app.url.startswith("https://")
+                        continue
+                    assert len(b.callback_data.encode()) <= 64, f"callback_data too long: {b.callback_data}"
 
     async def send_message(self, chat_id, text, reply_markup=None, **kw):
         assert isinstance(text, str) and text.strip(), "empty message"
@@ -103,6 +106,10 @@ class FakeJobQueue:
         self.world = world
 
     def run_once(self, cb, when, data=None, **kw):
+        if when > 600:   # long timers (the judge's 2 hours) don't fire by themselves in tests
+            self.world.deferred.append((cb, data))
+            self.world.scheduled.append((getattr(cb, "__name__", ""), when))
+            return
         self.world.jobs.append((cb, data))
         self.world.scheduled.append((getattr(cb, "__name__", ""), when))
 
@@ -121,7 +128,7 @@ class World:
         votes.make_gif = _REAL_GIF if real_gifs else (lambda *a, **k: b"GIF89a-test")
         votes._seen.clear()
         votes._last_tally.clear()
-        self.sent, self.jobs, self.forced_dice, self.scheduled = [], [], [], []
+        self.sent, self.jobs, self.forced_dice, self.scheduled, self.deferred = [], [], [], [], []
         self.bot = FakeBot(self, self.rng)
         self.jq = FakeJobQueue(self)
         self.user_data = {}

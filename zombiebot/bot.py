@@ -40,15 +40,16 @@ async def cmd_start(update: Update, ctx):
             save()
         if not pl(u.id):
             return await gm_ui.send_control_room(ctx.bot, u.id)
+    if str(u.id) in g.get("banned", []):
+        return
     p = pl(u.id)
     if not p:
         p = new_player(u.id, u.full_name, u.username)
         g["players"][str(u.id)] = p
         save()
-        await to_gms(ctx.bot, f"➕ {u.full_name} (@{u.username or '-'}) joined · id {u.id}")
-        await update.message.reply_text(bi(
-            "👋 به زامبی‌بازی ۱۸۱۲ خوش اومدی! ثبت‌نام شدی؛ گاد نقشت رو می‌فرسته.",
-            "👋 Welcome to Zombie Bazi 1812! You're registered; the GM will send your role."))
+        await to_gms(ctx.bot, f"➕ {u.full_name} (@{u.username or '-'}) ثبت‌نام کرد · آیدی {u.id}",
+                     reply_markup=kb([[("🎴 کارت بازیکن", f"g:pl:{u.id}"), ("🚫 اخراج", f"g:kick:{u.id}")]]))
+        await update.message.reply_text("👋 به زامبی‌بازی ۱۸۱۲ خوش اومدی! ثبت‌نام شدی؛ گاد نقشت رو می‌فرسته.")
         return
     await player_ui.send_home(ctx.bot, p)
 
@@ -339,7 +340,8 @@ def build_app(token):
     except Exception:   # the rate-limiter extra isn't installed (tests): run without it
         pass
     # a post waiting for its turn in the group must never hold up everyone else's buttons
-    app = builder.concurrent_updates(True).build()
+    from . import web
+    app = builder.concurrent_updates(True).post_init(web.start).build()
     cmds = {"start": cmd_start, "menu": player_ui.cmd_menu, "gm": cmd_gm, "lang": player_ui.cmd_lang, "help": cmd_help,
             "whoami": cmd_whoami, "setgroup": cmd_setgroup, "setchannel": cmd_setchannel, "nick": gm_ui.cmd_nick,
             "delete": votes.cmd_delete, "assign": cmd_assign, "hp": cmd_hp, "coins": cmd_coins, "pos": cmd_pos,
@@ -363,6 +365,11 @@ def main():
     token = os.environ.get("BOT_TOKEN", "").strip().strip('"').strip("'")
     if not token:
         raise SystemExit("BOT_TOKEN is empty or missing. On Railway: after adding variables, apply/deploy the staged changes.")
+    banned = [x.strip() for x in os.environ.get("BANNED_IDS", "").split(",") if x.strip()]
+    if banned:
+        for pid in banned:
+            gm_ui.kick(common.G(), pid)
+        logger.info("banned ids applied: %s", banned)
     if not ENV_GMS:
         logger.warning("GM_IDS is empty: nobody is GM. Set GM_IDS to your Telegram id (send /whoami to the bot).")
     build_app(token).run_polling(allowed_updates=Update.ALL_TYPES)

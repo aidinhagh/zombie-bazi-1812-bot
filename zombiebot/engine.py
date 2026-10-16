@@ -139,6 +139,9 @@ class Night:
                         a["active"] = False
                         a["note"].append("target dead")
                 st = stats[pid][0]
+                if a.get("as_role") in ROLES:
+                    # the thief's borrowed act: the stolen role's stats, the thief's place and boosts
+                    st = night_stats(g, {**alive[pid], "role": a["as_role"]})[0]
                 if a["type"] in ACT_STAT:
                     base = st[ACT_STAT[a["type"]]]
                 else:
@@ -164,6 +167,8 @@ class Night:
                           f"{self.nm(a['by'])} is in the church and cannot attack.")
 
         # ---- 1. thief ----
+        # The steal itself always happens (it can't be defused); only the borrowed act can be.
+        stolen_ok = set()
         for a in [x for x in acts if x["type"] == "steal" and x["active"]]:
             tid = a["target"]
             T = self.P(tid)
@@ -175,17 +180,23 @@ class Night:
                 self.eff("death", f"{self.nm(a['by'])} (دزد) از جاسوس دزدید و کشته شد.",
                          f"{self.nm(a['by'])} (thief) robbed the Spy and dies.", pid=a["by"], cause="thief_spy")
                 continue
+            stolen_ok.add(a["by"])
             for b in acts:
                 if b["by"] == tid and b["active"]:
                     b["active"] = False
                     b["note"].append("stolen")
-            self.eff("stolen_role", f"دزد نقش {T['name']} ({role_name(T['role'])}) را دزدید؛ اکتش انجام نشد.",
-                     f"Thief stole {T['name']}'s role ({role_name(T['role'],'en')}); their act is cancelled.",
+            self.eff("stolen_role", f"دزد نقش {T['name']} ({role_name(T['role'])}) را دزدید؛ اکت {T['name']} انجام نشد.",
+                     f"Thief stole {T['name']}'s role; their act is cancelled.",
                      pid=tid, by=a["by"], role=T["role"])
             if T["items"]:
                 it = self.rng.choice(T["items"])
                 self.eff("lose_item", f"{T['name']} آیتم {it} را به دزد باخت.",
                          f"{T['name']} loses item {it} to the thief.", pid=tid, item=it, to=a["by"])
+
+        for a in acts:
+            if a.get("as_role") and a["by"] not in stolen_ok and a["active"]:
+                a["active"] = False
+                a["note"].append("no theft")
 
         # ---- 2. defuse ----
         defuses = [x for x in acts if x["type"] == "defuse" and x["active"]]
@@ -254,11 +265,12 @@ class Night:
         attacks = [x for x in acts if x["type"] == "attack" and x["active"]]
         for a in attacks:
             A, T = self.P(a["by"]), self.P(a["target"])
-            if A["role"] == "sniper" and not A["cult"] and team(T) == HUMAN:
+            arole = a.get("as_role") or A["role"]
+            if arole == "sniper" and not A["cult"] and team(T) == HUMAN:
                 a["active"] = False
                 self.eff("death", f"اسنایپر {A['name']} به انسان ({T['name']}) شلیک کرد و خودش کشته شد.",
                          f"Sniper {A['name']} shot a human ({T['name']}) and dies instead.", pid=a["by"], cause="sniper")
-            elif A["role"] == "cult_hunter" and not (T["cult"] or team(T) == INDEP):
+            elif arole == "cult_hunter" and not (T["cult"] or team(T) == INDEP):
                 a["power"] = a["power"] // 3
                 a["note"].append("1/3 (not cult)")
         self._team_rule(attacks, "attack")
@@ -297,7 +309,7 @@ class Night:
         # ---- 6. spy ----
         for a in [x for x in acts if x["type"] == "spy" and x["active"]]:
             A, T = self.P(a["by"]), self.P(a["target"])
-            is_spy = A["role"] == "spy"
+            is_spy = (a.get("as_role") or A["role"]) == "spy"
             vf, ve = spy_view(self.g, T, is_spy, "fa"), spy_view(self.g, T, is_spy, "en")
             self.eff("private", f"نتیجه جاسوسی شما روی {T['name']}: {vf}", f"Your spy result on {T['name']}: {ve}",
                      pid=a["by"])

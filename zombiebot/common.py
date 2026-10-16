@@ -71,10 +71,7 @@ def chat_for(uid):
 
 
 def lang_of(uid):
-    p = pl(uid)
-    if p:
-        return p.get("lang", "fa")
-    return G().setdefault("gm_lang", {}).get(str(uid), "fa")
+    return "fa"   # Persian only
 
 
 def name_of(uid):
@@ -84,8 +81,16 @@ def name_of(uid):
 
 # ---------------- keyboards & text ----------------
 
+def _button(t, d):
+    if d.startswith("webapp:"):
+        from telegram import WebAppInfo
+        return InlineKeyboardButton(t, web_app=WebAppInfo(d[len("webapp:"):]))
+    return InlineKeyboardButton(t, callback_data=d)
+
+
 def kb(rows):
-    return InlineKeyboardMarkup([[InlineKeyboardButton(t, callback_data=d) for t, d in row] for row in rows if row])
+    """Rows of (text, callback_data). callback_data "webapp:<url>" makes a Mini App button."""
+    return InlineKeyboardMarkup([[_button(t, d) for t, d in row] for row in rows if row])
 
 
 def chunks(seq, n):
@@ -154,8 +159,7 @@ def banner(uid):
 
 
 async def dm(bot, uid, fa, en=None, **kw):
-    lang = lang_of(uid)
-    text = fa if (lang == "fa" or en is None) else en
+    text = fa
     chat = chat_for(uid)
     if chat is None:
         return None

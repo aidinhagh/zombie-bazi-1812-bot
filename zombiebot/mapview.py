@@ -6,6 +6,12 @@ from .board import SQUARES, CITIES
 from .common import G, kb, chunks, dm, dm_photo, lang_of, num, phase_label, logger
 from .data.locations import LOCATIONS, UNIT_NAMES
 from .render import render
+
+
+def webapp_url():
+    from .web import webapp_url as w
+    return w()
+
 from .state import alive_players
 from .texts import L
 
@@ -136,7 +142,7 @@ async def post_public_map(bot):
     if not target:
         return
     pic = render(g, title=f"{phase_label('en', g)} · map")
-    text = public_list(g, "fa") + "\n\n" + public_list(g, "en")
+    text = public_list(g, "fa")
     await send_photo_and_list(bot, target, pic, text, to_player=False)
 
 
@@ -156,9 +162,16 @@ async def send_move_map(bot, p):
     for n, s, path in choices:
         steps = len(path)
         lines.append(f"{num(n, lang)}. {'🏙' if s in CITIES else '◦'} {sq_name(s, lang)} · {num(steps, lang)} {L(lang, 'خانه', 'sq')}")
-    pic = render(g, title=f"{p['name']} · roll {roll}", highlight={s: n for n, s, _ in choices}, you=p.get("pos"))
     buttons = [(f"{num(n, lang)} {sq_name(s, lang)[:18]}", f"p:go:{s}") for n, s, _ in choices]
     rows = chunks(buttons, 2) + [[(L(lang, "↩️ منو", "↩️ Menu"), "p:home")]]
+    url = webapp_url()
+    if url:
+        # the interactive map: tap a numbered square, watch the token walk there
+        rows.insert(0, [("🗺 باز کردن نقشه و انتخاب مقصد", "webapp:" + url)])
+        text = head + "\n\nنقشه را باز کن و روی یکی از شماره‌ها بزن — یا از دکمه‌های زیر انتخاب کن."
+        await dm(bot, p["id"], text, reply_markup=kb(rows))
+        return
+    pic = render(g, title=f"{p['name']} · roll {roll}", highlight={s: n for n, s, _ in choices}, you=p.get("pos"))
     text = "\n".join(lines)
     await dm_photo(bot, p["id"], pic)
     await dm(bot, p["id"], text, text, reply_markup=kb(rows))
@@ -168,6 +181,13 @@ async def send_city_pick(bot, p, title_fa, title_en, prefix):
     """First placement / free move / taxi: the cities, numbered on the map and in the list."""
     g = G()
     lang = lang_of(p["id"])
+    url = webapp_url()
+    if url and prefix == "p:go":
+        cities = [c for c in CITIES if c != p.get("pos")] if p.get("pos") else list(CITIES)
+        rows = [[("🗺 باز کردن نقشه و انتخاب شهر", "webapp:" + url)]]
+        rows += chunks([(LOCATIONS[c]["fa"][:20], f"{prefix}:{c}") for c in cities], 2) + [[("↩️ منو", "p:home")]]
+        await dm(bot, p["id"], title_fa + "\nنقشه را باز کن — یا از دکمه‌ها انتخاب کن.", reply_markup=kb(rows))
+        return
     cities = [c for c in CITIES if c != p.get("pos") or prefix != "p:go"]
     pic = render(g, title=f"{p['name']}", highlight={c: i + 1 for i, c in enumerate(cities)}, you=p.get("pos"))
     lines = [L(lang, title_fa, title_en), ""] + [f"{num(i + 1, lang)}. {LOCATIONS[c][lang]}" for i, c in enumerate(cities)]

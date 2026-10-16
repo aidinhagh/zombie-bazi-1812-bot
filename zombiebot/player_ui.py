@@ -60,13 +60,17 @@ def home_rows(p):
     g = G()
     lang = p["lang"]
     if not p.get("role"):
-        return [[(L(lang, "🌐 English", "🌐 فارسی"), "p:lang")]]
+        return [[(L(lang, "🔄 تازه کن", ""), "p:home")]]
     if not p["alive"]:
-        rows = [[(L(lang, "🎴 نقش من", "🎴 My role"), "p:role"), (L(lang, "🌐 English", "🌐 فارسی"), "p:lang")]]
+        rows = [[(L(lang, "🎴 نقش من", "🎴 My role"), "p:role")]]
         if p.get("fake"):
             rows.append([(L(lang, "👑 برگشت به اتاق فرمان", "👑 Back to the control room"), "g:asoff")])
         return rows
-    rows = [[(L(lang, "🎲 حرکت", "🎲 Move"), "p:move"), (L(lang, "🎯 دارت", "🎯 Darts"), "p:darts")]]
+    rows = []
+    waiting = events.pending_for(p)
+    if waiting:
+        rows.append([(f"⏳ کارهای منتظر تو ({num(len(waiting))})", "p:pend")])
+    rows.append([(L(lang, "🎲 حرکت", "🎲 Move"), "p:move"), (L(lang, "🎯 دارت", "🎯 Darts"), "p:darts")])
     if g["phase"] == "night":
         rows.append([(L(lang, "🌙 اکت شب", "🌙 Night act"), "p:act"), (L(lang, "🛒 خرید", "🛒 Shop"), "p:shop")])
     elif g["phase"] == "day":
@@ -89,7 +93,7 @@ def home_rows(p):
     if p["role"] == "godfather":
         extra.append((L(lang, "🃏 نقش جعلی", "🃏 Fake role"), "p:fk"))
     rows += chunks(extra, 2)
-    rows.append([(L(lang, "🎴 نقش من", "🎴 My role"), "p:role"), (L(lang, "🌐 English", "🌐 فارسی"), "p:lang")])
+    rows.append([(L(lang, "🎴 نقش من", "🎴 My role"), "p:role")])
     if p.get("fake"):
         rows.append([(L(lang, "👑 برگشت به اتاق فرمان", "👑 Back to the control room"), "g:asoff")])
     return rows
@@ -163,9 +167,19 @@ async def handle(update, ctx, p, head, args):
         return await send_home(bot, p, q)
     if head == "role":
         return await edit_or_send(q, role_card(p, lang), [back(lang)])
+    if head == "pend":
+        waiting = events.pending_for(p)
+        if not waiting:
+            return await send_home(bot, p, q)
+        label, rows = waiting[0]
+        more = f"\n\n(+{num(len(waiting) - 1)} کار دیگر بعد از این)" if len(waiting) > 1 else ""
+        return await edit_or_send(q, label + more, rows + [back(lang)])
     if head == "map":
         await q.answer()
-        return await mapview.send_player_map(bot, p, reply_markup=kb([back(lang)]))
+        rows = [back(lang)]
+        if mapview.webapp_url():
+            rows.insert(0, [("🗺 نقشه تعاملی", "webapp:" + mapview.webapp_url())])
+        return await mapview.send_player_map(bot, p, reply_markup=kb(rows))
     if not p["alive"]:
         raise GameError("شما مرده‌اید.", "You are dead.")
 
@@ -250,9 +264,12 @@ async def handle(update, ctx, p, head, args):
         await q.answer(L(lang, f"−{num(cost)} سکه", f"−{cost} coins"))
         return await edit_or_send(q, *shop_view(p, lang))
     if head == "bu":
-        actions.buy_unit(g, p, args[0])
+        unit = args[0]
+        actions.buy_unit(g, p, unit)
         save()
-        return await edit_or_send(q, *shop_view(p, lang))
+        use = unit_use_rows(p, unit)
+        text = f"✅ {unit_name(unit, 'fa')} خریدی. 💰 {num(p['coins'])} سکه مانده.\n" + UNIT_HELP[unit]
+        return await edit_or_send(q, text, use + [[("🛒 فروشگاه", "p:shop"), ("🎒 کوله", "p:bag")], back(lang)])
 
     # ----- bag: items and units -----
     if head == "bag":
@@ -342,11 +359,8 @@ async def handle(update, ctx, p, head, args):
                      f"Your vote today is for {pl(cur)['name']}. (Only the first vote each day counts.)")
             rows = [back(lang)]
         else:
-            text = L(lang, f"به کی رأی می‌دی؟ وزن رأیت: {num(actions.vote_weight(g, p))}\nمی‌تونی تو گروه هم بنویسی: #رای اسم",
-                     f"Who do you vote for? Your vote weight: {actions.vote_weight(g, p)}\nYou can also write in the group: #رای name")
+            text = "به کی رأی می‌دی؟ فقط اولین رأی هر روز حساب می‌شه.\nمی‌تونی تو گروه هم بنویسی: #رای اسم"
             rows = people_rows("p:v", alive_others(p), lang)
-        if p["role"] == "judge" and p["charges"].get("cancel_vote") and not g["vote_cancelled"]:
-            rows.insert(-1, [(L(lang, "⚖️ لغو رأی‌گیری امروز", "⚖️ Cancel today's vote"), "p:vc")])
         return await edit_or_send(q, text, rows)
     if head == "v":
         T = pl(args[0])
@@ -357,15 +371,6 @@ async def handle(update, ctx, p, head, args):
                 "already": ("امروز قبلاً رأی دادی.", "You already voted today.")}
         fa, en = msgs.get(status, votes.REFUSALS.get(status, ("نشد.", "Couldn't vote.")))
         return await edit_or_send(q, L(lang, fa, en), [back(lang)])
-    if head == "vc" and p["role"] == "judge":
-        if not p["charges"].get("cancel_vote") or g["phase"] != "day":
-            raise GameError("نمی‌تونی.", "You can't.")
-        p["charges"]["cancel_vote"] = 0
-        g["vote_cancelled"] = True
-        save()
-        await events.group(bot, "⚖️ قاضی رأی‌گیری امروز را لغو کرد.", "⚖️ The judge has cancelled today's vote.")
-        return await send_home(bot, p, q)
-
     # ----- place specials -----
     if head == "taxi":
         if not g["locked"] or p.get("night_pos") != "london":
@@ -498,7 +503,10 @@ def bag_view(p, lang):
 # ---------------- night acts ----------------
 
 def act_limit(p):
-    return 2 if p.get("double_act") else 1
+    base = 2 if p.get("double_act") else 1
+    if any(a["type"] == "steal" for a in G()["acts"].get(str(p["id"]), [])):
+        base += 1   # the borrowed act
+    return base
 
 
 def acts_text(p, lang):
@@ -513,7 +521,8 @@ def acts_text(p, lang):
             t = ", ".join(pl(x)["name"] for x in ex.get("targets", []) if pl(x))
         if a["type"] == "duel" and ex.get("target2") and pl(ex["target2"]):
             t += " ⚔️ " + pl(ex["target2"])["name"]
-        out.append(f"• {act_name(a['type'], lang)} → {t}")
+        tag = f" (به‌جای {role_name(a['as_role'])})" if a.get("as_role") else ""
+        out.append(f"• {act_name(a['type'], lang)}{tag} → {t}")
     return "\n".join(out)
 
 
@@ -529,8 +538,13 @@ def add_act(p, act):
     t = act["type"]
     if t == "attack" and "church" in LOCATIONS.get(loc_of(p) or "", {}).get("flags", []):
         raise GameError("در کلیسا نمی‌تونی حمله کنی.", "You can't attack from the church.")
+    borrow = p["flags"].get("borrow")
+    if borrow and t != "steal":
+        act["as_role"] = borrow
+        p["flags"].pop("borrow", None)
+        p["flags"].pop("borrow_from", None)
     need = {"bomb": "bomb", "poison": "poison", "guess": "guess", "cult_check": "cult_check"}.get(t)
-    if need and p["charges"].get(need, 0) < 1:
+    if need and not act.get("as_role") and p["charges"].get(need, 0) < 1:
         raise GameError("شارژ این توانایی تموم شده.", "That ability is used up.")
     if t == "convert" and p.get("no_recruit_until", 0) >= g["cycle"]:
         raise GameError("امشب نمی‌تونی عضو بگیری.", "You can't recruit tonight.")
@@ -549,6 +563,16 @@ async def act_flow(update, ctx, p, head, args):
     if g["phase"] != "night":
         raise GameError("اکت فقط در شب.", "Acts only at night.")
     if head == "act":
+        borrow = p["flags"].get("borrow")
+        if borrow:
+            types = ["attack", "protect", "defuse", "spy"] + [t for t in SPECIALS.get(borrow, []) if t != "steal"]
+            rows = chunks([(act_name(t, lang), f"p:a:{t}") for t in types], 2)
+            victim = p["flags"].get("borrow_from", "")
+            warn = "\n⚠️ او جاسوس است — دزدی از جاسوس یعنی مرگ دزد!" if borrow == "spy" else ""
+            text = (f"🦹 دزدی ثبت شد. نقش {victim}: {role_name(borrow)}{warn}\n\n"
+                    f"حالا به‌جای {role_name(borrow)} یک اکت انتخاب کن.\n"
+                    f"این اکت با استت‌های {role_name(borrow)} انجام می‌شود (و فقط همین اکت قابل خنثی شدن است).")
+            return await edit_or_send(q, text, rows + [[("🗑 لغو دزدی", "p:acx")], back(lang)])
         types = ["attack", "protect", "defuse", "spy"] + SPECIALS.get(p["role"], [])
         rows = chunks([(act_name(t, lang), f"p:a:{t}") for t in types], 2)
         if g["acts"].get(str(p["id"])):
@@ -558,6 +582,7 @@ async def act_flow(update, ctx, p, head, args):
         return await edit_or_send(q, acts_text(p, lang) + lim, rows + [back(lang)])
     if head == "acx":
         g["acts"].pop(str(p["id"]), None)
+        p["flags"].pop("borrow", None)
         save()
         return await act_flow(update, ctx, p, "act", [])
     if head == "a":
@@ -582,6 +607,15 @@ async def act_flow(update, ctx, p, head, args):
         if t == "duel":
             others = [x for x in alive_others(p, include_self=True) if str(x["id"]) != tid]
             return await edit_or_send(q, L(lang, "حریف دوم دوئل؟", "Second duellist?"), people_rows(f"p:td:{tid}", others, lang, "p:act"))
+        if t == "steal":
+            T = pl(tid)
+            if T["pos"] == "wagram":
+                raise GameError("او در خانقاه است؛ از کسی که در خانقاه است نمی‌شود دزدید.")
+            add_act(p, {"type": "steal", "target": tid, "extra": {}})
+            p["flags"]["borrow"] = T["role"]
+            p["flags"]["borrow_from"] = T["name"]
+            save()
+            return await act_flow(update, ctx, p, "act", [])
         add_act(p, {"type": t, "target": tid, "extra": {}})
         return await act_done(q, p, lang)
     if head == "tg":
@@ -656,3 +690,29 @@ async def cmd_lang(update, ctx):
 def playing_as_any(uid):
     from .common import playing_as
     return playing_as(uid) is not None
+
+
+UNIT_HELP = {
+    "spy_balloon": "🎈 بالن جاسوسی: یک شهر انتخاب کن؛ ساعت ۲۰ می‌گوید چه کسانی آنجا هستند.",
+    "war_balloon": "🎈 بالن جنگی: یک شهر انتخاب کن؛ ساعت ۲۰ بمباران می‌شود (درصد تخریب با مینی‌گیم).",
+    "cannon": "💣 توپ: روی یک خانه زمینی بین شهرها بکار (عوارض می‌گیرد) یا یک جاده متصل را خراب کن.",
+    "ship": "⛵ کشتی: روی یک خانه دریایی بکار (عوارض می‌گیرد) یا مین یک مسیر دریایی را پاک کن.",
+    "mine": "🌊 مین: یک مسیر دریایی متصل به خانه‌ات را ببند.",
+    "shovel": "⛏ بیل: جاده خراب را تعمیر کن یا جاده جدید بساز.",
+}
+
+
+def unit_use_rows(p, unit):
+    """The buttons that use a unit right away (shown after buying, and in the bag)."""
+    if unit in ("spy_balloon", "war_balloon"):
+        kind = unit.split("_")[0]
+        return chunks([(LOCATIONS[c]["fa"][:22], f"p:ubt:{kind}:{c}") for c in CITIES], 2)
+    if unit == "cannon":
+        return [[("💣 کاشتن همین‌جا", "p:up:cannon"), ("💣 خراب کردن جاده", "p:us:cannon")]]
+    if unit == "ship":
+        return [[("⛵ کاشتن همین‌جا", "p:up:ship"), ("⛵ پاک کردن مین", "p:us:ship")]]
+    if unit == "mine":
+        return [[("🌊 بستن مسیر دریایی", "p:us:mine")]]
+    if unit == "shovel":
+        return [[("⛏ تعمیر جاده", "p:us:shovel"), ("⛏ جاده جدید", "p:ud")]]
+    return []

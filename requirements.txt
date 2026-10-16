@@ -3,3 +3,4 @@ Pillow>=10.1
 arabic-reshaper==3.0.0
 python-bidi==0.4.2
 tzdata
+aiohttp>=3.9,<4

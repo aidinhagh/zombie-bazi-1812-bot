@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>نقشه ۱۸۱۲</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+@font-face{font-family:Vazir;src:url(/font.ttf) format("truetype");font-weight:400 900}
+:root{
+  --table:#100c08;--imperial:#15332a;--imperial-2:#1d4337;--imperial-3:#0e241d;
+  --gold:#c9a24a;--gold-soft:#e6cd84;--parch:#efe3c4;--parch-dim:#c9bb98;--ink:#24180e;
+  --crimson:#a3322a;--crimson-hi:#d0433a;--sea:#9fb9b3;--land:#efe3c4;--road:#8d5f31;--lane:#2c4f86;
+  --rule:rgba(201,162,74,.35);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--table);color:var(--parch);font-family:Vazir,Tahoma,sans-serif;overflow:hidden}
+#top{position:fixed;inset:0 0 auto 0;z-index:5;padding:10px 12px 8px;
+  background:linear-gradient(180deg,var(--imperial-2),var(--imperial));border-bottom:1px solid var(--gold);
+  box-shadow:0 3px 0 var(--imperial-3),0 4px 0 var(--rule),0 10px 24px rgba(0,0,0,.45)}
+#who{display:flex;align-items:center;gap:8px;font-size:15px;color:var(--gold-soft)}
+#who b{font-weight:800}
+#who .role{color:var(--parch-dim);font-size:13px}
+#who .stats{margin-inline-start:auto;display:flex;gap:10px;font-size:14px;color:var(--parch)}
+#hint{margin-top:6px;display:flex;align-items:center;gap:8px;font-size:14px;color:var(--parch)}
+.die{width:30px;height:30px;flex:none;border-radius:7px;background:var(--parch);color:var(--ink);display:grid;place-items:center;
+  font-weight:900;font-size:17px;box-shadow:inset 0 -3px 0 #c9bb98,0 0 0 1px var(--gold)}
+#phase{margin-inline-start:auto;font-size:12px;color:var(--parch-dim);border:1px solid var(--rule);padding:2px 8px;border-radius:20px}
+#map{position:fixed;inset:0;touch-action:none;background:var(--sea)}
+svg{width:100%;height:100%;display:block;user-select:none}
+.city text,.lbl{font-family:Vazir,Tahoma,sans-serif;paint-order:stroke;stroke:var(--land);stroke-width:5px;stroke-linejoin:round}
+.pin{cursor:pointer;outline:none}
+.pin circle.b{fill:var(--crimson);stroke:#fff;stroke-width:3}
+.pin.sel circle.b{fill:var(--gold);stroke:var(--ink)}
+.pin text{fill:#fff;font-weight:900;font-size:20px;text-anchor:middle;dominant-baseline:central;stroke:none}
+.pin.sel text{fill:var(--ink)}
+.pulse{fill:none;stroke:var(--crimson-hi);stroke-width:3;opacity:.0;animation:pulse 1.8s ease-out infinite}
+@keyframes pulse{0%{r:16;opacity:.8}100%{r:34;opacity:0}}
+#me-ring{fill:none;stroke:#1f7a45;stroke-width:6}
+#token{fill:#1f7a45;stroke:#fff;stroke-width:4;filter:drop-shadow(0 3px 3px rgba(0,0,0,.45))}
+#sheet{position:fixed;inset:auto 0 0 0;z-index:6;transform:translateY(105%);transition:transform .25s ease;
+  background:linear-gradient(180deg,var(--imperial-2),var(--imperial) 40%,var(--imperial-3));border-top:1px solid var(--gold);
+  box-shadow:0 -3px 0 var(--imperial-3),0 -4px 0 var(--rule),0 -14px 30px rgba(0,0,0,.5);padding:14px 16px calc(16px + env(safe-area-inset-bottom))}
+#sheet.open{transform:none}
+#sheet h2{margin:0 0 4px;font-size:19px;color:var(--gold-soft);font-weight:800}
+#sheet .meta{font-size:13px;color:var(--parch-dim);margin-bottom:8px}
+#sheet p{margin:0 0 10px;font-size:14px;line-height:1.7;color:var(--parch)}
+#sheet .warn{color:#f1a39c}
+.row{display:flex;gap:8px}
+.btn{flex:1;appearance:none;border:1px solid var(--gold);background:rgba(0,0,0,.25);color:var(--parch);font:inherit;font-size:15px;
+  padding:11px;border-radius:8px;cursor:pointer}
+.btn.gold{background:linear-gradient(180deg,#d9b65e,#b88f37);color:var(--ink);border-color:#f0dc9c;font-weight:800}
+.btn:disabled{opacity:.5}
+#legend{position:fixed;z-index:4;inset:auto auto 12px 12px;background:rgba(14,36,29,.88);border:1px solid var(--rule);
+  border-radius:8px;padding:6px 9px;font-size:11.5px;color:var(--parch-dim);line-height:1.8}
+#legend i{display:inline-block;width:18px;height:0;border-top:4px solid var(--road);vertical-align:middle;margin-inline-end:5px}
+#legend i.sea{border-top:3px dashed var(--lane)} #legend i.bad{border-top:4px dashed var(--crimson)}
+#msg{position:fixed;inset:0;z-index:9;display:none;place-items:center;background:rgba(16,12,8,.72)}
+#msg .card{max-width:320px;margin:20px;background:var(--imperial);border:1px solid var(--gold);border-radius:12px;padding:18px;text-align:center}
+#msg h3{margin:0 0 8px;color:var(--gold-soft)}
+#msg p{margin:0 0 14px;line-height:1.7}
+#zoom{position:fixed;z-index:4;inset:auto 12px 12px auto;display:flex;flex-direction:column;gap:6px}
+#zoom button{width:40px;height:40px;border-radius:8px;border:1px solid var(--gold);background:rgba(14,36,29,.9);color:var(--gold-soft);font-size:20px}
+</style>
+</head>
+<body>
+<div id="map"><svg id="svg" xmlns="http://www.w3.org/2000/svg"></svg></div>
+<div id="top">
+  <div id="who"><b id="name">…</b><span class="role" id="role"></span><span class="stats"><span id="hp"></span><span id="coins"></span></span></div>
+  <div id="hint"><div class="die" id="die" hidden></div><span id="hinttext">در حال بارگذاری نقشه…</span><span id="phase"></span></div>
+</div>
+<div id="legend"><div><i></i>جاده</div><div><i class="sea"></i>مسیر دریایی</div><div><i class="bad"></i>خراب / مین</div></div>
+<div id="zoom"><button id="zin" aria-label="بزرگ‌نمایی">+</button><button id="zout" aria-label="کوچک‌نمایی">−</button></div>
+<div id="sheet" role="dialog" aria-live="polite">
+  <h2 id="sName"></h2><div class="meta" id="sMeta"></div><p id="sDesc"></p>
+  <div class="row"><button class="btn" id="sCancel">انصراف</button><button class="btn gold" id="sGo">حرکت به اینجا</button></div>
+</div>
+<div id="msg"><div class="card"><h3 id="mTitle"></h3><p id="mText"></p><button class="btn gold" id="mBtn">بستن</button></div></div>
+<script>
+const tg = window.Telegram && Telegram.WebApp; if (tg) { tg.ready(); tg.expand(); }
+const INIT = (tg && tg.initData) || new URLSearchParams(location.search).get("init") || "";
+const FA = n => String(n).replace(/\d/g, d => "۰۱۲۳۴۵۶۷۸۹"[d]);
+const LON0=-11.5, LON1=41.5, LAT0=37.0, LAT1=62.4, W=1800, K=Math.cos(50*Math.PI/180);
+const H = W*(LAT1-LAT0)/((LON1-LON0)*K);
+const P = (lon,lat) => [(lon-LON0)/(LON1-LON0)*W, (LAT1-lat)/(LAT1-LAT0)*H];
+const NS = "http://www.w3.org/2000/svg";
+const svg = document.getElementById("svg");
+const el = (t, a={}, parent) => { const e=document.createElementNS(NS,t); for (const k in a) e.setAttribute(k,a[k]); if(parent) parent.appendChild(e); return e; };
+let S = null, SQ = {}, chosen = null, busy = false;
+let vb = {x:0, y:0, w:W, h:H};
+
+async function api(path, opts={}) {
+  const r = await fetch(path, {...opts, headers:{"Content-Type":"application/json","X-Init-Data":INIT,...(opts.headers||{})}});
+  if (!r.ok) { let t = await r.text(); try { t = JSON.parse(t).error || t; } catch(e){} throw new Error(t); }
+  return r.json();
+}
+
+function setVB(){ svg.setAttribute("viewBox", `${vb.x} ${vb.y} ${vb.w} ${vb.h}`); }
+function fitTo(points, pad=160){
+  const r = svg.getBoundingClientRect(); const aspect = r.width/Math.max(1,r.height);
+  let xs = points.map(p=>p[0]), ys = points.map(p=>p[1]);
+  let x0=Math.min(...xs)-pad, x1=Math.max(...xs)+pad, y0=Math.min(...ys)-pad-90, y1=Math.max(...ys)+pad;
+  let w=x1-x0, h=y1-y0; if (w/h < aspect) { const nw=h*aspect; x0-=(nw-w)/2; w=nw; } else { const nh=w/aspect; y0-=(nh-h)/2; h=nh; }
+  vb={x:x0,y:y0,w,h}; clampVB(); setVB();
+}
+function clampVB(){ vb.w=Math.min(Math.max(vb.w,260),W*1.6); const a=svg.getBoundingClientRect(); vb.h=vb.w*a.height/Math.max(1,a.width); }
+
+function draw(coast){
+  svg.innerHTML = "";
+  el("rect",{x:-W,y:-H,width:W*3,height:H*3,fill:"var(--sea)"},svg);
+  const land = el("g",{fill:"var(--land)",stroke:"#9b7b55","stroke-width":1.2},svg);
+  for (const ring of coast){ if (ring.length<3) continue; el("path",{d:"M"+ring.map(([lo,la])=>P(lo,la).map(v=>v.toFixed(1)).join(",")).join("L")+"Z"},land); }
+  const gr = el("g",{},svg);
+  for (const r of S.routes){
+    const pts = r.seq.map(id=>SQ[id].xy);
+    const d = "M"+pts.map(p=>p.map(v=>v.toFixed(1)).join(",")).join("L");
+    const bad = r.status!=="ok";
+    if (r.kind==="sea") el("path",{d,fill:"none",stroke:bad?"var(--crimson)":"var(--lane)","stroke-width":4,"stroke-dasharray":"12 8"},gr);
+    else el("path",{d,fill:"none",stroke:bad?"var(--crimson)":"var(--road)","stroke-width":6,"stroke-dasharray":bad?"6 10":"none","stroke-linecap":"round"},gr);
+    if (bad){ const m = pts[Math.floor(pts.length/2)]; el("path",{d:`M${m[0]-13},${m[1]-13}L${m[0]+13},${m[1]+13}M${m[0]+13},${m[1]-13}L${m[0]-13},${m[1]+13}`,stroke:"var(--crimson)","stroke-width":6},gr); }
+  }
+  const gn = el("g",{},svg);
+  for (const s of S.squares){
+    const [x,y]=s.xy;
+    if (s.kind==="node"){ el("circle",{cx:x,cy:y,r:12,fill:"#c9a24a",stroke:"var(--ink)","stroke-width":2},gn);
+      const t=el("text",{x,y:y+1,"font-size":13,"text-anchor":"middle","dominant-baseline":"central",fill:"var(--ink)"},gn); t.textContent=FA(s.id.slice(1)); }
+  }
+  for (const u of S.units){
+    const [x,y]=SQ[u.square].xy; const g=el("g",{transform:`translate(${x+16},${y-28})`},gn);
+    if (u.kind==="cannon"){ el("rect",{width:24,height:20,rx:3,fill:"#222"},g); const t=el("text",{x:12,y:11,"font-size":13,"text-anchor":"middle","dominant-baseline":"central",fill:"#fff"},g); t.textContent="توپ"; }
+    else { el("path",{d:"M0,2H26L20,18H6Z",fill:"var(--lane)"},g); }
+  }
+  for (const s of S.squares){
+    if (s.kind!=="city") continue; const [x,y]=s.xy; const dmg=S.damage[s.id]||0;
+    const g = el("g",{class:"city"},gn);
+    el("circle",{cx:x,cy:y,r:11,fill:"var(--ink)",stroke:"#fff","stroke-width":3},g);
+    const t=el("text",{x,y:y-(S.me.pos===s.id?30:19),"font-size":24,"font-weight":800,"text-anchor":"middle",fill:dmg?"var(--crimson)":"var(--ink)"},g);
+    t.textContent = s.city + (dmg?` −${FA(dmg)}٪`:"");
+  }
+  if (S.me.pos && SQ[S.me.pos]){ const [x,y]=SQ[S.me.pos].xy; el("circle",{id:"me-ring",cx:x,cy:y,r:24},svg); }
+  const gp = el("g",{},svg);
+  for (const o of S.options){
+    const [x,y]=SQ[o.sq].xy; const cx=x+24, cy=y+24;
+    const g = el("g",{class:"pin","data-sq":o.sq,tabindex:0},gp);
+    el("line",{x1:x,y1:y,x2:cx,y2:cy,stroke:"var(--crimson)","stroke-width":4},g);
+    el("circle",{class:"pulse",cx,cy,r:16},g);
+    el("circle",{class:"b",cx,cy,r:19},g);
+    const t=el("text",{x:cx,y:cy+1},g); t.textContent=FA(o.n);
+    el("circle",{cx:x,cy:y,r:30,fill:"transparent"},g);
+    g.addEventListener("click", e => { e.stopPropagation(); pick(o); });
+  }
+  if (S.me.pos && SQ[S.me.pos]){ const [x,y]=SQ[S.me.pos].xy; el("circle",{id:"token",cx:x,cy:y,r:13},svg); }
+  setVB();
+}
+
+function pick(o){
+  if (busy) return; chosen = o;
+  document.querySelectorAll(".pin").forEach(p=>p.classList.toggle("sel", p.dataset.sq===o.sq));
+  const s = SQ[o.sq];
+  document.getElementById("sName").textContent = s.name;
+  const steps = o.path.length;
+  document.getElementById("sMeta").textContent = S.mode==="roll" ? `${FA(steps)} خانه · گزینه ${FA(o.n)}` : `گزینه ${FA(o.n)}`;
+  let desc = s.desc || (s.sea ? "خانه‌ای روی مسیر دریایی." : "خانه‌ای روی جاده بین دو شهر.");
+  if (o.tolls.length) desc += `\n⚠️ از ${FA(o.tolls.length)} خانه دارای توپ/کشتی دیگران رد می‌شوی: هر کدام ۱۰ سکه عوارض.`;
+  const d = document.getElementById("sDesc"); d.textContent = desc; d.className = o.tolls.length ? "warn" : "";
+  document.getElementById("sheet").classList.add("open");
+  if (tg){ tg.MainButton.setText("حرکت به " + (s.city || ("خانه " + FA(s.id.slice(1))))); tg.MainButton.show(); }
+}
+function unpick(){ chosen=null; document.getElementById("sheet").classList.remove("open"); document.querySelectorAll(".pin.sel").forEach(p=>p.classList.remove("sel")); if (tg) tg.MainButton.hide(); }
+
+async function go(){
+  if (!chosen || busy) return; busy = true;
+  const btn = document.getElementById("sGo"); btn.disabled = true; if (tg) tg.MainButton.showProgress();
+  try {
+    const r = await api("/api/move",{method:"POST",body:JSON.stringify({dest:chosen.sq,init:INIT})});
+    document.getElementById("sheet").classList.remove("open"); if (tg){ tg.MainButton.hideProgress(); tg.MainButton.hide(); }
+    document.querySelectorAll(".pin").forEach(p=>p.style.opacity = p.dataset.sq===chosen.sq ? 1 : .15);
+    await walk(S.me.pos ? [S.me.pos, ...r.path] : r.path);
+    if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred("success");
+    document.getElementById("coins").textContent = "💰 " + FA(r.coins);
+    showMsg("📍 رسیدی!", r.name + (r.tolls.length ? "\n" + r.tolls.join("\n") : ""), "برگشت به ربات", () => tg ? tg.close() : null);
+  } catch (e) {
+    busy = false; btn.disabled = false; if (tg) tg.MainButton.hideProgress();
+    showMsg("نشد", e.message, "باشه", hideMsg);
+  }
+}
+
+function walk(ids){
+  return new Promise(res => {
+    const tok = document.getElementById("token") || el("circle",{id:"token",r:13},svg);
+    const pts = ids.map(id=>SQ[id].xy); if (pts.length<2){ tok.setAttribute("cx",pts[0][0]); tok.setAttribute("cy",pts[0][1]); return res(); }
+    fitTo(pts, 220);
+    let i=0, t0=null; const per=420;
+    function step(ts){ if(!t0) t0=ts; const k=Math.min(1,(ts-t0)/per); const a=pts[i], b=pts[i+1];
+      const e = k<.5 ? 2*k*k : 1-Math.pow(-2*k+2,2)/2;
+      tok.setAttribute("cx", a[0]+(b[0]-a[0])*e); tok.setAttribute("cy", a[1]+(b[1]-a[1])*e);
+      if (k<1) return requestAnimationFrame(step);
+      i++; t0=null; if (i>=pts.length-1) return res(); requestAnimationFrame(step); }
+    requestAnimationFrame(step);
+  });
+}
+
+function showMsg(title, text, label, fn){ document.getElementById("mTitle").textContent=title; document.getElementById("mText").innerText=text;
+  const b=document.getElementById("mBtn"); b.textContent=label; b.onclick=fn; document.getElementById("msg").style.display="grid"; }
+function hideMsg(){ document.getElementById("msg").style.display="none"; }
+
+// pan & zoom
+const pts = new Map(); let last=null, lastDist=null;
+function toSvg(cx, cy){ const r=svg.getBoundingClientRect(); return [vb.x+(cx-r.left)/r.width*vb.w, vb.y+(cy-r.top)/r.height*vb.h]; }
+function zoomAt(f, cx, cy){ const [sx,sy]=toSvg(cx,cy); const nw=Math.min(Math.max(vb.w*f,260),W*1.6); const k=nw/vb.w;
+  vb.x = sx-(sx-vb.x)*k; vb.y = sy-(sy-vb.y)*k; vb.w = nw; clampVB(); setVB(); }
+svg.addEventListener("pointerdown", e => { pts.set(e.pointerId,[e.clientX,e.clientY]); last=[e.clientX,e.clientY]; });
+svg.addEventListener("pointermove", e => {
+  if (!pts.has(e.pointerId)) return; pts.set(e.pointerId,[e.clientX,e.clientY]);
+  const r = svg.getBoundingClientRect();
+  if (pts.size===2){ const [a,b]=[...pts.values()]; const d=Math.hypot(a[0]-b[0],a[1]-b[1]);
+    if (lastDist) zoomAt(lastDist/d,(a[0]+b[0])/2,(a[1]+b[1])/2); lastDist=d; return; }
+  if (last){ vb.x -= (e.clientX-last[0])/r.width*vb.w; vb.y -= (e.clientY-last[1])/r.height*vb.h; setVB(); }
+  last=[e.clientX,e.clientY];
+});
+const up = e => { pts.delete(e.pointerId); if (pts.size<2) lastDist=null; if (!pts.size) last=null; };
+svg.addEventListener("pointerup", up); svg.addEventListener("pointercancel", up);
+svg.addEventListener("wheel", e => { e.preventDefault(); zoomAt(e.deltaY>0?1.15:0.87, e.clientX, e.clientY); }, {passive:false});
+document.getElementById("zin").onclick = () => { const r=svg.getBoundingClientRect(); zoomAt(.75, r.left+r.width/2, r.top+r.height/2); };
+document.getElementById("zout").onclick = () => { const r=svg.getBoundingClientRect(); zoomAt(1.33, r.left+r.width/2, r.top+r.height/2); };
+document.getElementById("sCancel").onclick = unpick;
+document.getElementById("sGo").onclick = go;
+if (tg) tg.MainButton.onClick(go);
+
+(async function main(){
+  try {
+    const [coast, state] = await Promise.all([fetch("/api/coast").then(r=>r.json()), api("/api/state")]);
+    S = state; for (const s of S.squares){ s.xy = P(s.lon, s.lat); SQ[s.id]=s; }
+    document.getElementById("name").textContent = S.me.name;
+    document.getElementById("role").textContent = S.me.role;
+    document.getElementById("hp").textContent = "❤️ " + FA(S.me.hp);
+    document.getElementById("coins").textContent = "💰 " + FA(S.me.coins);
+    document.getElementById("phase").textContent = S.phase;
+    document.getElementById("hinttext").textContent = S.options.length ? S.hint + " روی یک شماره بزن." : S.hint;
+    if (S.mode==="roll"){ const d=document.getElementById("die"); d.hidden=false; d.textContent=FA(S.me.roll + (S.me.plus||0)); }
+    draw(coast);
+    const focus = S.options.map(o=>SQ[o.sq].xy); if (S.me.pos) focus.push(SQ[S.me.pos].xy);
+    if (focus.length) fitTo(focus); else { vb={x:0,y:0,w:W,h:H}; clampVB(); setVB(); }
+  } catch (e) {
+    document.getElementById("hinttext").textContent = "⚠️ " + e.message;
+  }
+})();
+addEventListener("resize", () => { clampVB(); setVB(); });
+</script>
+</body>
+</html>

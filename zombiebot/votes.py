@@ -94,7 +94,7 @@ def cast(voter, target):
     g = G()
     if g["phase"] != "day":
         return "not_day", None
-    if g.get("vote_cancelled"):
+    if g.get("closed_cycle") == g["cycle"] or (g.get("judgement") or {}).get("cycle") == g["cycle"]:
         return "cancelled", None
     if not voter["alive"]:
         return "dead_voter", None
@@ -116,28 +116,19 @@ def cast(voter, target):
 
 
 def caption_for(status, voter, target, extra):
-    w = actions.vote_weight(G(), voter)
+    """No weights and no hints while voting is open — the real result is revealed only when it closes."""
     if status == "ok":
-        wf = f" (وزن {num(w)})" if w != 1 else ""
-        we = f" (weight {w})" if w != 1 else ""
-        note_fa = note_en = ""
-        if target["flags"].get("hotel_immune"):
-            note_fa = f"\n🏨 در هتل — {num(hotel_pct())}٪ حساب می‌شود"
-            note_en = f"\n🏨 in the hotel — counts {hotel_pct()}%"
-        return bi(f"«{target['name']}» — رأی {voter['name']} ثبت شد ✅{wf}{note_fa}",
-                  f"«{target['name']}» — {voter['name']}'s vote is recorded ✅{we}{note_en}")
+        return f"«{target['name']}» — رأی {voter['name']} ثبت شد ✅"
     if status == "lightning":
-        return bi(f"⚡️ رأی {voter['name']} به «{target['name']}» صاعقه زد و باطل شد — او در هتل است.",
-                  f"⚡️ {voter['name']}'s vote for «{target['name']}» was struck by lightning — they're in the hotel.")
+        return f"⚡️ رأی {voter['name']} به «{target['name']}» صاعقه زد و باطل شد."
     if status == "already":
-        return bi(f"«{target['name']}» — ولی رأی امروز {voter['name']} به «{extra['name']}» ثبت شده و این یکی شمرده نشد ⛔️",
-                  f"«{target['name']}» — but {voter['name']} already voted for «{extra['name']}» today; this one doesn't count ⛔️")
+        return f"«{target['name']}» — ولی رأی امروز {voter['name']} قبلاً ثبت شده و این یکی شمرده نشد ⛔️"
     return None
 
 
 REFUSALS = {
     "not_day": ("رأی‌گیری فقط در روز است. 🌙", "Voting happens only during the day. 🌙"),
-    "cancelled": ("قاضی رأی‌گیری امروز را لغو کرده. ⚖️", "The judge cancelled today's vote. ⚖️"),
+    "cancelled": ("رأی‌گیری امروز بسته شده. ⚖️", ""),
     "dead_voter": ("مرده‌ها رأی نمی‌دهند. ⚰️", "The dead don't vote. ⚰️"),
 }
 
@@ -220,7 +211,7 @@ async def on_group_text(update, ctx):
         if now - _last_tally.get(message.chat_id, 0) < TALLY_COOLDOWN:
             return
         _last_tally[message.chat_id] = now
-        await message.reply_text(tally_text("fa") + "\n\n" + tally_text("en", short=True))
+        await message.reply_text(tally_text())
         return
     real = message.from_user.id
     voter = pl(acting_uid(real))
@@ -275,28 +266,24 @@ async def vote_from_menu(bot, voter, target, gif=True):
 
 # ---------------- tally ----------------
 
-def tally_text(lang, short=False):
+def tally_text(lang="fa", short=False):
+    """While voting is open: one vote = one, no weights or rules. The real result comes when the GM closes the vote."""
     g = G()
-    ranked, notes = actions.tally(g)
-    voters = [v for v, t in g["votes"].items() if t and pl(v) and pl(v)["alive"]]
-    alive = [p for p in alive_players(g)]
-    if g.get("vote_cancelled"):
-        head = L(lang, "⚖️ رأی‌گیری امروز لغو شده.", "⚖️ Today's vote was cancelled.")
-    else:
-        head = L(lang, f"🗳 نتیجه رأی‌گیری روز {num(g['cycle'])}", f"🗳 Day {g['cycle']} vote")
+    counts = {}
+    for v, t in g["votes"].items():
+        if t and pl(v) and pl(v)["alive"] and pl(t) and pl(t)["alive"]:
+            counts[t] = counts.get(t, 0) + 1
+    ranked = sorted(counts.items(), key=lambda kv: -kv[1])
+    alive = alive_players(g)
+    lines = [f"🗳 رأی‌های روز {num(g['cycle'])} تا این لحظه", ""]
     if not ranked:
-        return head + "\n" + L(lang, "هنوز رأیی ثبت نشده.", "No votes yet.")
-    lines = [head, ""]
+        lines.append("هنوز رأیی ثبت نشده.")
     for i, (pid, v) in enumerate(ranked[:10]):
-        rank = MEDALS[i] if i < 3 else f"{num(i + 1, lang)}."
-        votes_word = L(lang, "رأی", "votes")
-        lines.append(f"{rank} {pl(pid)['name']} — {num(round(v, 2), lang)} {votes_word}")
-    if short:
-        return "\n".join(lines)
-    lines.append("")
-    lines.append(L(lang, f"{num(len(voters))} از {num(len(alive))} نفر رأی داده‌اند.",
-                   f"{len(voters)} of {len(alive)} have voted."))
-    lines += [n[0 if lang == "fa" else 1] for n in notes]
+        rank = MEDALS[i] if i < 3 else f"{num(i + 1)}."
+        lines.append(f"{rank} {pl(pid)['name']} — {num(v)} رأی")
+    if not short:
+        lines += ["", f"{num(sum(counts.values()))} از {num(len(alive))} نفر رأی داده‌اند.",
+                  "نتیجه نهایی با همه قوانین، بعد از پایان رأی‌گیری اعلام می‌شود."]
     return "\n".join(lines)
 
 

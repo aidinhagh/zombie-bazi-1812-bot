@@ -65,7 +65,7 @@ START_CHARGES = {
     "apothecary": {"poison": 2},
     "musketeer": {"war_bullet": 2},
     "godfather": {"guess": 1, "cult_check": 1},
-    "judge": {"cancel_vote": 1},
+    "judge": {"nullify": 1},   # one cancelled execution per game
 }
 START_COINS = 10
 

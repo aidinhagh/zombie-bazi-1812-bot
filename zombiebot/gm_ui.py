@@ -3,7 +3,7 @@ import random
 
 from telegram.error import TelegramError
 
-from . import actions, board, events, mapview, votes
+from . import actions, autopilot, board, events, mapview, votes
 from .actions import GameError
 from .board import CITIES, SQUARES
 from .common import (G, save, store, pl, kb, chunks, dm, group, to_gms, gm_notes, lang_of, num, phase_label,
@@ -38,10 +38,7 @@ def test_players(g=None):
 
 
 def autopilots(g=None):
-    """Test players nobody is playing by hand."""
-    g = g or G()
-    played = set(g.get("as", {}).values())
-    return [p for p in alive_players(g) if p.get("fake") and str(p["id"]) not in played]
+    return autopilot.autopilots(g)
 
 
 def make_test_game(gm_uid):
@@ -67,31 +64,10 @@ def make_test_game(gm_uid):
     save()
 
 
-def autoplay_actions(rng=random):
-    """Moves, darts and (at night) acts for every autopilot test player. Votes are posted separately."""
-    g = G()
-    done = {"moves": 0, "acts": 0, "darts": 0}
-    for p in autopilots(g):
-        if not g["locked"] and not p["moved"]:
-            p["move_roll"] = rng.randint(1, 6)
-            opts = actions.move_options(g, p, p["move_roll"])
-            if opts:
-                dest = rng.choice(list(opts))
-                actions.do_move(g, p, dest, opts[dest])
-                done["moves"] += 1
-        if not p["darts"]["money"]:
-            actions.money_dart(g, p, rng.randint(1, 6))
-            done["darts"] += 1
-        if not p["darts"]["item"]:
-            actions.item_dart(g, p, rng.randint(1, 6), rng)
-        others = [x for x in alive_players(g) if x["id"] != p["id"]]
-        if g["phase"] == "night" and not g["acts"].get(str(p["id"])) and others:
-            t = rng.choice(["attack", "attack", "protect", "defuse", "spy"])
-            tgt = p if t == "protect" and rng.random() < 0.3 else rng.choice(others)
-            g["acts"][str(p["id"])] = [{"type": t, "target": str(tgt["id"]), "extra": {}}]
-            done["acts"] += 1
-    save()
-    return done
+def autoplay_actions():
+    """Everything the autopilot test players do at the start of a phase (moves, darts, shop, items, units,
+    balloons, acts). Votes are posted separately, one by one."""
+    return autopilot.play_phase()
 
 
 def schedule_test_votes(job_queue, then=None):
@@ -108,7 +84,9 @@ def schedule_test_votes(job_queue, then=None):
 async def job_test_vote(ctx):
     g = G()
     p = pl(ctx.job.data)
-    if not p or not p["alive"] or g["phase"] != "day" or g["votes"].get(str(p["id"])):
+    if not p or not p["alive"] or g["phase"] != "day" or g["votes"].get(str(p["id"])) or not autopilot.is_auto(p):
+        return
+    if g.get("closed_cycle") == g["cycle"] or (g.get("judgement") or {}).get("cycle") == g["cycle"]:
         return
     others = sorted((x for x in alive_players(g) if x["id"] != p["id"]), key=lambda x: str(x["id"]))
     if not others:
@@ -126,7 +104,7 @@ async def job_test_vote(ctx):
 async def job_post_tally(ctx):
     g = G()
     if g["phase"] == "day" and g["group_id"]:
-        await ctx.bot.send_message(g["group_id"], "#رایگیری\n\n" + votes.tally_text("fa") + "\n\n" + votes.tally_text("en", short=True))
+        await ctx.bot.send_message(g["group_id"], "#رایگیری\n\n" + votes.tally_text())
     if ctx.job.data:
         await ctx.job.data(ctx)
 
@@ -154,8 +132,11 @@ async def do_phase(bot, phase, job_queue=None):
         await dm(bot, p["id"], home_text(p), home_text(p), reply_markup=kb(home_rows(p)))
     if g.get("test_mode"):
         done = autoplay_actions()
-        notes = [(f"🤖 بازیکن‌های تست: {num(done['moves'])} حرکت، {num(done['acts'])} اکت.",
-                  f"🤖 Test players: {done['moves']} moves, {done['acts']} acts.")]
+        notes = [(f"🤖 بازیکن‌های تست: {num(done['moves'])} حرکت، {num(done['acts'])} اکت، {num(done['buys'])} خرید، "
+                  f"{num(done['items'])} آیتم، {num(done['balloons'])} بالن، {num(done['units'])} کار با واحدها.", "")]
+        if phase == "day":
+            await autopilot.day_shots(bot)
+        await autopilot.decide_pending(bot)
         if phase == "day" and job_queue is not None and g["group_id"]:
             n = schedule_test_votes(job_queue)
             notes.append((f"🗳 {num(n)} بازیکن تست در گروه رأی می‌دهند (حدود {num(int(n * VOTE_GAP))} ثانیه)، بعد نتیجه اعلام می‌شود.",
@@ -192,6 +173,9 @@ async def do_lock(bot):
             await events.publish_balloon(bot, b)
     save()
     notes = list(summary["gm_notes"])
+    if g.get("test_mode"):
+        notes += [(n, "") for n in autopilot.after_lock()]
+        await autopilot.decide_pending(bot)
     wb = [b for b in g["balloons"] if b["result"] == "await_pct"]
     fights = [f for f in g["battles"] if f["status"] == "open"]
     if wb or fights:
@@ -224,9 +208,13 @@ def next_step(g):
                     f"نقشه خودکار {lock_eta('fa')} قفل می‌شود؛ یا همین الان قفلش کن.", f"The map locks automatically {lock_eta('en')}, or lock it now.")
         return ("resolve", "🧮 محاسبه شب", "🧮 Resolve the night", "نقشه قفل است. وقتی اکت‌ها رسید، شب را محاسبه کن.",
                 "The map is locked. When the acts are in, resolve the night.")
+    jd = g.get("judgement") or {}
+    if jd.get("cycle") == c and jd.get("status") == "waiting" and g.get("closed_cycle") != c:
+        return ("votes", "⚖️ منتظر حکم قاضی", "", f"پرونده دست قاضی ({pl(jd['judge'])['name']}) است. می‌توانی منتظر بمانی یا حکم پیش‌فرض را اجرا کنی.", "")
     if g.get("closed_cycle") == c:
         return ("night", f"🌙 شروع شب {num(c + 1)}", f"🌙 Start night {c + 1}", "رأی‌گیری بسته شد. شب بعد را شروع کن.", "Voting is closed. Start the next night.")
-    return ("votes", "🗳 بستن رأی‌گیری و اعدام", "🗳 Close the vote and execute", "رأی‌ها را ببین و تصمیم بگیر.", "Look at the votes and decide.")
+    return ("votes", "🗳 بستن رأی‌گیری", "", "رأی‌ها را ببین؛ با بستن رأی‌گیری نتیجه واقعی اعلام می‌شود و پرونده به قاضی می‌رود "
+            "(اگر قاضی نباشد: نفر اول اعدام می‌شود و در تساوی همه).", "")
 
 
 def control_text(uid):
@@ -357,6 +345,7 @@ def player_card(p, lang):
          (L(lang, "🕯 فرقه ✓/✗", "🕯 Cult ✓/✗"), f"g:cult:{pid}")],
         [(L(lang, "☠️ کشتن", "☠️ Kill"), f"g:kill:{pid}") if p["alive"] else (L(lang, "🧍 زنده کردن", "🧍 Revive"), f"g:rev:{pid}"),
          (L(lang, "🕹 بازی به‌جای او", "🕹 Play as them"), f"g:as:{pid}")],
+        [("🚫 اخراج از ربات", f"g:kick:{pid}")],
     ]
     if g["acts"].get(str(pid)):
         rows.append([(L(lang, "🗑 پاک کردن اکتش", "🗑 Clear their act"), f"g:actclr:{pid}")])
@@ -411,25 +400,34 @@ def results_rows(res, lang):
 
 def votes_screen(lang):
     g = G()
-    text = votes.tally_text(lang)
-    missing = votes.not_voted()
-    if g["phase"] == "day" and missing:
-        text += "\n\n" + L(lang, f"⬜ هنوز رأی نداده‌اند ({num(len(missing))}): ", f"⬜ Not voted yet ({len(missing)}): ") + "، ".join(p["name"] for p in missing)
-    ranked, _ = actions.tally(g)
+    text = votes.tally_text()
     rows = []
-    if g["phase"] == "day" and g.get("closed_cycle") != g["cycle"]:
-        if len(ranked) > 1 and ranked[0][1] == ranked[1][1]:
-            judge = next((p for p in alive_players(g) if p["role"] == "judge"), None)
-            tied = [pid for pid, v in ranked if v == ranked[0][1]]
-            if judge and str(judge["id"]) not in tied:
-                text += "\n\n" + L(lang, f"⚖️ تساوی — قاضی ({judge['name']}) تصمیم می‌گیرد.", f"⚖️ Tie — the judge ({judge['name']}) decides.")
-        for pid, v in ranked[:4]:
-            rows.append([(L(lang, f"☠️ اعدام {pl(pid)['name']} ({num(round(v, 2))})", f"☠️ Execute {pl(pid)['name']} ({v:g})"), f"g:ex:{pid}")])
-        rows.append([(L(lang, "🕊 امروز اعدام نداریم", "🕊 No execution today"), "g:noex")])
+    jd = g.get("judgement") or {}
+    closed = g.get("closed_cycle") == g["cycle"]
+    if g["phase"] == "day" and not closed and jd.get("cycle") == g["cycle"] and jd.get("status") == "waiting":
+        names = "، ".join(pl(c)["name"] for c in jd["cands"])
+        text = (events.final_results_text() + f"\n\n⚖️ منتظر حکم قاضی ({pl(jd['judge'])['name']}) درباره: {names}\n"
+                "حکم پیش‌فرض: یک نفر → اعدام، تساوی → همه اعدام.")
+        rows.append([("⚖️ اجرای حکم پیش‌فرض همین الان", "g:jdef")])
+        rows.append([("🕊 هیچ‌کس اعدام نشود (حکم گاد)", "g:noex")])
+    elif g["phase"] == "day" and not closed:
+        missing = votes.not_voted()
+        if missing:
+            text += f"\n\n⬜ هنوز رأی نداده‌اند ({num(len(missing))}): " + "، ".join(p["name"] for p in missing)
+        cands = events.gallows()
+        if cands:
+            J = events.judge_for(cands)
+            names = "، ".join(pl(c)["name"] for c in cands)
+            text += f"\n\nبا قوانین فعلی بالای دار: {names}\n" + (
+                f"⚖️ قاضی ({J['name']}) تصمیم می‌گیرد ({num(events.JUDGE_HOURS)} ساعت)." if J else
+                ("قاضی نداریم → " + ("همه اعدام می‌شوند." if len(cands) > 1 else "اعدام می‌شود.")))
+        rows.append([("🔒 بستن رأی‌گیری و اعلام نتیجه", "g:vclose")])
         if g["votes"]:
-            rows.append([(L(lang, "🗑 حذف یک رأی", "🗑 Remove a vote"), "g:vdel"), (L(lang, "🧹 پاک کردن همه", "🧹 Clear all"), "g:vclr")])
+            rows.append([("🗑 حذف یک رأی", "g:vdel"), ("🧹 پاک کردن همه", "g:vclr")])
         if g["group_id"]:
-            rows.append([(L(lang, "📢 اعلام نتیجه در گروه", "📢 Post the tally in the group"), "g:vpost")])
+            rows.append([("📢 اعلام رأی‌های تا این لحظه در گروه", "g:vpost")])
+    elif closed:
+        text = events.final_results_text() + "\n\n✅ رأی‌گیری امروز تمام شده."
     rows.append(home_btn(lang))
     return text, rows
 
@@ -496,7 +494,6 @@ def setup_screen(uid):
     rows = [[(L(lang, "☀️ رفتن به روز", "☀️ Force day"), "g:fday"), (L(lang, "🌙 رفتن به شب", "🌙 Force night"), "g:fnight")],
             [(L(lang, "↩️ برگرداندن آخرین تغییر", "↩️ Undo the last change"), "g:undo")],
             [(L(lang, "♻️ بازی جدید (پاک کردن همه)", "♻️ New game (wipe everything)"), "g:reset")],
-            [(L(lang, "🌐 English", "🌐 فارسی"), "g:lang")],
             home_btn(lang)]
     return "\n".join(lines), rows
 
@@ -596,6 +593,15 @@ async def handle(update, ctx, uid, head, args):
             g["acts"].pop(str(P["id"]), None)
         save()
         return await edit_or_send(q, *player_card(P, lang))
+    if head == "kick":
+        P = pl(args[0])
+        if not P:
+            return await edit_or_send(q, *players_screen(lang, 0))
+        return await edit_or_send(q, f"🚫 {P['name']} از ربات اخراج شود؟ دیگر نمی‌تواند ثبت‌نام کند.",
+                                  [[("بله، اخراج", f"g:kicky:{P['id']}"), ("↩️ نه", f"g:pl:{P['id']}")]])
+    if head == "kicky":
+        kick(g, args[0])
+        return await edit_or_send(q, *players_screen(lang, 0))
     if head == "rnd":
         roles = TEST_ROLES[:]
         random.shuffle(roles)
@@ -609,7 +615,10 @@ async def handle(update, ctx, uid, head, args):
     if head == "as":
         P = pl(args[0])
         g.setdefault("as", {})[str(uid)] = str(P["id"])
+        undone = autopilot.take_over(g, P) if P.get("fake") else ""
         save()
+        if undone:
+            await bot.send_message(q.message.chat_id, f"🕹 کارهای خودکار این فاز {P['name']} برگردانده شد ({undone}) — حالا خودت بازی کن.")
         from .player_ui import send_home
         await q.answer(L(lang, f"🕹 حالا {P['name']} هستی", f"🕹 You are now {P['name']}"))
         return await send_home(bot, P, q)
@@ -675,11 +684,23 @@ async def handle(update, ctx, uid, head, args):
     if head == "exy":
         err = await events.execute(bot, pl(args[0]))
         if err:
-            raise GameError(*err)
+            raise GameError(err)
         g["closed_cycle"] = g["cycle"]
         save()
         return await send_control_room(bot, uid, q)
+    if head == "vclose":
+        if g["phase"] != "day" or g.get("closed_cycle") == g["cycle"]:
+            raise GameError("رأی‌گیری باز نیست.")
+        await events.close_vote(bot, jq)
+        return await send_control_room(bot, uid, q)
+    if head == "jdef":
+        jd = g.get("judgement") or {}
+        if jd.get("status") == "waiting":
+            await events.judge_default(bot, "⚖️ حکم پیش‌فرض اجرا شد.")
+        return await send_control_room(bot, uid, q)
     if head == "noex":
+        if (g.get("judgement") or {}).get("status") == "waiting":
+            g["judgement"]["status"] = "done"
         await group(bot, "🕊 امروز کسی اعدام نشد.", "🕊 Nobody was executed today.")
         g["closed_cycle"] = g["cycle"]
         save()
@@ -696,7 +717,7 @@ async def handle(update, ctx, uid, head, args):
         votes.delete_votes(everything=True)
         return await edit_or_send(q, *votes_screen(lang))
     if head == "vpost":
-        await bot.send_message(g["group_id"], votes.tally_text("fa") + "\n\n" + votes.tally_text("en", short=True))
+        await bot.send_message(g["group_id"], votes.tally_text())
         return await q.answer(L(lang, "📢 اعلام شد", "📢 Posted"))
 
     # ----- balloons & battles -----
@@ -857,16 +878,12 @@ async def finish_day_and_night(ctx):
     bot = ctx.bot
     if g["phase"] != "day" or g.get("closed_cycle") == g["cycle"]:
         return
-    ranked, _ = actions.tally(g)
-    executed = False
-    for pid, _v in ranked:
-        if await events.execute(bot, pl(pid)) is None:
-            executed = True
-            break
-    if not executed:
-        await group(bot, "🕊 امروز کسی اعدام نشد.", "🕊 Nobody was executed today.")
-    g["closed_cycle"] = g["cycle"]
-    save()
+    await events.close_vote(bot, ctx.job_queue)
+    if g.get("closed_cycle") != g["cycle"]:
+        # the judge is a real person (or you, playing as them): wait for their decision
+        jd = g.get("judgement") or {}
+        await gm_notes(bot, [(f"⏸ اجرای خودکار منتظر حکم قاضی ({pl(jd['judge'])['name']}) است. بعد از حکم، ⏩ را دوباره بزن.", "")])
+        return
     await do_phase(bot, "night", ctx.job_queue)
     for uid in gm_ids():
         try:
@@ -900,3 +917,18 @@ async def cmd_nick(update, ctx):
     P.setdefault("nicks", []).append(nick)
     save()
     await update.message.reply_text(f"✅ {P['name']} ← {nick}")
+
+
+def kick(g, pid):
+    """Remove someone from the game for good: they can't /start again."""
+    pid = str(pid)
+    g["players"].pop(pid, None)
+    g["acts"].pop(pid, None)
+    g["votes"].pop(pid, None)
+    g.setdefault("banned", [])
+    if pid not in g["banned"]:
+        g["banned"].append(pid)
+    for k, v in list(g.get("as", {}).items()):
+        if v == pid:
+            g["as"].pop(k)
+    save()
