@@ -730,3 +730,170 @@ def test_gm_renames_a_character_from_the_card():
         await w.press(GM, "g:chr:1:fake_char")
         assert P(w, 1)["fake_char"] and P(w, 1)["fake_char"] != P(w, 1)["char"]
     run(go())
+
+
+# ---------------- items (second wave), factory, legendary, saving ----------------
+
+from zombiebot.data.items import ITEMS
+from zombiebot import legendary
+
+
+def test_item_list_is_three_times_bigger_and_every_item_can_be_used():
+    assert len(ITEMS) >= 57
+    g = new_game_with(["doctor", "zombie", "spy"])
+    for key in ITEMS:
+        p = g["players"]["1"]
+        p["items"] = [key]
+        p["darts"] = {"money": True, "item": True}
+        p["move_roll"], p["moved"] = 3, False
+        tgt = "2" if actions.item_needs_target(key) else None
+        msg = actions.use_item(g, p, key, tgt)
+        assert msg and key not in p["items"]
+
+
+def new_game_with(roles):
+    from zombiebot.state import new_game, new_player, assign_role
+    g = new_game()
+    g["phase"], g["cycle"] = "day", 1
+    for i, r in enumerate(roles, 1):
+        p = new_player(i, f"P{i}")
+        assign_role(p, r)
+        p["pos"] = p["night_pos"] = f"n{13 + 2 * i}"
+        g["players"][str(i)] = p
+    return g
+
+
+def night(g, acts):
+    g["phase"] = "night"
+    g["acts"] = {}
+    for pid, typ, tgt in acts:
+        g["acts"].setdefault(str(pid), []).append({"type": typ, "target": tgt, "dice": [3, 3], "extra": {}})
+    return resolve_night(g)
+
+
+def test_revenge_bounces_80_percent_back_when_you_die():
+    g = new_game_with(["doctor", "zombie"])
+    g["players"]["1"]["hp"] = 5
+    g["players"]["1"]["items"] = ["vengeance"]
+    actions.use_item(g, g["players"]["1"], "vengeance")
+    res = night(g, [(2, "attack", "1")])                 # zombie attack 14 + 6 = 20
+    deaths = [e["pid"] for e in res["effects"] if e["t"] == "death"]
+    back = [e for e in res["effects"] if e["t"] == "damage" and e["pid"] == "2"]
+    assert "1" in deaths and back and back[0]["amount"] == 16      # 80% of 20
+
+
+def test_armor_last_stand_mask_and_defuse_seal():
+    g = new_game_with(["doctor", "zombie", "spy", "saboteur"])
+    D = g["players"]["1"]
+    D["items"] = ["gabion", "iron_will", "venetian_mask"]
+    for k in list(D["items"]):
+        actions.use_item(g, D, k)
+    D["hp"] = 5
+    res = night(g, [(2, "attack", "1"), (3, "spy", "1")])         # 20 − 10 armour = 10 > 5 hp
+    assert not [e for e in res["effects"] if e["t"] == "death"]
+    assert any(e["t"] == "damage" and e["pid"] == "1" and e["amount"] == 4 for e in res["effects"])   # left on 1 hp
+    spy = [e for e in res["effects"] if e["t"] == "private" and e["pid"] == "3"][0]
+    assert "سفید" in spy["fa"] or any(ROLES[k]["fa"] in spy["fa"] for k in ROLES if ROLES[k]["team"] == "human")
+    Z = g["players"]["2"]
+    Z["items"] = ["seal_ring"]
+    actions.use_item(g, Z, "seal_ring")
+    res = night(g, [(2, "attack", "3"), (4, "defuse", "2")])
+    assert any(e["t"] == "damage" and e["pid"] == "3" and e["amount"] == 20 for e in res["effects"])
+
+
+def test_day_items_pardon_vest_vote_guard_and_mute():
+    async def go():
+        w = World(seed=80)
+        await setup(w, ["doctor", "zombie", "spy", "musketeer"])
+        for i in (1, 2, 3, 4):
+            await w.cmd(i, "start")
+        w.g["phase"], w.g["cycle"] = "day", 1
+        D, Z, S = P(w, 1), P(w, 2), P(w, 3)
+        D["items"] = ["pardon", "silk_vest", "bribe"]
+        await w.press(1, "p:bag")
+        assert "p:iu:pardon" in w.last_to(1).buttons()
+        for k in ("pardon", "silk_vest", "bribe"):
+            await w.press(1, f"p:iu:{k}")
+        assert "اثرهای فعال" in w.last_to(1).text
+        Z["items"] = ["gag"]
+        await w.press(2, "p:iu:gag")
+        assert "p:it:gag:3" in w.last_to(2).buttons()
+        await w.press(2, "p:it:gag:3")
+        assert S["flags"].get("muted")
+        w.g["votes"] = {"2": "1", "3": "1", "4": "1"}
+        ranked, _ = actions.tally(w.g)
+        assert dict(ranked)["1"] == 0          # 2 votes (spy muted) − 2 bribe
+        err = await events.execute(w.bot, D)
+        assert err and D["alive"]              # pardon
+        P(w, 4)["bullets"] = ["war"]
+        await events.fire_bullet(w.bot, P(w, 4), D)
+        assert D["alive"]                      # silk waistcoat
+        actions.start_phase(w.g, "night")
+        assert not S["flags"].get("muted") and not D["flags"].get("vote_guard")
+    run(go())
+
+
+def test_factory_result_is_permanent_through_death_and_revival():
+    g = new_game_with(["doctor"])
+    p = g["players"]["1"]
+    p["pos"] = p["night_pos"] = "vienna"
+    g["phase"], g["locked"] = "night", True
+    from zombiebot.engine import night_stats
+    hp0 = p["hp"]
+    s = actions.slot_pull(g, p, 1)        # 1 = three bars in Telegram's 🎰
+    assert s["hit"] and p["perm"] == 20 and p["hp"] == hp0 + 20
+    actions.end_night(g)
+    p["pos"] = p["night_pos"] = "n15"
+    actions.kill(g, p, "test")
+    p["alive"] = True                     # revived
+    assert night_stats(g, p)[0]["attack"] == ROLES["doctor"]["attack"] + 20
+    p["pos"] = p["night_pos"] = "vienna"
+    for v in (2, 3, 4):
+        actions.slot_pull(g, p, v)
+    assert p["perm"] == 0                 # second visit lost: +20 − 20
+
+
+def test_legendary_spawns_daily_goes_to_the_one_there_or_to_auction():
+    async def go():
+        w = World(seed=81)
+        await setup(w, ["doctor", "zombie", "spy"])
+        await next_step(w)                                   # night 1
+        await place(w, 1, "paris"); await place(w, 2, "berlin"); await place(w, 3, "milan")
+        await to_day(w)
+        assert w.g["phase"] == "day"
+        L = legendary.state(w.g)
+        assert L["active"] and L["active"]["key"] == "fouche_cipher"
+        assert any("لجندری" in t for t in w.texts_to(GROUP))
+        where = L["active"]["where"]
+        for i in (1, 2):
+            P(w, i)["pos"] = where
+            P(w, i)["coins"] = 20
+        from zombiebot import gm_ui
+        await gm_ui.do_lock(w.bot)                           # 20:00 lock → two people there → auction
+        assert L["auction"] and set(L["auction"]["bidders"]) == {"1", "2"}
+        await w.press(1, "p:pend")
+        await events.legend_bid(w.bot, 1, 5)
+        await events.legend_bid(w.bot, 2, 8)
+        assert not L["auction"] and "fouche_cipher" in P(w, 2)["legend"] and P(w, 2)["coins"] == 12
+        from zombiebot.engine import night_stats
+        assert night_stats(w.g, P(w, 2))[0]["spy"] >= ROLES["zombie"]["spy"] + 20
+    run(go())
+
+
+def test_export_and_backups_keep_the_whole_game():
+    async def go():
+        w = World(seed=82)
+        await setup(w, ["doctor", "zombie"])
+        P(w, 1)["items"] = ["relic"]
+        await w.cmd(GM, "export")
+        doc = [m for m in w.sent if getattr(m, "document_bytes", None)][-1]
+        data = json.loads(doc.document_bytes.decode("utf8"))
+        assert data["players"]["1"]["items"] == ["relic"] and data["players"]["1"]["role"] == "doctor"
+        from zombiebot import common
+        common.store.snapshot("test")
+        await w.cmd(GM, "backups")
+        assert "test" in w.texts_to(GM)[-1]
+        P(w, 1)["items"] = []
+        await w.cmd(GM, "backups", "1")
+        assert w.g["players"]["1"]["items"] == ["relic"]
+    run(go())

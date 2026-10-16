@@ -3,7 +3,7 @@ import random
 
 from telegram.error import TelegramError
 
-from . import actions, autopilot, board, events, mapview, votes
+from . import legendary, actions, autopilot, board, events, mapview, votes
 from .actions import GameError
 from .board import CITIES, SQUARES
 from .common import (G, save, store, pl, kb, chunks, dm, group, to_gms, gm_notes, lang_of, num, phase_label,
@@ -118,6 +118,10 @@ async def job_post_tally(ctx):
 async def do_phase(bot, phase, job_queue=None):
     g = G()
     store.backup()
+    try:
+        store.snapshot(f"{g['phase']}{g['cycle']}")
+    except OSError as e:
+        logger.warning("snapshot failed: %s", e)
     if phase == "night":
         await events.resolve_poisons(bot)
         for d in g["duels"]:
@@ -131,6 +135,10 @@ async def do_phase(bot, phase, job_queue=None):
     else:
         await group(bot, f"☀️ روز {num(g['cycle'])} آغاز شد. رأی بدهید: #رای اسم  ·  نتیجه: #رایگیری",
                     f"☀️ Day {g['cycle']} begins. Vote with: #رای name  ·  results: #رایگیری")
+        a = legendary.spawn_next(g)          # one legendary item a day, one at a time
+        save()
+        if a:
+            await group(bot, legendary.spawn_text(a), None)
     from .player_ui import home_rows, home_text
     for p in alive_players(g):
         await dm(bot, p["id"], home_text(p), home_text(p), reply_markup=kb(home_rows(p)))
@@ -171,6 +179,7 @@ async def do_lock(bot):
             await dm(bot, b["owner"], text_fa, text_en)
     save()
     await mapview.post_public_map(bot)
+    await events.legend_after_lock(bot)
     for b in g["balloons"]:
         if b["publish"] and b.get("delivered") and not b.get("published"):
             b["published"] = True
@@ -328,6 +337,11 @@ def player_card(p, lang):
         lines.append(f"@{p['username']}")
     if p.get("char"):
         lines.append(f"🎭 شخصیت: {p['char']}")
+    if p.get("legend"):
+        from .data.legendary import LEGENDARY
+        lines.append("🌟 لجندری: " + "، ".join(LEGENDARY[k]["fa"] for k in p["legend"] if k in LEGENDARY))
+    if p.get("perm"):
+        lines.append(f"🏭 کارخانه (دائمی): همه قدرت‌ها {p['perm']:+d}")
     if p.get("fake_char"):
         lines.append(f"🃏 شخصیت جعلی: {p['fake_char']} · 📍 {board.square_name(p['fake_pos']) if p.get('fake_pos') else '—'}")
     if p.get("role") == "godfather":

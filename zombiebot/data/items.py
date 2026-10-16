@@ -16,6 +16,27 @@ Effect types the bot understands:
   money_dart     +n coins on your next money dart
   item_dart      +n item power on your next item dart
   vote_plus      your vote counts +n in the next execution vote
+  extra_dart     throw one more money/item dart this phase
+  unit           get a unit (spy balloon, shovel, cannon…)
+  vote_guard     today: votes against you count n less
+  mute           (target) today: that player's vote counts 0
+  armor          tonight: attacks on you are n weaker
+  revenge        tonight: if attacks kill you, each attacker takes pct% of their attack back
+  reflect        tonight: each attacker takes pct% of their attack back, even if you live
+  last_stand     tonight: a deadly attack leaves you at 1 hp instead
+  spy_mask       tonight: spying on you shows white / a human role
+  defuse_immune  tonight: defuses on you don't work
+  extra_act      tonight: one more act
+  bullet_vest    until used: the next war bullet fired at you fails
+  bomb_safe      until used: the next bomb blast doesn't kill you
+  poison_safe    until used: the next poison doesn't kill you
+  pardon         until used: your next execution is cancelled
+  pickpocket     (target) take n coins from them
+  trace          (target) learn where they are right now
+  reveal         (target) learn their team colour (white / black / gray)
+  slow           (target) their next movement roll is n smaller
+
+"Tonight" effects used during the day carry over to the coming night.
 """
 
 RARITY_WEIGHT = {"common": 6, "uncommon": 3, "rare": 1}
@@ -117,3 +138,108 @@ ITEMS = {
         "desc_fa": "حرکت بعدی: بدون تاس به هر شهری برو", "desc_en": "Next move: go to any city, no dice needed",
     },
 }
+
+# ---------------- second wave (x3 list) ----------------
+def _it(fa, en, rarity, effect, dfa, den):
+    return {"fa": fa, "en": en, "rarity": rarity, "effect": effect, "desc_fa": dfa, "desc_en": den}
+
+
+ITEMS.update({
+    # stat boosts for one night
+    "sabre": _it("شمشیر سواره‌نظام", "Cavalry Sabre", "common", {"type": "boost", "stats": {"attack": 4}},
+                 "حمله +۴ برای یک شب", "Attack +4 for one night"),
+    "cuirass": _it("زره سینه کوراسیه", "Cuirassier's Breastplate", "common", {"type": "boost", "stats": {"protect": 5}},
+                   "محافظت +۵ برای یک شب", "Protect +5 for one night"),
+    "topo_map": _it("نقشه توپوگرافی", "Topographic Survey", "uncommon", {"type": "boost", "stats": {"spy": 5}},
+                    "جاسوسی +۵ برای یک شب", "Spy +5 for one night"),
+    "sapper_kit": _it("جعبه ابزار مهندسی", "Engineer's Kit", "uncommon", {"type": "boost", "stats": {"defuse": 5}},
+                      "خنثی +۵ برای یک شب", "Defuse +5 for one night"),
+    "invisible_ink": _it("مرکب نامرئی", "Invisible Ink", "uncommon", {"type": "boost", "stats": {"stealth": 6}},
+                         "مخفی‌کاری +۶ برای یک شب", "Stealth +6 for one night"),
+    "grenade": _it("نارنجک دستی", "Hand Grenade", "uncommon", {"type": "boost", "stats": {"attack": 7}, "hp": -3},
+                   "حمله +۷ برای یک شب، ولی ۳ اچ‌پی دائمی کم می‌شه", "Attack +7 for one night, −3 HP"),
+    "tricolour": _it("پرچم سه‌رنگ", "Tricolour", "rare", {"type": "boost", "stats": {"all": 3}},
+                     "همه قدرت‌ها +۳ برای یک شب", "All powers +3 for one night"),
+    "guard_bearskin": _it("مدال گارد قدیم", "Old Guard Medal", "rare", {"type": "boost", "stats": {"attack": 5, "protect": 5}},
+                          "حمله و محافظت +۵ برای یک شب", "Attack and protect +5 for one night"),
+    # hp and coins
+    "ration": _it("جیره نان سربازی", "Soldier's Ration", "common", {"type": "heal", "hp": 2},
+                  "اچ‌پی +۲ (دائمی)", "+2 HP"),
+    "surgeon_kit": _it("کیف جراحی لاری", "Larrey's Surgical Case", "uncommon", {"type": "heal", "hp": 8},
+                       "اچ‌پی +۸ (دائمی)", "+8 HP"),
+    "relic": _it("یادگار مقدس", "Holy Relic", "rare", {"type": "heal", "hp": 12},
+                 "اچ‌پی +۱۲ (دائمی)", "+12 HP"),
+    "silver": _it("کیسه سکه نقره", "Purse of Silver", "common", {"type": "coins", "n": 2}, "۲ سکه", "2 coins"),
+    "spoils": _it("غنیمت جنگی", "Spoils of War", "uncommon", {"type": "coins", "n": 6}, "۶ سکه", "6 coins"),
+    "treasury": _it("صندوق خزانه", "Army Pay Chest", "rare", {"type": "coins", "n": 10}, "۱۰ سکه", "10 coins"),
+    # movement
+    "courier": _it("اسب پیک", "Courier's Horse", "uncommon", {"type": "move_plus", "n": 2},
+                   "+۲ به تاس حرکت بعدی", "+2 to your next movement roll"),
+    "relay": _it("ایستگاه تعویض اسب", "Post Relay", "rare", {"type": "move_plus", "n": 3},
+                 "+۳ به تاس حرکت بعدی", "+3 to your next movement roll"),
+    "customs_seal": _it("مهر گمرک", "Customs Seal", "common", {"type": "toll_free"},
+                        "عوارض بعدی رو نمی‌دی", "Skip the next toll"),
+    "caltrops": _it("خارپای آهنی", "Caltrops", "common", {"type": "slow", "n": 2, "target": True},
+                    "تاس حرکت بعدی یک نفر ۲ تا کم می‌شه", "Someone's next movement roll −2"),
+    # darts
+    "lucky_coin": _it("سکه شانس", "Lucky Sou", "common", {"type": "money_dart", "n": 3},
+                      "+۳ سکه روی دارت پول بعدی", "+3 coins on your next money dart"),
+    "clover": _it("شبدر چهاربرگ", "Four-leaf Clover", "rare", {"type": "item_dart", "n": 2},
+                  "+۲ قدرت آیتم در دارت آیتم بعدی", "+2 item power on your next item dart"),
+    "spare_dart": _it("دارت یدکی", "Spare Dart", "common", {"type": "extra_dart", "kind": "money"},
+                      "یک دارت پول دیگه در همین فاز", "One more money dart this phase"),
+    "feathered_dart": _it("دارت پَردار", "Feathered Dart", "uncommon", {"type": "extra_dart", "kind": "item"},
+                          "یک دارت آیتم دیگه در همین فاز", "One more item dart this phase"),
+    # votes
+    "petition": _it("طومار مردمی", "Petition", "uncommon", {"type": "vote_plus", "n": 1},
+                    "+۱ رأی در رأی‌گیری بعدی", "+1 vote in the next execution vote"),
+    "senate_seal": _it("مهر سنا", "Seal of the Senate", "rare", {"type": "vote_plus", "n": 2},
+                       "+۲ رأی در رأی‌گیری بعدی", "+2 votes in the next execution vote"),
+    "false_witness": _it("شاهد دروغین", "False Witness", "uncommon", {"type": "vote_guard", "n": 1},
+                         "امروز رأی‌های علیه تو ۱ تا کمتر حساب می‌شه", "Today, votes against you count 1 less"),
+    "bribe": _it("رشوه به کلانتر", "Bribe for the Provost", "rare", {"type": "vote_guard", "n": 2},
+                 "امروز رأی‌های علیه تو ۲ تا کمتر حساب می‌شه", "Today, votes against you count 2 less"),
+    "gag": _it("دهان‌بند", "Gag", "rare", {"type": "mute", "target": True},
+               "امروز رأی یک نفر صفر حساب می‌شه", "Today, someone's vote counts 0"),
+    # night defence and revenge
+    "vengeance": _it("سوگند انتقام", "Oath of Vengeance", "uncommon", {"type": "revenge", "pct": 80},
+                     "امشب اگه با حمله بمیری، هر کی بهت حمله کرده ۸۰٪ حمله‌ی خودش رو می‌خوره",
+                     "Tonight, if attacks kill you, each attacker takes 80% of their own attack"),
+    "spiked_cuirass": _it("زره خاردار", "Spiked Cuirass", "uncommon", {"type": "reflect", "pct": 30},
+                          "امشب هر کی بهت حمله کنه ۳۰٪ حمله‌ش به خودش برمی‌گرده", "Tonight attackers take 30% of their attack back"),
+    "wooden_shield": _it("سپر چوبی", "Wooden Shield", "common", {"type": "armor", "n": 5},
+                         "امشب حمله‌ها به تو ۵ تا ضعیف‌تر", "Tonight attacks on you are 5 weaker"),
+    "gabion": _it("سنگر سبدی", "Gabion Wall", "uncommon", {"type": "armor", "n": 10},
+                  "امشب حمله‌ها به تو ۱۰ تا ضعیف‌تر", "Tonight attacks on you are 10 weaker"),
+    "iron_will": _it("اراده آهنین", "Iron Will", "rare", {"type": "last_stand"},
+                     "امشب اگه حمله تو رو بکشه، با ۱ اچ‌پی زنده می‌مونی", "Tonight a deadly attack leaves you at 1 HP"),
+    "venetian_mask": _it("نقاب ونیزی", "Venetian Mask", "uncommon", {"type": "spy_mask"},
+                         "امشب هر کی ازت جاسوسی کنه سفید / یه نقش انسانی می‌بینه", "Tonight spying on you shows white / a human role"),
+    "seal_ring": _it("انگشتر مهر", "Signet Ring", "uncommon", {"type": "defuse_immune"},
+                     "امشب خنثی روی تو اثر نداره", "Tonight defuses on you don't work"),
+    "black_coffee": _it("قهوه سیاه", "Black Coffee", "rare", {"type": "extra_act"},
+                        "امشب یک اکت معمولی اضافه (دو اکت ویژه نه)", "Tonight one extra basic act"),
+    # day protection, until used
+    "silk_vest": _it("جلیقه ابریشمی", "Silk Waistcoat", "uncommon", {"type": "bullet_vest"},
+                     "اولین تیر جنگی که بهت شلیک بشه اثر نمی‌کنه", "The next war bullet fired at you fails"),
+    "wet_blanket": _it("پتوی خیس", "Wet Blanket", "uncommon", {"type": "bomb_safe"},
+                       "از انفجار بمب بعدی جون سالم به در می‌بری", "You survive the next bomb blast"),
+    "theriac": _it("تریاق", "Theriac", "uncommon", {"type": "poison_safe"},
+                   "سم بعدی تو رو نمی‌کشه", "The next poison doesn't kill you"),
+    "pardon": _it("فرمان عفو امپراتور", "Imperial Pardon", "rare", {"type": "pardon"},
+                  "اعدام بعدی تو لغو می‌شه", "Your next execution is cancelled"),
+    # aimed at someone
+    "pickpocket": _it("انگشت جیب‌بر", "Pickpocket's Fingers", "uncommon", {"type": "pickpocket", "n": 5, "target": True},
+                      "۵ سکه از یک نفر برمی‌داری", "Take 5 coins from someone"),
+    "informant": _it("خبرچین", "Informant", "uncommon", {"type": "trace", "target": True},
+                     "می‌فهمی یک نفر الان کجای نقشه است", "Learn where someone is right now"),
+    "fouche_file": _it("پرونده پلیس فوشه", "Fouché's File", "rare", {"type": "reveal", "target": True},
+                       "رنگ تیم یک نفر رو می‌فهمی (سفید/سیاه/خاکستری)", "Learn someone's team colour"),
+    # units
+    "balloon_kit": _it("کیت بالن", "Balloon Kit", "uncommon", {"type": "unit", "unit": "spy_balloon"},
+                       "یک بالن جاسوسی می‌گیری", "Get a spy balloon"),
+    "entrenching_tool": _it("بیل سنگرکنی", "Entrenching Tool", "common", {"type": "unit", "unit": "shovel"},
+                            "یک بیل می‌گیری", "Get a shovel"),
+    "field_gun": _it("توپ صحرایی", "Field Gun", "rare", {"type": "unit", "unit": "cannon"},
+                     "یک توپ جنگی می‌گیری", "Get a cannon"),
+})

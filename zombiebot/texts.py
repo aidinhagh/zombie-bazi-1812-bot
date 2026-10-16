@@ -146,7 +146,7 @@ def help_text(lang):
 GM_HELP = """👑 /gm — the control room. Everything is in there.
 
 Typed shortcuts if you want them:
-/assign <who> <role> · /char <who> <name> · /fakechar <who> <name> · /nick <who> <nickname> · /pos <who> <square> · /hp <who> <n> · /coins <who> <n|+n|-n>
+/assign <who> <role> · /char <who> <name> · /fakechar <who> <name> · /nick <who> <nickname> · /pos <who> <square> · /hp <who> <n> · /coins <who> <n|+n|-n> · /legend · /export · /backups
 /give <who> <item> · /unit <who> <unit> <n> · /charge <who> <key> <n> · /route <id> ok|broken|mined
 /dig <sqA> <sqB> · /damage <city> <pct> · /actadd <who> <type> <target> · /story <text> · /say <text>
 /delete <name> | /delete all | reply + /delete (in the group: remove votes) · /setchannel -100… · /log · /undo

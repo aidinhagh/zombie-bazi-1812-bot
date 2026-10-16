@@ -1,5 +1,6 @@
 """Entry point: wires commands, buttons, group messages and timers together."""
 import datetime
+import json
 import logging
 import os
 
@@ -215,6 +216,87 @@ async def cmd_fakechar(update, ctx):
 
 
 @gm_cmd
+async def cmd_legend(update, ctx):
+    """/legend · /legend spawn [city] · /legend close · /legend give <who> <1|2|3>"""
+    from . import legendary, events
+    from .data.legendary import LEGENDARY
+    g = G()
+    L = legendary.state(g)
+    args = ctx.args
+    if not args:
+        a, au = L["active"], L["auction"]
+        lines = ["🌟 آیتم‌های لجندری:"]
+        for i, (k, it) in enumerate(LEGENDARY.items(), 1):
+            owner = next((p["name"] for p in g["players"].values() if k in p.get("legend", [])), None)
+            where = (f"روی نقشه: {board.square_name(a['where'])}" if a and a["key"] == k else
+                     "در مزایده" if au and au["key"] == k else f"مال {owner}" if owner else
+                     "هنوز ظاهر نشده" if k not in L["spawned"] else "—")
+            lines.append(f"{i}. {it['fa']} ({it['desc_fa']}) · {where}")
+        return await update.message.reply_text("\n".join(lines) + "\n\n" + (cmd_legend.__doc__ or ""))
+    if args[0] == "spawn":
+        a = legendary.spawn_next(g, where=args[1] if len(args) > 1 and args[1] in board.SQUARES else None)
+        save()
+        if not a:
+            return await update.message.reply_text("الان نمی‌شه (یکی روی نقشه یا در مزایده است، یا همه ظاهر شده‌اند).")
+        await common.group(ctx.bot, legendary.spawn_text(a), None)
+        return await update.message.reply_text("✅ " + legendary.spawn_text(a))
+    if args[0] == "close":
+        ok = await events.legend_close(ctx.bot)
+        return await update.message.reply_text("✅" if ok else "مزایده‌ای باز نیست.")
+    if args[0] == "give":
+        p = who(args[1])
+        key = list(LEGENDARY)[int(args[2]) - 1]
+        legendary.give(g, p, key)
+        if key not in L["spawned"]:
+            L["spawned"].append(key)
+        if L["active"] and L["active"]["key"] == key:
+            L["active"] = None
+        save()
+        return await update.message.reply_text(f"✅ {p['name']} ← {LEGENDARY[key]['fa']}")
+
+
+@gm_cmd
+async def cmd_export(update, ctx):
+    """/export — the whole game (players, roles, stats, items, map…) as a file"""
+    save()
+    with open(common.store.path, "rb") as f:
+        await ctx.bot.send_document(update.effective_chat.id, f, filename="zombie-bazi-state.json",
+                                    caption="💾 کل داده‌های بازی. برای برگرداندن: همین فایل را با کپشن /import بفرست.")
+
+
+async def on_document(update, ctx):
+    """GM sends a game file with the caption /import → it replaces the current game (the old one is backed up)."""
+    m = update.message
+    if not m or not m.document or not is_gm(update.effective_user.id):
+        return
+    if not (m.caption or "").strip().startswith("/import"):
+        return
+    f = await ctx.bot.get_file(m.document.file_id)
+    raw = await f.download_as_bytearray()
+    try:
+        g = json.loads(bytes(raw).decode("utf8"))
+        assert isinstance(g, dict) and isinstance(g.get("players"), dict)
+    except Exception:
+        return await m.reply_text("⚠️ این فایل بازی معتبر نیست.")
+    common.store.replace(g)
+    await m.reply_text(f"✅ بازی بارگذاری شد: {len(g['players'])} بازیکن. نسخه قبلی در پوشه backups ذخیره شد.")
+
+
+@gm_cmd
+async def cmd_backups(update, ctx):
+    """/backups — list saved copies · /backups <n> — restore copy n"""
+    d = os.path.join(os.path.dirname(common.store.path), "backups")
+    files = sorted((x for x in os.listdir(d) if x.startswith("state-")), reverse=True) if os.path.isdir(d) else []
+    if not ctx.args:
+        lines = [f"{i}. {x[6:-5]}" for i, x in enumerate(files[:20], 1)] or ["هنوز نسخه‌ای نیست."]
+        return await update.message.reply_text("💾 نسخه‌های ذخیره‌شده (هر شروع فاز):\n" + "\n".join(lines) + "\n\nبرگرداندن: /backups شماره")
+    name = files[int(ctx.args[0]) - 1]
+    with open(os.path.join(d, name), encoding="utf8") as f:
+        common.store.replace(json.load(f))
+    await update.message.reply_text(f"✅ برگشت به {name[6:-5]}")
+
+
+@gm_cmd
 async def cmd_hp(update, ctx):
     """/hp <who> <n>"""
     p = who(ctx.args[0])
@@ -371,7 +453,7 @@ def build_app(token):
     app = builder.concurrent_updates(True).post_init(web.start).build()
     cmds = {"start": cmd_start, "menu": player_ui.cmd_menu, "gm": cmd_gm, "lang": player_ui.cmd_lang, "help": cmd_help,
             "whoami": cmd_whoami, "setgroup": cmd_setgroup, "setchannel": cmd_setchannel, "nick": gm_ui.cmd_nick,
-            "delete": votes.cmd_delete, "assign": cmd_assign, "char": cmd_char, "fakechar": cmd_fakechar, "hp": cmd_hp, "coins": cmd_coins, "pos": cmd_pos,
+            "delete": votes.cmd_delete, "assign": cmd_assign, "char": cmd_char, "legend": cmd_legend, "export": cmd_export, "backups": cmd_backups, "fakechar": cmd_fakechar, "hp": cmd_hp, "coins": cmd_coins, "pos": cmd_pos,
             "give": cmd_give, "unit": cmd_unit, "charge": cmd_charge, "route": cmd_route, "dig": cmd_dig,
             "damage": cmd_damage, "actadd": cmd_actadd, "story": cmd_story, "say": cmd_say, "log": cmd_log,
             "undo": cmd_undo}
@@ -382,6 +464,7 @@ def build_app(token):
     app.add_handler(MessageHandler((filters.TEXT | filters.CAPTION) & filters.ChatType.GROUPS & ~filters.COMMAND,
                                    votes.on_group_text))
     app.add_handler(MessageHandler(filters.TEXT & filters.ChatType.PRIVATE & ~filters.COMMAND, player_ui.on_private_text))
+    app.add_handler(MessageHandler(filters.Document.ALL & filters.ChatType.PRIVATE, on_document))
     app.add_error_handler(on_error)
     jq = app.job_queue
     jq.run_daily(job_lock, time=datetime.time(LOCK_HOUR, 0, tzinfo=TZ), name="lock")

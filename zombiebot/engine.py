@@ -47,17 +47,15 @@ def night_stats(g, p):
                 hp_mod += v
             else:
                 s[k] += v
-        if "vienna_slots" in L["flags"] and p.get("slots") and p["slots"].get("done"):
-            if p["slots"].get("hit"):
-                bonus = 20 * (100 - dmg) // 100
-                for pw in POWERS:
-                    s[pw] += bonus
-                hp_mod += bonus
-            elif not ignore_neg:
-                for pw in POWERS:
-                    s[pw] -= 20
         if "bank" in L["flags"] and not ignore_neg:
             hp_mod -= p["hp"] // 2
+    for key in p.get("legend", []):   # legendary items: permanent
+        from .data.legendary import LEGENDARY
+        for k, v in LEGENDARY.get(key, {}).get("stats", {}).items():
+            s[k] += v
+    if p.get("perm"):   # the factory's slot result: permanent, survives death and revival
+        for pw in POWERS:
+            s[pw] += p["perm"]
     for k, v in p.get("boost", {}).items():
         if k == "all":
             for pw in POWERS:
@@ -220,7 +218,7 @@ class Night:
             red[d["target"]] = red.get(d["target"], 0) + d["power"]
         eff_def = {}
         for d in [x for x in defuses if x["active"]]:
-            cut = red.get(d["by"], 0)
+            cut = 0 if self.P(d["by"])["flags"].get("defuse_immune") else red.get(d["by"], 0)
             p = d["power"] - cut
             if p <= 0:
                 d["active"] = False
@@ -232,6 +230,9 @@ class Night:
             if a["type"] in ("defuse", "steal") or not a["active"]:
                 continue
             cut = eff_def.get(a["by"], 0)
+            if cut > 0 and self.P(a["by"])["flags"].get("defuse_immune"):
+                a["note"].append("انگشتر مهر: خنثی اثر نکرد")
+                continue
             if cut <= 0:
                 continue
             if cut >= a["power"]:
@@ -287,6 +288,11 @@ class Night:
                 a["power"] = a["power"] // 3
                 a["note"].append("⅓ قدرت (هدف فرقه یا مستقل نبود)")
         self._team_rule(attacks, "attack")
+        back = {}     # damage bounced back to attackers by items (revenge / reflect)
+        for a in [x for x in attacks if x["active"]]:
+            R = self.P(a["target"])
+            if R["flags"].get("reflect"):
+                back[a["by"]] = back.get(a["by"], 0) + a["power"] * R["flags"]["reflect"] // 100
         dmg = {}
         for a in [x for x in attacks if x["active"]]:
             dmg[a["target"]] = dmg.get(a["target"], 0) + a["power"]
@@ -301,6 +307,9 @@ class Night:
                 d = d * pct // 100              # monastery protects independents the same way
             hp_mod = stats[tid][1]
             sh = shield.get(tid, 0)
+            armor = T["flags"].get("armor", 0)
+            if armor:
+                d = max(0, d - armor)            # item armor: attacks are n weaker
             remaining = T["hp"] + hp_mod + sh - d
             loss = max(0, d - sh - max(0, hp_mod))
             who = ", ".join(f"{self.nm(a['by'])}:{a['power']}" for a in attacks if a["active"] and a["target"] == tid)
@@ -309,16 +318,36 @@ class Night:
                       " · مستقل در خانقاه" if team(T) == INDEP and at(tid, "indep_safe") else "")
             self.line(f"• {T['name']}: حمله‌ها {who} = {d}{church} | سپر {sh} | اچ‌پی {hp_txt} → {'☠️ می‌میرد' if T['hp'] + hp_mod + sh - d <= 0 else 'اچ‌پی ' + str(T['hp'] - max(0, d - sh - max(0, hp_mod)))}",
                       f"Attacks on {T['name']}: total {d} ({who}) | shield {sh} | hp {T['hp']}{hp_mod:+d}")
-            if remaining <= 0 and tid not in dead_now:
-                if False:
-                    pass
-                else:
+            mine = [a for a in attacks if a["active"] and a["target"] == tid]
+            if remaining <= 0 and tid not in dead_now and T["flags"].get("last_stand"):
+                self.eff("damage", f"{T['name']} با «اراده آهنین» با ۱ اچ‌پی زنده ماند.",
+                         f"{T['name']} survives on 1 HP (Iron Will).", pid=tid, amount=max(0, T["hp"] - 1))
+                remaining = 1
+            elif remaining <= 0 and tid not in dead_now:
+                if T["flags"].get("revenge"):
+                    for a in mine:
+                        back[a["by"]] = back.get(a["by"], 0) + a["power"] * T["flags"]["revenge"] // 100
+                    self.line(f"«سوگند انتقام» {T['name']}: هر حمله‌کننده {T['flags']['revenge']}٪ حمله‌ی خودش را می‌خورد.", "")
+                if True:
                     self.eff("death", f"{T['name']} با {d} آسیب کشته شد.", f"{T['name']} is killed ({d} damage).",
                              pid=tid, cause="attack")
                     dead_now.add(tid)
             elif loss > 0:
                 self.eff("damage", f"{T['name']} {loss} اچ‌پی از دست داد ({T['hp']}→{T['hp']-loss}).",
                          f"{T['name']} loses {loss} hp ({T['hp']}→{T['hp']-loss}).", pid=tid, amount=loss)
+        for aid, amount in back.items():
+            if amount <= 0 or aid in dead_now:
+                continue
+            A = self.P(aid)
+            left = A["hp"] + stats[aid][1] - amount
+            self.line(f"↩️ {A['name']} {amount} آسیب برگشتی خورد (آیتم هدف).", "")
+            if left <= 0:
+                self.eff("death", f"{A['name']} با {amount} آسیب برگشتی (انتقام/زره خاردار) کشته شد.",
+                         f"{A['name']} is killed by {amount} bounced-back damage.", pid=aid, cause="revenge")
+                dead_now.add(aid)
+            else:
+                self.eff("damage", f"{A['name']} {amount} آسیب برگشتی خورد ({A['hp']}→{A['hp'] - amount}).",
+                         f"{A['name']} takes {amount} bounced-back damage.", pid=aid, amount=amount)
         if shield:
             self.line("سپرها: " + ", ".join(f"{self.nm(k)} +{v}" for k, v in shield.items()),
                       "Shields: " + ", ".join(f"{self.nm(k)} +{v}" for k, v in shield.items()))
@@ -328,6 +357,12 @@ class Night:
             A, T = self.P(a["by"]), self.P(a["target"])
             is_spy = (a.get("as_role") or A["role"]) == "spy"
             vf, ve = spy_view(self.g, T, is_spy, "fa"), spy_view(self.g, T, is_spy, "en")
+            if T["flags"].get("spy_mask"):      # Venetian mask: looks like a harmless human tonight
+                if is_spy:
+                    fake = self.rng.choice([k for k, r in ROLES.items() if r["team"] == HUMAN])
+                    vf, ve = role_name(fake, "fa"), role_name(fake, "en")
+                else:
+                    vf, ve = COLOR["white"]
             self.eff("private", f"نتیجه جاسوسی شما روی {T['name']}: {vf}", f"Your spy result on {T['name']}: {ve}",
                      pid=a["by"])
 

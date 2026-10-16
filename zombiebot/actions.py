@@ -29,7 +29,7 @@ def move_options(g, p, roll):
         return {sq: [sq] for sq in SQUARES}       # first move: anywhere on the map, cities or empty squares, no dice
     if p["flags"].get("free_move"):
         return {c: [c] for c in CITIES if c != p["pos"]}
-    steps = roll + p["flags"].get("move_plus", 0)
+    steps = max(1, roll + p["flags"].get("move_plus", 0) - p["flags"].get("move_minus", 0))
     opts = board.reachable(g, p["pos"], steps)
     if g["phase"] == "night" and p.get("last_night_pos"):
         opts.pop(p["last_night_pos"], None)
@@ -49,6 +49,7 @@ def do_move(g, p, dest, path):
     p["pos"] = dest
     p["moved"] = True
     p["flags"].pop("move_plus", None)
+    p["flags"].pop("move_minus", None)
     p["flags"].pop("free_move", None)
     log(g, f"{p['name']} → {dest}")
     return notes
@@ -206,6 +207,17 @@ def slot_pull(g, p, value):
         s["done"] = True
     s["left"] = limit - s["tries"]
     p["slots"] = s
+    if kind == "vienna" and s["done"] and not s.get("applied"):
+        # the factory's result is permanent (it stays after death and revival, and stacks with later visits)
+        s["applied"] = True
+        if s["hit"]:
+            bonus = 20 * (100 - g["loc_damage"].get(loc, 0)) // 100
+            p["perm"] = p.get("perm", 0) + bonus
+            p["hp"] += bonus
+            s["change"] = bonus
+        else:
+            p["perm"] = p.get("perm", 0) - 20
+            s["change"] = -20
     return s
 
 
@@ -260,30 +272,111 @@ def buy_unit(g, p, unit):
     return cost
 
 
-def use_item(g, p, item_key):
+TONIGHT_FLAGS = ("armor", "revenge", "reflect", "last_stand", "spy_mask", "defuse_immune", "extra_act")
+UNTIL_USED_FLAGS = ("bullet_vest", "bomb_safe", "poison_safe", "pardon")
+DAY_FLAGS = ("vote_guard", "muted")
+
+
+def item_needs_target(item_key):
+    return bool(ITEMS[item_key]["effect"].get("target"))
+
+
+def use_item(g, p, item_key, target=None):
+    """Use an item. Returns a Persian line saying what happened (shown to the player)."""
     if item_key not in p["items"]:
         raise GameError("این آیتم رو نداری.", "You don't have that item.")
-    e = ITEMS[item_key]["effect"]
+    if not p["alive"]:
+        raise GameError("مرده‌ها آیتم استفاده نمی‌کنند.")
+    it = ITEMS[item_key]
+    e = it["effect"]
     t = e["type"]
+    T = None
+    if e.get("target"):
+        T = g["players"].get(str(target)) if target is not None else None
+        if not T or not T["alive"]:
+            raise GameError("اول یک بازیکن زنده رو انتخاب کن.", "Pick a living player first.")
+    msg = f"✅ {it['fa']}: {it['desc_fa']}"
     if t == "boost":
         for k, v in e["stats"].items():
             p["boost"][k] = p["boost"].get(k, 0) + v
         p["hp"] += e.get("hp", 0)
+        msg += " — روی اکت‌های شب حساب می‌شه."
     elif t == "heal":
         p["hp"] += e["hp"]
+        msg += f" — اچ‌پی الان: {p['hp']}"
     elif t == "coins":
         p["coins"] += e["n"]
-    elif t in ("move_plus", "money_dart", "item_dart", "vote_plus"):
+        msg += f" — سکه‌ها الان: {p['coins']}"
+    elif t in ("move_plus", "money_dart", "item_dart", "vote_plus", "armor", "vote_guard"):
         p["flags"][t] = p["flags"].get(t, 0) + e["n"]
+    elif t in ("revenge", "reflect"):
+        p["flags"][t] = max(p["flags"].get(t, 0), e["pct"])
     elif t == "reroll":
         if not p["moved"] and p.get("move_roll"):
             p["move_roll"] = None
         else:
             raise GameError("فقط بعد از ریختن تاس و قبل از حرکت.", "Only after rolling and before moving.")
-    elif t in ("free_move", "toll_free", "hide", "ignore_neg"):
+    elif t in ("free_move", "toll_free", "hide", "ignore_neg", "last_stand", "spy_mask", "defuse_immune",
+               "extra_act") + UNTIL_USED_FLAGS:
         p["flags"][t] = True
+    elif t == "extra_dart":
+        if not p["darts"].get(e["kind"]):
+            raise GameError("هنوز دارت این فازت رو ننداختی؛ اول اونو بنداز.", "Throw this phase's dart first.")
+        p["darts"][e["kind"]] = False
+        msg += " — از «🎯 دارت» بندازش."
+    elif t == "unit":
+        p["units"][e["unit"]] = p["units"].get(e["unit"], 0) + 1
+        p.setdefault("unit_origin", {})[e["unit"]] = "bought"
+        msg += " — در «🎒 کوله» ازش استفاده کن."
+    elif t == "mute":
+        T["flags"]["muted"] = True
+        msg = f"✅ {it['fa']}: امروز رأی {T['name']} صفر حساب می‌شه."
+    elif t == "slow":
+        T["flags"]["move_minus"] = T["flags"].get("move_minus", 0) + e["n"]
+        msg = f"✅ {it['fa']}: تاس حرکت بعدی {T['name']} {e['n']} تا کم می‌شه."
+    elif t == "pickpocket":
+        n = min(e["n"], T["coins"])
+        T["coins"] -= n
+        p["coins"] += n
+        msg = f"✅ {it['fa']}: {n} سکه از {T['name']} برداشتی."
+    elif t == "trace":
+        where = board.square_name(T["pos"]) if T.get("pos") else "هنوز روی نقشه نیست"
+        msg = f"🕵️ {it['fa']}: {T['name']} الان اینجاست: {where}"
+    elif t == "reveal":
+        from .engine import spy_view
+        msg = f"📁 {it['fa']}: رنگ {T['name']}: {spy_view(g, T, False, 'fa')}"
     p["items"].remove(item_key)
-    log(g, f"{p['name']} used {item_key}")
+    log(g, f"{p['name']} used {item_key}" + (f" on {T['name']}" if T else ""))
+    return msg
+
+
+def active_effects(p):
+    """Short Persian lines for the item effects a player has waiting."""
+    f, out = p["flags"], []
+    names = {"attack": "حمله", "protect": "محافظت", "defuse": "خنثی", "spy": "جاسوسی", "stealth": "مخفی‌کاری", "all": "همه قدرت‌ها"}
+    for k, v in p.get("boost", {}).items():
+        out.append(f"{names.get(k, k)} {v:+d} امشب")
+    if p.get("perm"):
+        out.append(f"همه قدرت‌ها {p['perm']:+d} (دائمی، کارخانه)")
+    if p.get("legend"):
+        from .data.legendary import LEGENDARY
+        for k in p["legend"]:
+            if k in LEGENDARY:
+                out.append(f"🌟 {LEGENDARY[k]['fa']}: {LEGENDARY[k]['desc_fa']}")
+    labels = {"move_plus": "حرکت بعدی +{}", "move_minus": "حرکت بعدی −{}", "money_dart": "دارت پول بعدی +{}",
+              "item_dart": "دارت آیتم بعدی +{}", "vote_plus": "رأی بعدی +{}", "armor": "زره امشب {}",
+              "vote_guard": "رأی‌های علیه تو امروز −{}", "revenge": "انتقام امشب {}٪", "reflect": "بازتاب حمله امشب {}٪"}
+    for k, fmt in labels.items():
+        if f.get(k):
+            out.append(fmt.format(f[k]))
+    simple = {"free_move": "حرکت آزاد", "toll_free": "بدون عوارض", "hide": "پنهان از بالن امشب",
+              "ignore_neg": "منفی‌های مکان امشب نه", "last_stand": "اراده آهنین امشب", "spy_mask": "نقاب امشب",
+              "defuse_immune": "خنثی‌ناپذیر امشب", "extra_act": "یک اکت اضافه امشب", "bullet_vest": "جلیقه ضدگلوله",
+              "bomb_safe": "ایمن از بمب", "poison_safe": "ایمن از سم", "pardon": "عفو از اعدام", "muted": "رأیت امروز صفر است"}
+    for k, v in simple.items():
+        if f.get(k):
+            out.append(v)
+    return out
 
 
 # ---------------- units on the board ----------------
@@ -608,7 +701,7 @@ def end_night(g):
     for p in g["players"].values():
         p["boost"] = {}
         p["bought"] = {}
-        for k in ("ignore_neg", "hide", "taxi_used"):
+        for k in ("ignore_neg", "hide", "taxi_used") + TONIGHT_FLAGS:
             p["flags"].pop(k, None)
         p["slots"] = None
         p["double_act"] = False
@@ -640,6 +733,8 @@ def start_phase(g, phase):
         p["double_act"] = False
         p["darts"] = {"money": False, "item": False}
         if phase == "night":
+            for k in DAY_FLAGS:
+                p["flags"].pop(k, None)
             p["flags"].pop("hotel_immune", None)
             p["flags"].pop("vote_mod", None)
             if g["votes"].get(str(p["id"])):
@@ -649,6 +744,8 @@ def start_phase(g, phase):
 # ---------------- voting ----------------
 
 def vote_weight(g, p):
+    if p["flags"].get("muted"):
+        return 0
     w = 1 + p["flags"].get("vote_mod", 0) + p["flags"].get("vote_plus", 0)
     return max(0, w)
 
@@ -664,6 +761,9 @@ def tally(g):
         totals[target] = totals.get(target, 0) + vote_weight(g, V)
     for tid in list(totals):
         T = g["players"][tid]
+        if T["flags"].get("vote_guard"):
+            totals[tid] = max(0, totals[tid] - T["flags"]["vote_guard"])
+            notes.append((f"{T['name']} آیتم دفاع در رأی‌گیری دارد (−{T['flags']['vote_guard']}).", ""))
         if T["flags"].get("hotel_immune"):
             pct = g["loc_damage"].get("barcelona", 0)
             totals[tid] = totals[tid] * pct / 100

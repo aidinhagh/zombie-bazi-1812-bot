@@ -28,6 +28,8 @@ def checklist(g, p, lang):
             why.append("دزدی + اکت قرضی")
         if p.get("double_act") and "double_act_50" in flags_at(loc_of(p)):
             why.append("زوج خانقاه")
+        if p["flags"].get("extra_act"):
+            why.append("قهوه سیاه")
         parts.append(f"{'✅' if n >= lim else '⬜'} اکت {num(n, lang)} از {num(lim, lang)}" + (f" ({'، '.join(why)})" if why else ""))
     else:
         voted = g["votes"].get(str(p["id"]))
@@ -86,7 +88,8 @@ def home_rows(p):
         rows.append([(L(lang, "🗳 رأی", "🗳 Vote"), "p:vote"), (L(lang, "🛒 خرید", "🛒 Shop"), "p:shop")])
     else:
         rows.append([(L(lang, "🛒 خرید", "🛒 Shop"), "p:shop")])
-    rows.append([(L(lang, "🎒 کوله", "🎒 Bag"), "p:bag"), (L(lang, "🗺 نقشه", "🗺 Map"), "p:map")])
+    bag = "🎒 کوله و آیتم‌ها" + (f" ({num(len(p['items']))})" if p["items"] else "")
+    rows.append([(bag, "p:bag"), (L(lang, "🗺 نقشه", "🗺 Map"), "p:map")])
     extra = []
     here = loc_of(p) if g["locked"] else p["pos"]
     if (g["phase"] == "night" and g["locked"] and p.get("night_pos") == "london" and not p["flags"].get("taxi_used")
@@ -319,12 +322,24 @@ async def handle(update, ctx, p, head, args):
     if head == "bag":
         return await edit_or_send(q, *bag_view(p, lang))
     if head == "iu":
-        actions.use_item(g, p, args[0])
+        key = args[0]
+        if key not in p["items"]:
+            raise GameError("این آیتم رو نداری.", "You don't have that item.")
+        if actions.item_needs_target(key):
+            people = [x for x in alive_others(p, include_self=False)]
+            return await edit_or_send(q, f"✨ {ITEMS[key]['fa']} — {ITEMS[key]['desc_fa']}\nروی کی استفاده‌اش کنی؟",
+                                      people_rows(f"p:it:{key}", people, lang, back_to="p:bag"))
+        msg = actions.use_item(g, p, key)
         save()
-        await q.answer(L(lang, f"✅ {ITEMS[args[0]]['fa']}", f"✅ {ITEMS[args[0]]['en']}"))
-        if ITEMS[args[0]]["effect"]["type"] == "reroll":
-            return await edit_or_send(q, L(lang, "تاس دوباره: «حرکت» رو بزن.", "Reroll ready: tap Move."), [back(lang)])
-        return await edit_or_send(q, *bag_view(p, lang))
+        if ITEMS[key]["effect"]["type"] == "reroll":
+            msg += "\nتاس دوباره: «🎲 حرکت» رو بزن."
+        text, rows = bag_view(p, lang)
+        return await edit_or_send(q, msg + "\n\n" + text, rows)
+    if head == "it":
+        msg = actions.use_item(g, p, args[0], target=args[1])
+        save()
+        text, rows = bag_view(p, lang)
+        return await edit_or_send(q, msg + "\n\n" + text, rows)
     if head == "up":
         unit = args[0]
         spots = actions.place_spots(g, p, unit) if len(args) < 2 else [args[1]]
@@ -512,11 +527,12 @@ async def pull_slot(bot, ctx, p, chat_id):
                                                                  "🎰 Three of a kind! Revive someone:", rows))
         return
     if s["hit"]:
-        res = ("🎰 جک‌پات! امشب همه قدرت‌ها و اچ‌پی +۲۰.", "🎰 Jackpot! All powers and HP +20 tonight.")
+        res = (f"🎰 جک‌پات! همه قدرت‌ها و اچ‌پی +{num(s.get('change', 20))} — برای همیشه (حتی بعد از مرگ و زنده شدن).",
+               "🎰 Jackpot! All powers and HP up — permanently.")
     elif s["done"]:
         vienna = s["kind"] == "vienna"
-        res = ("🎰 تموم شد، سه‌تای یکسان نیامد." + (" امشب همه قدرت‌ها −۲۰." if vienna else ""),
-               "🎰 Out of pulls, no three of a kind." + (" All powers −20 tonight." if vienna else ""))
+        res = ("🎰 تموم شد، سه‌تای یکسان نیامد." + (" همه قدرت‌ها −۲۰ برای همیشه (حتی بعد از مرگ و زنده شدن)." if vienna else ""),
+               "🎰 Out of pulls, no three of a kind." + (" All powers −20 permanently." if vienna else ""))
     else:
         res = (f"🎰 نشد. {num(s['left'])} بار دیگه.", f"🎰 No luck. {s['left']} pulls left.")
     ctx.job_queue.run_once(job_result, DICE_WAIT, data=(p["id"], *res))
@@ -552,6 +568,11 @@ def bag_view(p, lang):
         for k in p["items"]:
             lines.append("• " + item_line(k, lang))
         rows += chunks([(f"✨ {ITEMS[k][lang][:22]}", f"p:iu:{k}") for k in dict.fromkeys(p["items"])], 2)
+    eff = actions.active_effects(p)
+    if eff:
+        lines.append("\n⏳ اثرهای فعال: " + " · ".join(eff))
+    if not p["items"]:
+        lines.append("\nآیتمی نداری. آیتم با «🎯 دارت ← دارت آیتم» به دست می‌آید.")
     u = {k: v for k, v in p["units"].items() if v}
     if u:
         lines.append(L(lang, "\nواحدها: ", "\nUnits: ") + ", ".join(f"{unit_name(k, lang)}×{num(v, lang)}" for k, v in u.items()))
@@ -589,6 +610,8 @@ def act_limit(p):
     base = 2 if (p.get("double_act") and "double_act_50" in flags_at(loc_of(p))) else 1
     if any(a["type"] == "steal" for a in G()["acts"].get(str(p["id"]), [])):
         base += 1   # the borrowed act
+    if p["flags"].get("extra_act"):
+        base += 1   # black coffee
     return base
 
 

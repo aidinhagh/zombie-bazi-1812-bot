@@ -7,10 +7,11 @@ import time
 
 from telegram.error import TelegramError
 
-from . import actions, board
+from . import legendary, actions, board
 from .actions import GameError
-from .common import G, save, store, pl, dm, group, gm_notes, kb, acting_uid, name_of, num, logger
+from .common import G, save, store, pl, dm, group, gm_notes, kb, chunks, acting_uid, name_of, num, logger
 from .data.roles import role_name
+from .data.legendary import LEGENDARY
 from .state import alive_players, team
 
 RPS = {"r": "✊ سنگ", "p": "✋ کاغذ", "s": "✌️ قیچی"}
@@ -99,11 +100,15 @@ async def cut_wire(bot, uid, bomb_id, wire, q=None):
     for x in near:
         if random.random() < 0.8:
             victims.append(x)
+    saved = [v for v in victims if v["flags"].pop("bomb_safe", None)]   # wet blanket
+    victims = [v for v in victims if v not in saved]
     for v in victims:
         actions.kill(g, v, "bomb")
     save()
     others = [v["name"] for v in victims if v is not T]
     text = f"💥 {T['name']} سیم {num(wire)} را برید… بوم!" + (f"\nموج انفجار {'، '.join(others)} را هم گرفت." if others else "")
+    if saved:
+        text += f"\n🧯 {'، '.join(v['name'] for v in saved)} با پتوی خیس جان سالم به در برد."
     await (say_to(q, text) if q else group(bot, text, None))
     for v in victims:
         await announce_death(bot, v)
@@ -147,6 +152,11 @@ async def resolve_poisons(bot):
         T, A = pl(po["target"]), pl(po["by"])
         if A and not A["alive"]:
             po["status"] = "failed"
+            continue
+        if T and T["alive"] and T["flags"].pop("poison_safe", None):
+            po["status"] = "cured"
+            save()
+            await group(bot, f"🧪 سم به {T['name']} رسیده بود، ولی تریاق نجاتش داد.", None)
             continue
         if T and T["alive"]:
             actions.kill(g, T, "poison")
@@ -282,7 +292,10 @@ async def fire_bullet(bot, p, T):
         raise GameError("نمی‌شه شلیک کرد.")
     kind = p["bullets"].pop(0)
     save()
-    if kind == "war":
+    if kind == "war" and T["flags"].pop("bullet_vest", None):
+        save()
+        await group(bot, f"💥 {p['name']} به {T['name']} شلیک کرد… تیر جنگی بود، ولی جلیقه ابریشمی نجاتش داد!", None)
+    elif kind == "war":
         await group(bot, f"💥 {p['name']} به {T['name']} شلیک کرد… تیر جنگی بود!", None)
         actions.kill(g, T, "bullet")
         if T["role"] == "apothecary":   # a poison already handed out fails if the apothecary is shot by day
@@ -307,6 +320,10 @@ async def execute(bot, P):
     if P["flags"].get("hotel_immune") and g["loc_damage"].get("barcelona", 0) == 0:
         await group(bot, f"🏨 {P['name']} در هتل است و اعدام نمی‌شود.", None)
         return f"{P['name']} در هتل است و اعدام نمی‌شود."
+    if P["flags"].pop("pardon", None):
+        save()
+        await group(bot, f"📜 {P['name']} فرمان عفو امپراتور را نشان داد؛ اعدامش لغو شد.", None)
+        return f"{P['name']} فرمان عفو داشت و اعدام نشد."
     actions.kill(g, P, "execution")
     save()
     await group(bot, f"⚖️ {P['name']} اعدام شد.", None)
@@ -563,6 +580,9 @@ def pending_for(p):
             out.append(("🎲 حرکت شرط", rps_rows("b", b["id"])))
     if p["flags"].get("yakuza_pending"):
         out.append(("🗡 چه کسی را با خودت می‌بری؟", yakuza_rows()))
+    au = legendary.state(g)["auction"]
+    if au and pid in au["bidders"] and pid not in au["bids"]:
+        out.append((legend_bid_text(au), legend_bid_rows(p)))
     jd = g.get("judgement")
     if jd and jd["status"] == "waiting" and jd["judge"] == pid:
         out.append((judge_text(jd), judge_rows(jd)))
@@ -600,5 +620,72 @@ async def shared_button(update, ctx, data):
         await judge_press(bot, uid, "t:" + parts[1], q)
     elif head == "jd":
         await judge_press(bot, uid, parts[1], q)
+    elif head == "lb":
+        await legend_bid(bot, uid, int(parts[1]), q)
     from . import autopilot
     await autopilot.decide_pending(bot)
+
+
+# ---------------- legendary items ----------------
+
+def legend_bid_text(au):
+    it = LEGENDARY[au["key"]]
+    return (f"🌟 مزایده آیتم لجندری «{it['fa']}» ({it['desc_fa']}).\n"
+            f"چند نفر در {board.square_name(au['where'])} بودید. پیشنهادت چند سکه است؟ (پنهانی؛ بیشترین پیشنهاد می‌برد و همان را می‌پردازد، تساوی = قرعه)")
+
+
+def legend_bid_rows(p):
+    return chunks([(f"{num(b)} سکه", f"x:lb:{b}") for b in legendary.bid_options(p)], 4)
+
+
+async def legend_after_lock(bot):
+    """At the lock: hand the legendary item to the one person standing on it, or open the auction."""
+    g = G()
+    kind, info = legendary.at_lock(g)
+    save()
+    if kind == "taken":
+        it = LEGENDARY[g["players"][str(info["id"])]["legend"][-1]]
+        await dm(bot, info["id"], f"🌟 آیتم لجندری «{it['fa']}» مال تو شد! {it['desc_fa']}")
+        await group(bot, f"🌟 آیتم لجندری «{it['fa']}» برداشته شد.", None)
+        await gm_notes(bot, [(f"🌟 {info['name']} آیتم لجندری «{it['fa']}» را برداشت.", "")])
+    elif kind == "auction":
+        au = legendary.state(g)["auction"]
+        for p in info:
+            await dm(bot, p["id"], legend_bid_text(au), reply_markup=kb(legend_bid_rows(p)))
+        await group(bot, f"🌟 چند نفر سر آیتم لجندری «{LEGENDARY[au['key']]['fa']}» رسیدند؛ مزایده شروع شد.", None)
+        await gm_notes(bot, [(f"🌟 مزایده لجندری بین {'، '.join(p['name'] for p in info)}. وقتی همه پیشنهاد بدهند خودکار بسته می‌شود؛ "
+                              "یا خودت ببند: /legend close", "")])
+
+
+async def legend_bid(bot, uid, amount, q=None):
+    g = G()
+    p = pl(uid)
+    done = legendary.place_bid(g, p, amount)
+    save()
+    if q:
+        await say_to(q, f"✅ پیشنهاد {num(amount)} سکه ثبت شد.")
+    if done:
+        await legend_close(bot)
+
+
+async def legend_close(bot):
+    g = G()
+    au = legendary.state(g)["auction"]
+    if not au:
+        return False
+    bids = dict(au["bids"])
+    key = au["key"]
+    win, best, tied = legendary.close_auction(g)
+    save()
+    it = LEGENDARY[key]
+    if not win:
+        await gm_notes(bot, [("🌟 مزایده بدون برنده ماند؛ آیتم سر جایش می‌ماند.", "")])
+        return True
+    await dm(bot, win["id"], f"🌟 مزایده را با {num(best)} سکه بردی! «{it['fa']}» مال تو شد. {it['desc_fa']}")
+    for b in au["bidders"]:
+        if b != str(win["id"]):
+            await dm(bot, int(b), f"🌟 مزایده «{it['fa']}» را باختی.")
+    await group(bot, f"🌟 مزایده آیتم لجندری «{it['fa']}» تمام شد." + (" (تساوی؛ با قرعه)" if tied else ""), None)
+    detail = "، ".join(f"{name_of(k)}: {num(v)}" for k, v in bids.items()) or "هیچ پیشنهادی"
+    await gm_notes(bot, [(f"🌟 {win['name']} «{it['fa']}» را با {num(best)} سکه برد. پیشنهادها: {detail}", "")])
+    return True

@@ -86,6 +86,32 @@ class Store:
             with open(snap, "w", encoding="utf8") as f:
                 json.dump(self.g, f, ensure_ascii=False)
 
+    def snapshot(self, tag="auto", keep=60):
+        """A dated copy of the whole game in DATA_DIR/backups (kept on the volume, newest 60)."""
+        import time
+        with self.lock:
+            d = os.path.join(os.path.dirname(self.path), "backups")
+            os.makedirs(d, exist_ok=True)
+            name = os.path.join(d, time.strftime("state-%Y%m%d-%H%M%S-") + "".join(c for c in tag if c.isalnum())[:20] + ".json")
+            with open(name, "w", encoding="utf8") as f:
+                json.dump(self.g, f, ensure_ascii=False)
+            old = sorted(x for x in os.listdir(d) if x.startswith("state-"))
+            for x in old[:-keep]:
+                try:
+                    os.remove(os.path.join(d, x))
+                except OSError:
+                    pass
+            return name
+
+    def replace(self, g):
+        """Load a whole game (from /import). The current one is snapshotted first."""
+        with self.lock:
+            self.snapshot("before-import")
+            base = new_game()
+            base.update(g)
+            self.g = base
+            self.save()
+
     def undo(self):
         snap = os.path.join(os.path.dirname(self.path), "state.prev.json")
         if not os.path.exists(snap):

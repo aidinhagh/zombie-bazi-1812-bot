@@ -44,8 +44,8 @@ LOCATIONS = {
     "vienna": {
         "fa": "وین (کارخانه)", "en": "Vienna (Factory)", "place_fa": "کارخانه", "place_en": "Factory",
         "mods": {}, "flags": ["vienna_slots"], "shop": None,
-        "desc_fa": "۳ بار ماشین اسلات: سه‌تای یکسان → همه قدرت‌ها و اچ‌پی +۲۰، وگرنه همه قدرت‌ها −۲۰.",
-        "desc_en": "3 slot pulls: any three of a kind → all powers and HP +20; otherwise all powers −20.",
+        "desc_fa": "۳ بار ماشین اسلات: سه‌تای یکسان → همه قدرت‌ها و اچ‌پی +۲۰، وگرنه همه قدرت‌ها −۲۰. نتیجه دائمی است (حتی بعد از مرگ و زنده شدن) و با دفعه‌های بعد جمع می‌شود.",
+        "desc_en": "3 slot pulls: three of a kind → all powers and HP +20, otherwise all powers −20. Permanent, even after revival; stacks.",
     },
     "wagram": {
         "fa": "واگرام (خانقاه)", "en": "Wagram (Monastery)", "place_fa": "خانقاه", "place_en": "Monastery",

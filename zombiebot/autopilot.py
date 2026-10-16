@@ -6,7 +6,7 @@ autopilot did for them this phase, so the GM can roll, throw darts, act and vote
 import copy
 import random
 
-from . import actions, board
+from . import actions, board, legendary
 from .actions import GameError
 from .board import CITIES, SQUARES
 from .common import G, save, pl, logger
@@ -113,7 +113,10 @@ def play_phase(g=None, r=None):
             actions.item_dart(g, p, r.randint(1, 6), r)
         # items
         if p["items"] and r.random() < 0.5:
-            if _try(actions.use_item, g, p, r.choice(p["items"])):
+            key = r.choice(p["items"])
+            others = [x for x in alive_players(g) if x is not p]
+            tgt = r.choice(others)["id"] if others and actions.item_needs_target(key) else None
+            if _try(actions.use_item, g, p, key, tgt):
                 done["items"] += 1
         # shop: night powers, hp, and the unit sold here
         if g["phase"] == "night" and p["coins"] >= 4 and r.random() < 0.4:
@@ -230,6 +233,8 @@ def choose_acts(g, p, r):
         acts.append(basic_act(g, p, r))
     if p.get("double_act") and "double_act_50" in flags_at(loc_of(p)):
         acts.append(basic_act(g, p, r))
+    if p["flags"].get("extra_act"):
+        acts.append(basic_act(g, p, r))
     for a in acts:
         a["dice"] = [r.randint(1, 6), r.randint(1, 6)]   # test players throw their own 2d6 too
     if "church" in flags_at(loc_of(p)):
@@ -301,6 +306,13 @@ async def decide_pending(bot, r=None):
                 for po in list(g["poisons"]):
                     if po["status"] == "pending" and str(po["by"]) in autos:
                         await events.antidote(bot, po["by"], po["id"], r.random() < 0.4)
+                        acted = True
+            au = (g.get("legend") or {}).get("auction")
+            if au:
+                for b in list(au["bidders"]):
+                    au = (g.get("legend") or {}).get("auction")
+                    if au and b in autos and b not in au["bids"]:
+                        await events.legend_bid(bot, b, r.choice(legendary.bid_options(autos[b])))
                         acted = True
             for d in list(g["duels"]):
                 if d["status"] == "live":

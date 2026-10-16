@@ -97,6 +97,13 @@ class FakeBot:
         self.world.sent.append(m)
         return m
 
+    async def send_document(self, chat_id, document, filename=None, caption=None, **kw):
+        data = document.read() if hasattr(document, "read") else document
+        m = Msg(self.world, chat_id, caption or "[file]")
+        m.document_bytes = data
+        self.world.sent.append(m)
+        return m
+
     async def get_user_profile_photos(self, user_id, limit=1):
         return SimpleNamespace(total_count=0, photos=[])
 
