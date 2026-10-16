@@ -177,8 +177,7 @@ def test_independent_safe_in_wagram():
     g["players"]["3"]["hp"] = 5
     act(g, 1, "attack", 3)
     res = resolve_night(g, FixedRng())
-    assert not effects(res, "death")
-    assert effects(res, "damage")[0]["amount"] == 4
+    assert not effects(res, "death") and not effects(res, "damage")   # undamaged monastery: attacks don't reach them
 
 
 def test_musketeer_defused_gives_practice():

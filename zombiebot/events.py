@@ -184,6 +184,8 @@ async def create_bet(bot, p, T, stake):
     g = G()
     if not T or T["pos"] != "stockholm" or p["pos"] != "stockholm":
         raise GameError("هر دو باید در کازینو باشید.")
+    if actions.ruined(g, "stockholm"):
+        raise GameError("کازینو کاملاً ویران شده و بسته است.")
     if p["coins"] < stake:
         raise GameError("سکه کافی نداری.")
     b = {"id": actions.next_id(g, "s"), "a": str(p["id"]), "b": str(T["id"]), "stake": stake, "status": "offered", "picks": {}}
@@ -242,11 +244,14 @@ async def rps_pick(bot, uid, kind, gid, choice, q=None):
     if kind == "b":
         amt = min(game["stake"], lose["coins"])
         lose["coins"] -= amt
-        win["coins"] += amt
+        payout = int(amt * actions.intact(g, "stockholm"))   # a damaged casino pays out less; the house keeps the rest
+        win["coins"] += payout
+        if payout != amt:
+            amt = f"{payout} (از {amt}؛ کازینو {actions.damage(g, 'stockholm')}٪ ویران)"
         game["status"] = "done"
         save()
         for x in (A, B):
-            await dm(bot, x["id"], f"🎲 {A['name']} {RPS[ca]} / {B['name']} {RPS[cb]} → برنده {win['name']} ({num(amt)} سکه)")
+            await dm(bot, x["id"], f"🎲 {A['name']} {RPS[ca]} / {B['name']} {RPS[cb]} → برنده {win['name']} ({num(amt) if isinstance(amt, int) else amt} سکه)")
         return
     game.setdefault("rounds", []).append(lose["id"])
     lose["hp"] -= 10

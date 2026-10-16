@@ -85,7 +85,8 @@ def home_rows(p):
     rows.append([(L(lang, "🎒 کوله", "🎒 Bag"), "p:bag"), (L(lang, "🗺 نقشه", "🗺 Map"), "p:map")])
     extra = []
     here = loc_of(p) if g["locked"] else p["pos"]
-    if g["phase"] == "night" and g["locked"] and p.get("night_pos") == "london" and not p["flags"].get("taxi_used"):
+    if (g["phase"] == "night" and g["locked"] and p.get("night_pos") == "london" and not p["flags"].get("taxi_used")
+            and not actions.ruined(g, "london")):
         extra.append((L(lang, "🚕 تاکسی", "🚕 Taxi"), "p:taxi"))
     if g["phase"] == "night" and g["locked"] and set(flags_at(here)) & {"vienna_slots", "berlin_slots"} and not (p.get("slots") or {}).get("done"):
         extra.append((L(lang, "🎰 اسلات", "🎰 Slots"), "p:slots"))
@@ -94,7 +95,7 @@ def home_rows(p):
         extra.append(("🎲 تاس خانقاه", "p:wroll"))
     if g["phase"] == "day" and p["bullets"]:
         extra.append((L(lang, f"🔫 شلیک ({num(len(p['bullets']))})", f"🔫 Shoot ({len(p['bullets'])})"), "p:shoot"))
-    if p["pos"] == "stockholm":
+    if p["pos"] == "stockholm" and not actions.ruined(g, "stockholm"):
         extra.append((L(lang, "🎲 شرط کازینو", "🎲 Casino bet"), "p:bet"))
     if p["role"] == "clown":
         extra.append((L(lang, "🎭 جواب جاسوسی", "🎭 Spy answer"), "p:cd"))
@@ -422,8 +423,13 @@ async def handle(update, ctx, p, head, args):
     if head == "taxi":
         if not g["locked"] or p.get("night_pos") != "london":
             raise GameError("تاکسی فقط بعد از قفل نقشه و در لندن.", "The taxi only works after the lock, in London.")
-        return await mapview.send_city_pick(bot, p, "🚕 کجا بریم؟ (روی نقشه عمومی همچنان لندن نشون داده می‌شی)",
-                                            "🚕 Where to? (the public map still shows you in London)", "p:tx")
+        reach = actions.taxi_targets(g)
+        if not reach:
+            raise GameError("لندن کاملاً ویران شده؛ تاکسی کار نمی‌کند.")
+        dmg = actions.damage(g, "london")
+        note = f"\n🔥 لندن {num(dmg)}٪ ویران است؛ تاکسی فقط تا شعاع کمتری می‌رود." if dmg else ""
+        return await mapview.send_city_pick(bot, p, "🚕 کجا بریم؟ (روی نقشه عمومی همچنان لندن نشون داده می‌شی)" + note,
+                                            "", "p:tx", only=reach)
     if head == "tx":
         actions.taxi(g, p, args[0])
         save()

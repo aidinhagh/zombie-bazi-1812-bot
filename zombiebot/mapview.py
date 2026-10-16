@@ -186,7 +186,7 @@ async def send_move_map(bot, p):
     await dm(bot, p["id"], text, text, reply_markup=kb(rows))
 
 
-async def send_city_pick(bot, p, title_fa, title_en, prefix, first=False):
+async def send_city_pick(bot, p, title_fa, title_en, prefix, first=False, only=None):
     """First placement / free move / taxi: the cities, numbered on the map and in the list."""
     g = G()
     lang = lang_of(p["id"])
@@ -201,6 +201,8 @@ async def send_city_pick(bot, p, title_fa, title_en, prefix, first=False):
         await dm(bot, p["id"], title_fa + "\nنقشه را باز کن — یا از دکمه‌ها انتخاب کن.", reply_markup=kb(rows))
         return
     cities = [c for c in CITIES if c != p.get("pos") or prefix != "p:go"]
+    if only is not None:
+        cities = [c for c in cities if c in only]
     pic = render(g, title=f"{p['name']}", highlight={c: i + 1 for i, c in enumerate(cities)}, you=p.get("pos"))
     lines = [L(lang, title_fa, title_en), ""] + [f"{num(i + 1, lang)}. {LOCATIONS[c][lang]}" for i, c in enumerate(cities)]
     buttons = [(f"{num(i + 1, lang)} {LOCATIONS[c][lang][:20]}", f"{prefix}:{c}") for i, c in enumerate(cities)]

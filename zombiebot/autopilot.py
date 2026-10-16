@@ -239,7 +239,7 @@ def after_lock(g=None, r=None):
     for p in autopilots(g):
         here = loc_of(p)
         fl = flags_at(here)
-        if g["phase"] == "night" and ("vienna_slots" in fl or "berlin_slots" in fl):
+        if g["phase"] == "night" and ("vienna_slots" in fl or "berlin_slots" in fl) and not actions.ruined(g, here):
             while not (p.get("slots") or {}).get("done"):
                 v = r.choice([1, 22, 43, 64]) if r.random() < 0.15 else r.randint(2, 63)
                 s = actions.slot_pull(g, p, v)
@@ -254,17 +254,18 @@ def after_lock(g=None, r=None):
                 notes.append(f"🙏 {p['name']} در خانقاه زوج آورد: امشب دو اکت.")
                 g["acts"].get(str(p["id"]), []).append(dict(basic_act(g, p, r), dice=[r.randint(1, 6), r.randint(1, 6)]))
         if g["phase"] == "night" and here == "london" and r.random() < 0.4:
-            dest = r.choice([c for c in CITIES if c != "london"])
-            if _try(actions.taxi, g, p, dest):
+            reach = actions.taxi_targets(g)
+            dest = r.choice(reach) if reach else None
+            if dest and _try(actions.taxi, g, p, dest):
                 notes.append(f"🚕 {p['name']} مخفیانه با تاکسی رفت به {LOCATIONS[dest]['fa']}.")
-    casino = [p for p in autopilots(g) if p["pos"] == "stockholm" and p["coins"] > 0]
+    casino = [p for p in autopilots(g) if p["pos"] == "stockholm" and p["coins"] > 0] if not actions.ruined(g, "stockholm") else []
     r.shuffle(casino)
     while len(casino) >= 2:
         a, b = casino.pop(), casino.pop()
         stake = min(5, a["coins"], b["coins"])
         win, lose = (a, b) if r.random() < 0.5 else (b, a)
         lose["coins"] -= stake
-        win["coins"] += stake
+        win["coins"] += int(stake * actions.intact(g, "stockholm"))
         notes.append(f"🎲 کازینو: {win['name']} از {lose['name']} {stake} سکه برد.")
     save()
     return notes

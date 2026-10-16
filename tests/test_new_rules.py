@@ -576,3 +576,68 @@ def test_first_move_can_be_any_square():
         await w.press(1, "p:go:n21")
         assert P(w, 1)["pos"] == "n21"
     run(go())
+
+
+# ---------------- damage rules ----------------
+
+def test_paris_vote_bonus_shrinks_with_damage():
+    g = World(seed=80).g
+    from zombiebot.state import new_player, assign_role
+    p = new_player(1, "a"); assign_role(p, "doctor"); p["pos"] = "paris"; g["players"]["1"] = p
+    g["phase"], g["cycle"], g["loc_damage"]["paris"] = "night", 1, 20
+    actions.lock_map(g)
+    assert actions.vote_weight(g, p) == 1.8
+
+
+def test_independents_in_damaged_monastery_take_that_share_of_attacks():
+    w = World(seed=81)
+    g = w.g
+    from zombiebot.state import new_player, assign_role
+    for i, (role, pos) in enumerate([("zombie", "n15"), ("yakuza", "n17"), ("clown", "wagram")], start=1):
+        p = new_player(i, f"P{i}"); assign_role(p, role); p["pos"] = p["night_pos"] = pos; g["players"][str(i)] = p
+    g["phase"], g["cycle"] = "night", 1
+    g["acts"] = {"1": [{"type": "attack", "target": "3", "extra": {}, "dice": [6, 6]}],
+                 "2": [{"type": "attack", "target": "3", "extra": {}, "dice": [6, 6]}]}
+    res = resolve_night(g)
+    assert not [e for e in res["effects"] if e["t"] in ("death", "damage")]      # 0% destroyed: safe
+    g["loc_damage"]["wagram"] = 50
+    res = resolve_night(g)
+    dmg = [e for e in res["effects"] if e["t"] == "damage"]
+    assert dmg and dmg[0]["amount"] == (26 + 25) // 2                              # half the attacks get through
+
+
+def test_taxi_radius_shrinks_and_ruins_close_everything():
+    g = World(seed=82).g
+    full = actions.taxi_targets(g)
+    assert len(full) == 14
+    g["loc_damage"]["london"] = 60
+    part = actions.taxi_targets(g)
+    assert "paris" in part and "moscow" not in part and 0 < len(part) < 14
+    g["loc_damage"]["london"] = 100
+    assert actions.taxi_targets(g) == []
+    from zombiebot.state import new_player, assign_role
+    p = new_player(1, "a"); assign_role(p, "doctor"); p["pos"] = "moscow"; p["coins"] = 50; g["players"]["1"] = p
+    g["loc_damage"]["moscow"] = 100
+    import pytest
+    with pytest.raises(actions.GameError):
+        actions.buy_unit(g, p, "spy_balloon")
+    from zombiebot.engine import night_stats
+    p["night_pos"] = "moscow"
+    s, _ = night_stats(g, p)
+    assert s["attack"] == 1 and s["stealth"] == 31          # Moscow's +4/+8 gone, base stats left
+
+
+def test_damaged_casino_pays_out_less():
+    async def go():
+        w = World(seed=83)
+        await setup(w, ["doctor", "spy"])
+        await next_step(w)
+        await place(w, 1, "stockholm"); await place(w, 2, "stockholm")
+        w.g["loc_damage"]["stockholm"] = 40
+        P(w, 1)["coins"], P(w, 2)["coins"] = 20, 20
+        await w.press(1, "p:bet"); await w.press(1, "p:bt:2:10")
+        b = w.g["bets"][0]
+        await w.press(2, f"x:ba:{b['id']}:1")
+        await w.press(1, f"x:rp:b:{b['id']}:r"); await w.press(2, f"x:rp:b:{b['id']}:s")
+        assert P(w, 2)["coins"] == 10 and P(w, 1)["coins"] == 26          # won 10, casino paid 60%
+    run(go())

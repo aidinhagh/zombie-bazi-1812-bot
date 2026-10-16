@@ -295,21 +295,23 @@ class Night:
             T = self.P(tid)
             if at_church(tid):
                 pct = self.g["loc_damage"].get("warsaw", 0)
-                d = d * pct // 100
+                d = d * pct // 100              # church: only the destroyed share of attacks gets through
+            elif team(T) == INDEP and at(tid, "indep_safe"):
+                pct = self.g["loc_damage"].get("wagram", 0)
+                d = d * pct // 100              # monastery protects independents the same way
             hp_mod = stats[tid][1]
             sh = shield.get(tid, 0)
             remaining = T["hp"] + hp_mod + sh - d
             loss = max(0, d - sh - max(0, hp_mod))
             who = ", ".join(f"{self.nm(a['by'])}:{a['power']}" for a in attacks if a["active"] and a["target"] == tid)
             hp_txt = f"{T['hp']}" + (f" ({hp_mod:+d} امشب)" if hp_mod else "")
-            church = " · در کلیسا" if at_church(tid) else ""
+            church = (" · در کلیسا" if at_church(tid) else
+                      " · مستقل در خانقاه" if team(T) == INDEP and at(tid, "indep_safe") else "")
             self.line(f"• {T['name']}: حمله‌ها {who} = {d}{church} | سپر {sh} | اچ‌پی {hp_txt} → {'☠️ می‌میرد' if T['hp'] + hp_mod + sh - d <= 0 else 'اچ‌پی ' + str(T['hp'] - max(0, d - sh - max(0, hp_mod)))}",
                       f"Attacks on {T['name']}: total {d} ({who}) | shield {sh} | hp {T['hp']}{hp_mod:+d}")
             if remaining <= 0 and tid not in dead_now:
-                if team(T) == INDEP and at(tid, "indep_safe"):
-                    self.eff("damage", f"{T['name']} (مستقل) در خانقاه نمی‌میرد؛ اچ‌پی به ۱ می‌رسد.",
-                             f"{T['name']} (independent) can't die in the monastery; hp drops to 1.",
-                             pid=tid, amount=max(0, T["hp"] - 1))
+                if False:
+                    pass
                 else:
                     self.eff("death", f"{T['name']} با {d} آسیب کشته شد.", f"{T['name']} is killed ({d} damage).",
                              pid=tid, cause="attack")

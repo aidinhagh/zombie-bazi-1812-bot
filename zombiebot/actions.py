@@ -97,12 +97,48 @@ def _tolls(g, p, squares):
     return out
 
 
+def damage(g, sq):
+    return g["loc_damage"].get(sq, 0) if sq else 0
+
+
+def ruined(g, sq):
+    """100% destroyed: no positive effect at all, and its shop, radio, taxi, casino, slots… are closed."""
+    return damage(g, sq) >= 100
+
+
+def intact(g, sq):
+    """The share of a place still standing, 0..1."""
+    return (100 - min(100, damage(g, sq))) / 100
+
+
+def _km(a, b):
+    import math
+    la1, lo1, la2, lo2 = map(math.radians, (a["lat"], a["lon"], b["lat"], b["lon"]))
+    h = math.sin((la2 - la1) / 2) ** 2 + math.cos(la1) * math.cos(la2) * math.sin((lo2 - lo1) / 2) ** 2
+    return 6371 * 2 * math.asin(math.sqrt(h))
+
+
+def taxi_targets(g):
+    """Cities the London taxi can reach. Its radius shrinks with London's damage: at 0% any city,
+    at 50% half the distance to the farthest city, at 100% no taxi at all."""
+    if ruined(g, "london"):
+        return []
+    lon = CITIES["london"]
+    far = max(_km(lon, c) for cid, c in CITIES.items() if cid != "london")
+    radius = far * intact(g, "london")
+    return [cid for cid, c in CITIES.items() if cid != "london" and _km(lon, c) <= radius + 1e-6]
+
+
 def taxi(g, p, dest):
     if not g["locked"] or p.get("night_pos") != "london":
         raise GameError("تاکسی فقط بعد از قفل نقشه و وقتی در لندن هستی کار می‌کنه.",
                         "The taxi works only after the map lock while you're in London.")
+    if ruined(g, "london"):
+        raise GameError("لندن کاملاً ویران شده؛ تاکسی کار نمی‌کند.")
     if dest not in CITIES:
         raise GameError("مقصد نامعتبر.", "Invalid destination.")
+    if dest not in taxi_targets(g):
+        raise GameError(f"لندن {damage(g, 'london')}٪ ویران است و تاکسی تا آنجا نمی‌رود.")
     if p["flags"].get("taxi_used"):
         raise GameError("امشب یک بار تاکسی گرفتی.", "You already took the taxi tonight.")
     p["pos"] = p["night_pos"] = dest
@@ -157,6 +193,8 @@ def slot_pull(g, p, value):
         limit, kind = 5, "berlin"
     else:
         raise GameError("اینجا ماشین اسلات نیست.", "There's no slot machine here.")
+    if ruined(g, loc):
+        raise GameError("این مکان کاملاً ویران شده و ماشین اسلات کار نمی‌کند.")
     s = p.get("slots") or {"kind": kind, "tries": 0, "hit": False, "done": False}
     if s["done"]:
         raise GameError("سهم امشبت از اسلات تموم شده.", "You've used tonight's slot pulls.")
@@ -177,6 +215,8 @@ def berlin_revive(g, p, target):
         raise GameError("تیم شما قبلاً یک نفر را زنده کرده.", "Your team has already revived someone.")
     if target["alive"] or target.get("unrevivable"):
         raise GameError("این بازیکن قابل احیا نیست.", "This player can't be revived.")
+    if ruined(g, "berlin"):
+        raise GameError("قبرستان برلین کاملاً ویران شده.")
     if not (p.get("slots") or {}).get("hit") or (p["slots"].get("kind") != "berlin"):
         raise GameError("اول باید در قبرستان سه‌تای یکسان بیاری.", "You need a three of a kind in the graveyard first.")
     target["alive"] = True
@@ -209,6 +249,8 @@ def buy_unit(g, p, unit):
     shop = LOCATIONS.get(p["pos"], {}).get("shop")
     if shop != unit:
         raise GameError("این آیتم اینجا فروخته نمی‌شه.", "That isn't sold here.")
+    if ruined(g, p["pos"]):
+        raise GameError("این شهر کاملاً ویران شده و فروشگاهش بسته است.")
     cost = UNIT_PRICES[unit]
     if p["coins"] < cost:
         raise GameError(f"سکه کافی نداری ({cost} لازمه).", f"Not enough coins ({cost} needed).")
@@ -399,16 +441,17 @@ def lock_map(g, rng=random):
             p["flags"]["wagram_roll"] = None    # the player throws a die: even = two acts tonight
             private.append((p["id"], "🎲 در خانقاه هستی: از منو تاس بریز — زوج بیاید امشب دو اکت داری.", ""))
         if "vote_plus" in fl:
-            p["flags"]["vote_mod"] = p["flags"].get("vote_mod", 0) + 1
+            # Paris: +1 vote, minus the destroyed share (20% destroyed → +0.8)
+            p["flags"]["vote_mod"] = round(p["flags"].get("vote_mod", 0) + intact(g, loc), 2)
         if "vote_minus" in fl:
             p["flags"]["vote_mod"] = p["flags"].get("vote_mod", 0) - 1
-        if "vienna_slots" in fl or "berlin_slots" in fl:
+        if ("vienna_slots" in fl or "berlin_slots" in fl) and not ruined(g, loc):
             private.append((p["id"], "ماشین اسلات منتظرته: /slots", "The slot machine awaits: /slots"))
-        if "taxi" in fl:
+        if "taxi" in fl and not ruined(g, loc):
             private.append((p["id"], "می‌تونی امشب مخفیانه با تاکسی جابه‌جا بشی: /taxi", "You may secretly take a taxi tonight: /taxi"))
-        if "radio" in fl:
+        if "radio" in fl and not ruined(g, loc):
             gm_notes.append((f"{p['name']} به رادیو دسترسی دارد.", f"{p['name']} has radio access."))
-        if "casino" in fl:
+        if "casino" in fl and not ruined(g, loc):
             private.append((p["id"], "در کازینو هستی: با /bet شرط ببند.", "You're in the casino: challenge someone with /bet."))
 
     # balloons launched this phase
