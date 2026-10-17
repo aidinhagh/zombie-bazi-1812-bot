@@ -156,7 +156,9 @@ async def post_public_map(bot):
         return
     pic = render(g, title=f"نقشه {phase_label('fa', g)}", reports=published_balloons(g))
     text = public_list(g, "fa")
-    await send_photo_and_list(bot, target, pic, text, to_player=False)
+    from . import outbox
+    await outbox.post(bot, "photo", "", data=pic.read(), chat=target)
+    await outbox.post(bot, "text", text, chat=target)
 
 
 async def send_move_map(bot, p):

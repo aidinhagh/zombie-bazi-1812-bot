@@ -160,6 +160,8 @@ async def do_lock(bot):
     g = G()
     if g["phase"] == "lobby" or g["locked"]:
         return
+    from . import artillery, artillery_bot
+    await artillery_bot.end_all(bot)          # yesterday's cannon duels end at this lock
     summary = actions.lock_map(g)
     save()
     for pid, fa, en in summary["private"]:
@@ -180,6 +182,9 @@ async def do_lock(bot):
     save()
     await mapview.post_public_map(bot)
     await events.legend_after_lock(bot)
+    fresh = artillery.start_battles(g)        # cannons sharing a square fight until the next lock
+    save()
+    await artillery_bot.announce_new(bot, fresh)
     for b in g["balloons"]:
         if b["publish"] and b.get("delivered") and not b.get("published"):
             b["published"] = True
@@ -274,6 +279,7 @@ def control_rows(uid):
             [(L(lang, "👥 بازیکنان", "👥 Players"), "g:players:0"), (L(lang, "🗺 نقشه", "🗺 Map"), "g:map")],
             [(L(lang, "🌙 اکت‌ها", "🌙 Acts"), "g:acts"), (L(lang, "🗳 رأی‌ها", "🗳 Votes"), "g:votes")],
             [(L(lang, "🎈 بالن و نبرد", "🎈 Balloons & battles"), "g:bal"), (L(lang, "🧪 آزمایشگاه", "🧪 Test lab"), "g:lab")],
+            [(f"📨 پیام‌های منتظر تأیید ({num(len([m for m in g.get('outbox', []) if m['status'] == 'waiting']))})", "g:obls")],
             [(L(lang, "⚙️ تنظیمات", "⚙️ Setup"), "g:setup"), (L(lang, "🔄 تازه کن", "🔄 Refresh"), "g:home")]]
     if g.get("test_mode") and g["phase"] != "lobby":
         rows.insert(1, [(L(lang, "⏩ اجرای خودکار تا شب بعد", "⏩ Auto-run to the next night"), "g:ff")])
@@ -467,6 +473,11 @@ def balloons_screen(lang):
             lines.append(L(lang, f"💣 بالن جنگی {pl(b['owner'])['name']} بر فراز {board.square_name(b['target'])}: درصد تخریب در مینی‌گیم؟",
                            f"💣 {pl(b['owner'])['name']}'s war balloon over {board.square_name(b['target'], 'en')}: % destroyed in the minigame?"))
             rows.append([(f"{num(x, lang)}٪" if lang == "fa" else f"{x}%", f"g:wb:{b['id']}:{x}") for x in (0, 20, 40, 60, 80, 100)])
+    from . import artillery
+    for b in artillery.battles(g)[-8:]:
+        st = {"live": "در جریان", "won": "تمام شد", "wiped": "همه منهدم", "draw": "بی‌نتیجه"}.get(b["status"], b["status"])
+        units = "، ".join(f"«{u['name']}» {num(u['hp'])}{'' if u['alive'] else '💥'} ({(g['players'].get(u['owner']) or {}).get('name', '?')})" for u in b["units"])
+        lines.append(f"⚔️ توپخانه · {artillery.city_fa(b)} · {st}: {units}")
     for f in g["battles"]:
         if f["status"] == "open":
             lines.append(L(lang, f"⚔️ نبرد در {board.square_name(f['square'])} — کدام نابود شد؟", f"⚔️ Battle at {board.square_name(f['square'], 'en')} — which one is destroyed?"))
@@ -638,6 +649,33 @@ async def handle(update, ctx, uid, head, args):
             await dm(bot, P["id"], f"🎭 گاد اسم {word} تو را عوض کرد: {P.get(field)}")
         save()
         return await edit_or_send(q, *player_card(P, lang))
+    if head == "ob":
+        from . import outbox
+        res = await outbox.decide(bot, args[0], args[1] == "1")
+        try:
+            await q.edit_message_reply_markup(None)
+        except Exception:
+            pass
+        await q.answer(res)
+        return
+    if head == "oball":
+        from . import outbox
+        n = await outbox.approve_all(bot)
+        try:
+            await q.edit_message_reply_markup(None)
+        except Exception:
+            pass
+        await q.answer(f"✅ {n} پیام ارسال شد.")
+        return
+    if head == "obls":
+        from . import outbox
+        waiting = outbox.pending()
+        if not waiting:
+            return await edit_or_send(q, "📨 پیامی منتظر تأیید نیست.", [home_btn(lang)])
+        rows = [[(f"✅ {(m['text'] or ('🖼 تصویر' if m['kind'] == 'photo' else '🎞 انیمیشن'))[:30]}", f"g:ob:{m['id']}:1"),
+                 ("❌", f"g:ob:{m['id']}:0")] for m in waiting[:20]]
+        rows.append([(f"✅ ارسال همه ({num(len(waiting))})", "g:oball")])
+        return await edit_or_send(q, "📨 پیام‌های ربات برای گروه که منتظر تأیید تو هستند:", rows + [home_btn(lang)])
     if head == "kick":
         P = pl(args[0])
         if not P:
@@ -746,7 +784,7 @@ async def handle(update, ctx, uid, head, args):
     if head == "noex":
         if (g.get("judgement") or {}).get("status") == "waiting":
             g["judgement"]["status"] = "done"
-        await group(bot, "🕊 امروز کسی اعدام نشد.", "🕊 Nobody was executed today.")
+        await group(bot, "🕊 امروز کسی اعدام نشد.", "🕊 Nobody was executed today.", bypass=True)
         g["closed_cycle"] = g["cycle"]
         save()
         return await send_control_room(bot, uid, q)

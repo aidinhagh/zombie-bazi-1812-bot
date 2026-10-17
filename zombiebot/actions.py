@@ -573,7 +573,8 @@ def lock_map(g, rng=random):
     for sq, lst in by_sq.items():
         kinds = [x["kind"] for x in lst]
         owners = {str(x["owner"]) for x in lst}
-        fight = (kinds.count("ship") >= 2 or kinds.count("cannon") >= 2 or
+        # two cannons on one square fight their own duel (artillery.py); the GM settles the rest
+        fight = (kinds.count("ship") >= 2 or
                  (any(k in ("ship", "cannon") for k in kinds) and any(k.endswith("balloon") for k in kinds)))
         if fight and len(owners) >= 2:
             g["battles"].append({"id": next_id(g, "f"), "square": sq, "units": lst, "status": "open", "cycle": g["cycle"]})

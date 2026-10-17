@@ -27,6 +27,7 @@ from .data.roles import ROLES
 HERE = os.path.dirname(__file__)
 PAGE = os.path.join(HERE, "webapp", "map.html")        # the 3D campaign map (built by tools/build_map_webapp.py)
 PAGE_2D = os.path.join(HERE, "webapp", "map2d.html")   # flat fallback for phones without WebGL
+PAGE_BATTLE = os.path.join(HERE, "webapp", "battle.html")   # the cannon duel (built by tools/build_battle_webapp.py)
 FONT = os.path.join(HERE, "Vazirmatn-Bold.ttf")
 _bot = None
 _token = None
@@ -207,6 +208,58 @@ async def h_move(request):
                               "tolls": [fa for pid, fa, _ in notes if str(pid) == str(p["id"])]})
 
 
+def viewer_from(request, data=None):
+    """Who opened the battle page: a player (or the GM playing as one), or the GM watching."""
+    init = request.headers.get("X-Init-Data") or (data or {}).get("init") or request.query.get("init", "")
+    user = verify_init_data(init, _token)
+    if not user:
+        raise web.HTTPUnauthorized(text="لطفاً صفحه را از داخل ربات باز کنید.")
+    from .common import is_gm
+    uid = int(user["id"])
+    p = pl(acting_uid(uid))
+    if p and p.get("role"):
+        return p, is_gm(uid)
+    if is_gm(uid):
+        return None, True
+    raise web.HTTPForbidden(text="نقشی نداری.")
+
+
+async def h_battle_page(request):
+    return web.FileResponse(PAGE_BATTLE, headers={"Cache-Control": "no-cache"})
+
+
+async def h_battle(request):
+    from . import artillery
+    p, gm = viewer_from(request)
+    b = artillery.find(G(), request.query.get("b", ""))
+    if not b:
+        return web.json_response({"error": "این نبرد پیدا نشد."}, status=404)
+    if not gm and not any(u["owner"] == str(p["id"]) for u in b["units"]):
+        return web.json_response({"error": "تو در این نبرد توپی نداری."}, status=403)
+    return web.json_response(artillery.view(G(), b, p))
+
+
+async def h_battle_shot(request):
+    from . import artillery, artillery_bot
+    data = await request.json()
+    p, _ = viewer_from(request, data)
+    g = G()
+    b = artillery.find(g, str(data.get("b", "")))
+    if not b or not p:
+        return web.json_response({"error": "این نبرد پیدا نشد."}, status=404)
+    try:
+        killed = artillery.record_shot(g, b, p, data)
+    except GameError as e:
+        return web.json_response({"error": e.text("fa")}, status=400)
+    save()
+    if _bot is not None:
+        try:
+            await artillery_bot.after_shot(_bot, b, killed)
+        except Exception as e:
+            logger.warning("after shot: %s", e)
+    return web.json_response(artillery.view(g, b, p))
+
+
 async def h_root(request):
     raise web.HTTPFound("/map")
 
@@ -225,6 +278,9 @@ def make_app():
     app.router.add_get("/api/state", h_state)
     app.router.add_post("/api/move", h_move)
     app.router.add_get("/health", h_health)
+    app.router.add_get("/battle", h_battle_page)
+    app.router.add_get("/api/battle", h_battle)
+    app.router.add_post("/api/battle/shot", h_battle_shot)
     return app
 
 

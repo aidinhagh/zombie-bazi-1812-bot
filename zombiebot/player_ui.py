@@ -85,7 +85,7 @@ def home_rows(p):
     if g["phase"] == "night":
         rows.append([(L(lang, "🌙 اکت شب", "🌙 Night act"), "p:act"), (L(lang, "🛒 خرید", "🛒 Shop"), "p:shop")])
     elif g["phase"] == "day":
-        rows.append([(L(lang, "🗳 رأی", "🗳 Vote"), "p:vote"), (L(lang, "🛒 خرید", "🛒 Shop"), "p:shop")])
+        rows.append([(L(lang, "🛒 خرید", "🛒 Shop"), "p:shop")])
     else:
         rows.append([(L(lang, "🛒 خرید", "🛒 Shop"), "p:shop")])
     bag = "🎒 کوله و آیتم‌ها" + (f" ({num(len(p['items']))})" if p["items"] else "")
@@ -440,27 +440,8 @@ async def handle(update, ctx, p, head, args):
         return await act_flow(update, ctx, p, head, args)
 
     # ----- voting -----
-    if head == "vote":
-        if g["phase"] != "day":
-            raise GameError("رأی‌گیری فقط در روز.", "Voting is only during the day.")
-        cur = g["votes"].get(str(p["id"]))
-        if cur:
-            text = L(lang, f"رأی امروزت به {pl(cur)['name']} ثبت شده. (فقط اولین رأی هر روز حساب می‌شه)",
-                     f"Your vote today is for {pl(cur)['name']}. (Only the first vote each day counts.)")
-            rows = [back(lang)]
-        else:
-            text = "به کی رأی می‌دی؟ فقط اولین رأی هر روز حساب می‌شه.\nمی‌تونی تو گروه هم بنویسی: #رای اسم"
-            rows = people_rows("p:v", alive_others(p), lang)
-        return await edit_or_send(q, text, rows)
-    if head == "v":
-        T = pl(args[0])
-        status, extra = await votes.vote_from_menu(bot, p, T)
-        msgs = {"ok": ("✅ رأی ثبت شد و در گروه اعلام شد.", "✅ Vote recorded and announced in the group."),
-                "lightning": ("⚡️ صاعقه! او در هتل است؛ رأیت شمرده نشد ولی می‌تونی دوباره رأی بدی.",
-                              "⚡️ Lightning! They're in the hotel; your vote didn't count, but you can vote again."),
-                "already": ("امروز قبلاً رأی دادی.", "You already voted today.")}
-        fa, en = msgs.get(status, votes.REFUSALS.get(status, ("نشد.", "Couldn't vote.")))
-        return await edit_or_send(q, L(lang, fa, en), [back(lang)])
+    if head in ("vote", "v"):
+        raise GameError("رأی فقط در گروه: بنویس #رای اسم", "Vote in the group: #رای name")
     # ----- place specials -----
     if head == "taxi":
         if not g["locked"] or p.get("night_pos") != "london":

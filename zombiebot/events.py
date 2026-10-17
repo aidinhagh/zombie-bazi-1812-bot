@@ -72,7 +72,7 @@ async def post_bomb(bot, bo):
     text = f"💣 بمب به {T['name']} رسید! {T['name']}، یکی از ۴ سیم را ببر:"
     gid = G()["group_id"]
     if gid:
-        await bot.send_message(gid, text, reply_markup=kb(rows))
+        await group(bot, text, None, reply_markup=kb(rows))
     else:
         await dm(bot, T["id"], text, reply_markup=kb(rows))
 
@@ -442,10 +442,10 @@ async def close_vote(bot, job_queue=None):
     one top name is executed and a tie executes everyone tied."""
     g = G()
     store.backup()
-    await group(bot, final_results_text(), None)
+    await group(bot, final_results_text(), None, bypass=True)
     cands = gallows()
     if not cands:
-        await group(bot, "🕊 امروز کسی اعدام نمی‌شود.", None)
+        await group(bot, "🕊 امروز کسی اعدام نمی‌شود.", None, bypass=True)
         return await close_day(bot)
     J = judge_for(cands)
     if not J:
@@ -454,7 +454,7 @@ async def close_vote(bot, job_queue=None):
                       "deadline": time.time() + JUDGE_HOURS * 3600, "status": "waiting"}
     save()
     names = "، ".join(pl(c)["name"] for c in cands)
-    await group(bot, f"⚖️ پرونده {names} به قاضی سپرده شد. قاضی {num(JUDGE_HOURS)} ساعت وقت دارد.", None)
+    await group(bot, f"⚖️ پرونده {names} به قاضی سپرده شد. قاضی {num(JUDGE_HOURS)} ساعت وقت دارد.", None, bypass=True)
     await dm(bot, J["id"], judge_text(g["judgement"]), reply_markup=kb(judge_rows(g["judgement"])))
     if job_queue is not None:
         job_queue.run_once(job_judge_timeout, JUDGE_HOURS * 3600, data=g["cycle"])
@@ -500,10 +500,10 @@ async def judge_press(bot, uid, what, q=None):
 
 async def carry_out(bot, chosen, note):
     if note:
-        await group(bot, note, None)
+        await group(bot, note, None, bypass=True)
     if not chosen:
         if not note:
-            await group(bot, "🕊 امروز کسی اعدام نشد.", None)
+            await group(bot, "🕊 امروز کسی اعدام نشد.", None, bypass=True)
     for c in chosen:
         await execute(bot, pl(c))
     await close_day(bot)
@@ -539,7 +539,8 @@ async def publish_balloon(bot, b):
     text = f"🎈 گزارش بالن جاسوسی «{b.get('name') or '?'}» بر فراز {board.square_name(b['target'])}: {names}"
     target = G()["channel_id"] or G()["group_id"]
     if target:
-        await bot.send_message(target, text)
+        from . import outbox
+        await outbox.post(bot, "text", text, chat=target)
 
 
 async def balloon_publish_choice(bot, uid, bid, yes, q=None):
@@ -636,6 +637,7 @@ def legend_bid_text(g, au, p):
     high = f"{num(au['high'])} سکه" if au["leader"] else "هنوز پیشنهادی نیست"
     return (f"🌟 مزایده مخفی آیتم لجندری «{it['fa']}» ({it['desc_fa']}).\n"
             f"کسی نمی‌فهمد چه کسانی در مزایده‌اند یا چه کسی پیشنهاد داده؛ فقط بالاترین پیشنهاد را می‌بینی.\n"
+            f"⏰ مزایده ساعت ۰۰:۰۰ بسته می‌شود؛ بالاترین پیشنهاد در آن لحظه برنده است.\n"
             f"📈 بالاترین پیشنهاد: {high}{lead}\n💰 سکه‌های تو: {num(p['coins'])}")
 
 
@@ -666,7 +668,7 @@ async def legend_after_lock(bot):
         au = legendary.state(g)["auction"]
         await legend_tell_bidders(bot, g, au)
         await gm_notes(bot, [(f"🌟 مزایده مخفی لجندری «{LEGENDARY[au['key']]['fa']}» بین {'، '.join(p['name'] for p in info)}. "
-                              "وقتی همه جز نفر اول کنار بکشند تمام می‌شود؛ یا خودت ببند: /legend close", "")])
+                              "ساعت ۰۰:۰۰ (یا وقتی همه جز نفر اول کنار بکشند) تمام می‌شود؛ یا خودت ببند: /legend close", "")])
 
 
 async def legend_bid(bot, uid, amount, q=None):

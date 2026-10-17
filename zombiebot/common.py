@@ -179,14 +179,13 @@ async def dm_photo(bot, uid, photo, caption=None, **kw):
         logger.warning("photo to %s failed: %s", uid, e)
 
 
-async def group(bot, fa, en, **kw):
+async def group(bot, fa, en, bypass=False, **kw):
+    """Post in the game group. Unless it's part of the voting (bypass=True), it waits for the GM's approval."""
     gid = G()["group_id"]
     if not gid:
         return None
-    try:
-        return await bot.send_message(gid, bi(fa, en), **kw)
-    except TelegramError as e:
-        logger.warning("group post failed: %s", e)
+    from . import outbox
+    return await outbox.post(bot, "text", bi(fa, en), reply_markup=kw.get("reply_markup"), bypass=bypass)
 
 
 async def to_gms(bot, text, reply_markup=None):

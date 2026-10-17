@@ -93,11 +93,11 @@ def test_control_room_walks_the_whole_cycle():
         await w.say(1, "#رای کیان")
         assert w.g["votes"]["1"] == "5"
         assert "⛔" in [m for m in w.sent if m.chat_id == GROUP and m.animation][-1].text
-        # menu vote posts in the group too
-        await w.press(5, "p:vote")
-        await w.press(5, "p:v:6")
+        # no voting in the bot's private chat: only #رای in the group
+        ans = await w.press(5, "p:v:6")
+        assert "5" not in w.g["votes"] and any("گروه" in (x or "") for x in ans)
+        await w.say(5, "#رای کیان")
         assert w.g["votes"]["5"] == "6"
-        assert any("نگار: #رای کیان" in t for t in w.texts_to(GROUP))
         # tally
         await w.say(6, "#رایگیری")
         assert any("🥇" in t for t in w.texts_to(GROUP))

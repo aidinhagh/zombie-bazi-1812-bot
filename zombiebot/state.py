@@ -34,6 +34,9 @@ def new_game():
         "duels": [],
         "bets": [],
         "battles": [],
+        "artillery": [],           # cannon duels (the Counter-Battery minigame)
+        "approve_group": True,     # group posts wait for the GM's ✅ (voting excepted)
+        "outbox": [],
         "votes": {},               # voter pid -> target pid
         "vote_cancelled": False,
         "log": [],

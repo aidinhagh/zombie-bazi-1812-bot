@@ -130,6 +130,7 @@ class World:
         random.seed(seed)
         common.store.path = os.path.join(tempfile.mkdtemp(), "state.json")
         common.store.g = new_game()
+        common.store.g["approve_group"] = False   # tests that check the approval flow switch it on
         common.ENV_GMS.clear()
         common.ENV_GMS.add(GM)
         votes.make_gif = _REAL_GIF if real_gifs else (lambda *a, **k: b"GIF89a-test")

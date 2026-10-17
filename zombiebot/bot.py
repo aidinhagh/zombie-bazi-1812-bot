@@ -138,6 +138,8 @@ async def job_midnight(ctx):
     g = G()
     if g["phase"] == "lobby":
         return
+    if (g.get("legend") or {}).get("auction"):
+        await events.legend_close(ctx.bot)      # the legendary auction runs 20:00 → 00:00
     for uid in common.gm_ids():
         lang = lang_of(uid)
         try:
@@ -293,6 +295,17 @@ async def cmd_backups(update, ctx):
     with open(os.path.join(d, name), encoding="utf8") as f:
         common.store.replace(json.load(f))
     await update.message.reply_text(f"✅ برگشت به {name[6:-5]}")
+
+
+@gm_cmd
+async def cmd_approve(update, ctx):
+    """/approve on|off — group posts wait for your ✅ (on) or go straight out (off)"""
+    g = G()
+    if ctx.args:
+        g["approve_group"] = ctx.args[0].lower() in ("on", "1", "yes", "روشن")
+        save()
+    await update.message.reply_text("📨 تأیید پیام‌های گروه: " + ("روشن ✅" if g.get("approve_group", True) else "خاموش")
+                                    + "\n/approve on · /approve off")
 
 
 @gm_cmd
@@ -452,7 +465,7 @@ def build_app(token):
     app = builder.concurrent_updates(True).post_init(web.start).build()
     cmds = {"start": cmd_start, "menu": player_ui.cmd_menu, "gm": cmd_gm, "lang": player_ui.cmd_lang, "help": cmd_help,
             "whoami": cmd_whoami, "setgroup": cmd_setgroup, "setchannel": cmd_setchannel, "nick": gm_ui.cmd_nick,
-            "delete": votes.cmd_delete, "assign": cmd_assign, "char": cmd_char, "legend": cmd_legend, "export": cmd_export, "backups": cmd_backups, "fakechar": cmd_fakechar, "hp": cmd_hp, "coins": cmd_coins, "pos": cmd_pos,
+            "delete": votes.cmd_delete, "assign": cmd_assign, "char": cmd_char, "legend": cmd_legend, "approve": cmd_approve, "export": cmd_export, "backups": cmd_backups, "fakechar": cmd_fakechar, "hp": cmd_hp, "coins": cmd_coins, "pos": cmd_pos,
             "give": cmd_give, "unit": cmd_unit, "charge": cmd_charge, "route": cmd_route, "dig": cmd_dig,
             "damage": cmd_damage, "actadd": cmd_actadd, "story": cmd_story, "say": cmd_say, "log": cmd_log,
             "undo": cmd_undo}
@@ -468,6 +481,8 @@ def build_app(token):
     jq = app.job_queue
     jq.run_daily(job_lock, time=datetime.time(LOCK_HOUR, 0, tzinfo=TZ), name="lock")
     jq.run_daily(job_midnight, time=datetime.time(0, 0, tzinfo=TZ), name="midnight")
+    from . import artillery_bot
+    jq.run_repeating(artillery_bot.job_check, interval=60, first=30, name="artillery")
     return app
 
 
