@@ -188,7 +188,8 @@ async def cmd_assign(update, ctx):
     give_characters(G())
     save()
     await update.message.reply_text(f"✅ {p['name']} = {role_name(p['role'])}")
-    await common.dm(ctx.bot, p["id"], role_card(p, "fa"), role_card(p, "en"))
+    p["published"] = False
+    save()
 
 
 async def _set_char(update, ctx, field):

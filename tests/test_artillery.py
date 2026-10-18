@@ -205,3 +205,27 @@ def test_legendary_auction_closes_at_midnight():
         await B.job_midnight(Ctx())
         assert not L["auction"] and "fouche_cipher" in P(w, 1)["legend"] and P(w, 1)["coins"] == 17
     run(go())
+
+
+def test_roles_go_out_only_on_publish_and_zombies_know_each_other():
+    async def go():
+        from tests.test_bot_flow import NAMES
+        w = World(seed=95)
+        await w.cmd(GM, "setgroup", chat_type="group", chat_id=GROUP)
+        for i, role in enumerate(["zombie", "godfather", "doctor"], start=1):
+            name, user = NAMES[i]
+            await w.cmd(i, "start", user=w.user(i, name, user))
+            await w.press(GM, f"g:sr:{i}:{role}")
+        assert not any("نقش شما" in t for i in (1, 2, 3) for t in w.texts_to(i))
+        await w.press(GM, "g:next")
+        assert w.g["phase"] == "lobby"                     # can't start before publishing
+        await w.press(GM, "g:chn:1:char")
+        await w.dm_text(GM, "مارشال نی")
+        await w.press(GM, "g:pub")
+        assert all(any("نقش شما" in t for t in w.texts_to(i)) for i in (1, 2, 3))
+        z = [t for t in w.texts_to(1) if "تیم زامبی" in t][-1]
+        assert P(w, 2)["name"] in z and "مارشال نی" in z and P(w, 3)["name"] not in z
+        assert any("تیم زامبی" in t for t in w.texts_to(2)) and not any("تیم زامبی" in t for t in w.texts_to(3))
+        await w.press(GM, "g:next")
+        assert w.g["phase"] == "night"
+    run(go())

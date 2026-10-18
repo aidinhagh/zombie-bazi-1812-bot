@@ -20,6 +20,7 @@ async def setup(w, roles):
         await w.cmd(i, "start", user=w.user(i, name, user))
         await w.press(GM, f"g:sr:{i}:{role}")
     assert all(p["role"] for p in w.g["players"].values())
+    await w.press(GM, "g:pub")                          # roles go out only when the GM publishes
 
 
 async def place(w, i, city):

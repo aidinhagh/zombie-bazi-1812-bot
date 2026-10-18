@@ -54,6 +54,7 @@ def make_test_game(gm_uid):
         uid = -(i + 1)
         P = new_player(uid, name, user)
         P["fake"] = True
+        P["published"] = True
         P["lang"] = lang_of(gm_uid)
         assign_role(P, role)
         if role == "godfather":
@@ -212,6 +213,9 @@ def next_step(g):
             return ("players", "👥 اول بازیکن‌ها و نقش‌ها", "👥 Players and roles first",
                     "هنوز کسی نقش ندارد. بازیکن‌ها /start بزنند و از «بازیکنان» نقش بده — یا از «آزمایشگاه» یک بازی تست بساز.",
                     "Nobody has a role yet. Players send /start and you give roles under Players — or build a test game in the Test lab.")
+        if any(not p.get("published") for p in with_role):
+            return ("players", "📣 اول نقش‌ها را منتشر کن", "📣 Publish the roles first",
+                    "نقش، اسم شخصیت و شخصیت جعلی هر کس را از «بازیکنان» تنظیم کن، بعد «📣 انتشار نقش‌ها» را بزن.", "")
         return ("night", "🌙 شروع شب ۱", "🌙 Start night 1", "همه آماده‌اند؟ شب اول شروع می‌شود.", "Everyone ready? This starts night 1.")
     c = g["cycle"]
     if g["phase"] == "night":
@@ -332,6 +336,12 @@ def players_screen(lang, page):
     rows.append(nav)
     if no_role:
         rows.append([(L(lang, "🎲 نقش تصادفی برای بی‌نقش‌ها", "🎲 Random roles for the rest"), "g:rnd")])
+    unpub = [p for p in people if p.get("role") and not p.get("published")]
+    if unpub:
+        text += f"\n📣 {num(len(unpub))} نفر هنوز نقششان را نگرفته‌اند (نقش و اسم شخصیت را تنظیم کن، بعد منتشر کن)."
+        rows.append([(f"📣 انتشار نقش‌ها ({num(len(unpub))})", "g:pub")])
+    elif any(p.get("role") for p in people):
+        rows.append([("📣 ارسال دوباره نقش به همه", "g:pub:all")])
     rows.append(home_btn(lang))
     return text, rows
 
@@ -594,7 +604,7 @@ async def handle(update, ctx, uid, head, args):
             assign_role(P, args[1])
             give_characters(g)
             save()
-            await dm(bot, P["id"], role_card(P, "fa"), role_card(P, "en"))
+            P["published"] = False
         elif head == "mv":
             rows = chunks([(LOCATIONS[c][lang][:20], f"g:pos:{P['id']}:{c}") for c in CITIES], 2)
             return await edit_or_send(q, L(lang, f"{P['name']} را کجا بگذارم؟ (برای خانه‌های بین شهرها: /pos اسم n15)",
@@ -676,6 +686,12 @@ async def handle(update, ctx, uid, head, args):
                  ("❌", f"g:ob:{m['id']}:0")] for m in waiting[:20]]
         rows.append([(f"✅ ارسال همه ({num(len(waiting))})", "g:oball")])
         return await edit_or_send(q, "📨 پیام‌های ربات برای گروه که منتظر تأیید تو هستند:", rows + [home_btn(lang)])
+    if head == "pub":
+        give_characters(g)
+        n = await publish_roles(bot, everyone=bool(args and args[0] == "all"))
+        save()
+        await q.answer(f"📣 نقش برای {n} نفر فرستاده شد.")
+        return await edit_or_send(q, *players_screen(lang, 0))
     if head == "kick":
         P = pl(args[0])
         if not P:
@@ -691,7 +707,7 @@ async def handle(update, ctx, uid, head, args):
         for P in [p for p in roster(g) if not p.get("role")]:
             assign_role(P, roles.pop() if roles else "doctor")
             give_characters(g)
-            await dm(bot, P["id"], role_card(P, "fa"), role_card(P, "en"))
+            P["published"] = False
         save()
         return await edit_or_send(q, *players_screen(lang, 0))
 
@@ -1060,3 +1076,37 @@ async def on_gm_text(update, ctx):
     text, rows = player_card(P, lang)
     await update.message.reply_text(f"✅ {word} {P['name']}: {name}\n\n" + text, reply_markup=kb(rows))
     return True
+
+
+def zombie_list_text(g):
+    """Zombies know each other: every zombie gets the whole team — player, role and story character."""
+    from .data.roles import ZOMBIE
+    team_ = [p for p in roster(g) if p.get("role") and ROLES[p["role"]]["team"] == ZOMBIE]
+    lines = ["🧟 تیم زامبی‌ها (همدیگر را می‌شناسید):"]
+    for p in team_:
+        lines.append(f"• {p['name']} — {role_name(p['role'])} — 🎭 {p.get('char') or '؟'}"
+                     + (f" (جعلی: {p['fake_char']})" if p.get("fake_char") else "") + ("" if p["alive"] else " ☠️"))
+    return "\n".join(lines)
+
+
+async def publish_roles(bot, everyone=False):
+    """Send each player their role card (role, story character, fake character) and the zombies their team list."""
+    from .data.roles import ZOMBIE
+    g = G()
+    sent = 0
+    zlist = zombie_list_text(g)
+    for p in roster(g):
+        if not p.get("role") or (p.get("published") and not everyone):
+            continue
+        await dm(bot, p["id"], role_card(p, "fa"), role_card(p, "en"))
+        if ROLES[p["role"]]["team"] == ZOMBIE:
+            await dm(bot, p["id"], zlist)
+        p["published"] = True
+        sent += 1
+    # zombies who already had their card hear about new teammates too
+    if sent and not everyone:
+        for p in roster(g):
+            if p.get("role") and ROLES[p["role"]]["team"] == ZOMBIE and p.get("published") and p["alive"]:
+                await dm(bot, p["id"], "🔄 " + zlist)
+    save()
+    return sent
