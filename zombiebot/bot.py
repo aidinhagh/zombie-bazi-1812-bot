@@ -452,6 +452,18 @@ async def on_error(update, ctx):
     logger.exception("error", exc_info=ctx.error)
 
 
+async def _post_init(app):
+    try:
+        n = actions.repair_half_applied(G())
+        if n:
+            save()
+            logger.warning("night result was half-applied %sx; undone so the GM can apply it once", n)
+    except Exception as e:
+        logger.warning("repair check failed: %s", e)
+    from . import web
+    await web.start(app)
+
+
 def build_app(token):
     builder = Application.builder().token(token)
     try:
@@ -463,7 +475,7 @@ def build_app(token):
         pass
     # a post waiting for its turn in the group must never hold up everyone else's buttons
     from . import web
-    app = builder.concurrent_updates(True).post_init(web.start).build()
+    app = builder.concurrent_updates(True).post_init(_post_init).build()
     cmds = {"start": cmd_start, "menu": player_ui.cmd_menu, "gm": cmd_gm, "lang": player_ui.cmd_lang, "help": cmd_help,
             "whoami": cmd_whoami, "setgroup": cmd_setgroup, "setchannel": cmd_setchannel, "nick": gm_ui.cmd_nick,
             "delete": votes.cmd_delete, "assign": cmd_assign, "char": cmd_char, "legend": cmd_legend, "approve": cmd_approve, "export": cmd_export, "backups": cmd_backups, "fakechar": cmd_fakechar, "hp": cmd_hp, "coins": cmd_coins, "pos": cmd_pos,

@@ -315,3 +315,28 @@ def test_bought_powers_are_permanent():
     p["bought"] = {"spy": 1}                              # an old one-night purchase becomes permanent at night's end
     actions.end_night(g)
     assert p["perm_stats"] == {"attack": 2, "spy": 1}
+
+
+def test_apply_with_old_purchases_and_repair_of_a_half_applied_night():
+    from zombiebot import actions
+    from zombiebot.engine import resolve_night
+    from zombiebot.state import new_game, new_player, assign_role
+    import copy
+    g = new_game(); g["phase"] = "night"; g["cycle"] = 1
+    for i, r in ((1, "zombie"), (2, "doctor")):
+        p = new_player(i, f"P{i}"); assign_role(p, r); p["pos"] = p["night_pos"] = f"n{13 + 2 * i}"; g["players"][str(i)] = p
+    g["players"]["2"]["bought"] = {"attack": 4}            # an old-style purchase, no perm_stats yet
+    g["acts"] = {"1": [{"type": "attack", "target": "2", "dice": [3, 3], "extra": {}}]}
+    res = resolve_night(g); g["pending"] = res
+    hp0 = g["players"]["2"]["hp"]
+    clean = copy.deepcopy(g)
+    actions.apply_effects(g, res)                          # used to crash on 'perm_stats'
+    assert g["players"]["2"]["perm_stats"]["attack"] == 4 and g["players"]["2"]["hp"] == hp0 - 20
+    # a night applied twice without finishing is undone at start-up
+    g2 = copy.deepcopy(clean)
+    for _ in range(2):
+        for e in res["effects"]:
+            if e["t"] == "damage":
+                g2["players"][str(e["pid"])]["hp"] -= e["amount"]
+    assert actions.repair_half_applied(g2) == 2 and g2["players"]["2"]["hp"] == hp0
+    assert actions.repair_half_applied(copy.deepcopy(clean)) == 0

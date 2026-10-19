@@ -676,6 +676,50 @@ def apply_effects(g, result):
     return out
 
 
+def repair_half_applied(g):
+    """Undo a night result that was applied but crashed before finishing (the GM can then apply it once).
+    Counts how many times the damage went in, from the 'before' hp written in each damage line."""
+    import re
+    res = g.get("pending")
+    if not res or g.get("applied_cycle") == g["cycle"]:
+        return 0
+    times = 0
+    for e in res["effects"]:
+        if e.get("on") and e["t"] == "damage" and e.get("amount"):
+            m = re.search(r"\((\d+)→", e["fa"])
+            P = g["players"].get(str(e.get("pid")))
+            if m and P:
+                times = max(times, round((int(m.group(1)) - P["hp"]) / e["amount"]))
+    if times <= 0:
+        return 0
+    cyc = g["cycle"]
+    for e in res["effects"]:
+        if not e.get("on"):
+            continue
+        P = g["players"].get(str(e.get("pid"))) if e.get("pid") is not None else None
+        t = e["t"]
+        if t == "damage" and P:
+            P["hp"] += e["amount"] * times
+        elif t == "charge" and P:
+            P["charges"][e["key"]] = P["charges"].get(e["key"], 0) - e["delta"] * times
+        elif t == "bullet" and P:
+            for _ in range(times):
+                if e["kind"] in P["bullets"]:
+                    P["bullets"].reverse(); P["bullets"].remove(e["kind"]); P["bullets"].reverse()
+        elif t == "death" and P and not P["alive"] and P.get("death_cycle") == cyc:
+            P["alive"] = True
+        elif t == "lose_item" and P:
+            T = g["players"].get(str(e["to"]))
+            if T and e["item"] in T["items"] and e["item"] not in P["items"]:
+                T["items"].remove(e["item"]); P["items"].append(e["item"])
+    g["poisons"] = [x for x in g["poisons"] if not (x.get("cycle") == cyc and x["status"] == "pending")]
+    g["bombs"] = [x for x in g["bombs"] if not (x.get("cycle") == cyc and x["status"] == "armed")]
+    pairs = {(e["a"], e["b"]) for e in res["effects"] if e.get("on") and e["t"] == "duel"}
+    g["duels"] = [x for x in g["duels"] if not (x["status"] == "pending" and (x["a"], x["b"]) in pairs)]
+    log(g, f"repaired a half-applied night result (applied {times}x)")
+    return times
+
+
 def kill(g, P, cause=None, unrevivable=False):
     P["alive"] = False
     P["death_cycle"] = g["cycle"]
@@ -718,7 +762,8 @@ def set_fake_pos(g, p, sq):
 def end_night(g):
     for p in g["players"].values():
         for k, v in (p.get("bought") or {}).items():    # purchases made before powers became permanent
-            p.setdefault("perm_stats", {})[k] = p["perm_stats"].get(k, 0) + v
+            ps = p.setdefault("perm_stats", {})
+            ps[k] = ps.get(k, 0) + v
         p["boost"] = {}
         p["bought"] = {}
         for k in ("ignore_neg", "hide", "taxi_used") + TONIGHT_FLAGS:

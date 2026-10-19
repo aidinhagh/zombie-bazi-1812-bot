@@ -767,7 +767,13 @@ async def handle(update, ctx, uid, head, args):
         if not res:
             return await send_control_room(bot, uid, q)
         store.backup()
-        out = actions.apply_effects(g, res)
+        import copy
+        before = copy.deepcopy(g)
+        try:
+            out = actions.apply_effects(g, res)
+        except Exception:
+            g.clear(); g.update(before)          # all or nothing: never leave a night half-applied
+            raise
         g["applied_cycle"] = g["cycle"]
         save()
         await events.send_outbox(bot, out)
