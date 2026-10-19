@@ -591,10 +591,9 @@ def pending_for(p):
     g = G()
     pid = str(p["id"])
     out = []
-    if g["phase"] == "day":
-        for po in g["poisons"]:
-            if str(po["by"]) == pid and po["status"] in ("pending", "doomed"):
-                out.append((f"🧪 پادزهر برای {name_of(po['target'])}؟", antidote_rows(po)))
+    for po in g["poisons"]:      # from the moment the poison lands until the next night begins
+        if str(po["by"]) == pid and po["status"] in ("pending", "doomed"):
+            out.append((f"🧪 پادزهر برای {name_of(po['target'])}؟", antidote_rows(po)))
     for d in g["duels"]:
         if d["status"] == "live" and pid in (d["a"], d["b"]) and pid not in d["picks"]:
             out.append(("⚖️ حرکت دوئل", rps_rows("d", d["id"])))
