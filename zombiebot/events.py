@@ -15,6 +15,13 @@ from .data.legendary import LEGENDARY
 from .state import alive_players, team
 
 RPS = {"r": "✊ سنگ", "p": "✋ کاغذ", "s": "✌️ قیچی"}
+# the judge's duel uses the warriors' game from the rayzombie bot: attack beats trick, defend beats attack, trick beats defend
+DUEL_MOVES = {"r": "⚔️ حمله", "p": "🛡 دفاع", "s": "🌀 حیله"}
+DUEL_GIF_MOVE = {"r": "attack", "p": "defend", "s": "trick"}
+
+
+def move_name(kind, c):
+    return (DUEL_MOVES if kind == "d" else RPS)[c]
 BEATS = {"r": "s", "p": "r", "s": "p"}
 JUDGE_HOURS = 2
 
@@ -173,7 +180,7 @@ async def resolve_poisons(bot):
 # ---------------- rock-paper-scissors: judge duels and casino bets ----------------
 
 def rps_rows(kind, gid):
-    return [[(RPS[c], f"x:rp:{kind}:{gid}:{c}") for c in "rps"]]
+    return [[(move_name(kind, c), f"x:rp:{kind}:{gid}:{c}") for c in "rps"]]
 
 
 async def ask_rps(bot, kind, game, round_no=None):
@@ -182,9 +189,24 @@ async def ask_rps(bot, kind, game, round_no=None):
         await dm(bot, game[side], title, reply_markup=kb(rps_rows(kind, game["id"])))
 
 
+async def post_duel_gif(bot, A, B, ca, cb):
+    """The round, fought out by the two robed warriors (rayzombie's duel animation), posted to the group."""
+    import asyncio
+    from . import duel_gif, outbox
+    try:
+        gif = await asyncio.to_thread(duel_gif.make_duel_gif, A["name"], B["name"], DUEL_GIF_MOVE[ca], DUEL_GIF_MOVE[cb],
+                                      random.randrange(9999))
+    except Exception as e:
+        logger.warning("duel gif failed: %s", e)
+        return
+    cap = (f"⚖️ دوئل: {A['name']} ({DUEL_MOVES[ca]}) در برابر {B['name']} ({DUEL_MOVES[cb]})"
+           + (" — مساوی" if ca == cb else ""))
+    await outbox.post(bot, "animation", cap, data=gif, filename="duel.gif")
+
+
 async def start_duel(bot, du):
     A, B = pl(du["a"]), pl(du["b"])
-    await group(bot, f"⚖️ به حکم قاضی، امروز {A['name']} و {B['name']} دوئل می‌کنند (۳ راند، بازنده هر راند −۱۰ اچ‌پی).", None)
+    await group(bot, f"⚖️ به حکم قاضی، امروز {A['name']} و {B['name']} دوئل می‌کنند (۳ راند حمله/دفاع/حیله؛ بازنده هر راند −۱۰ اچ‌پی).", None)
     du["status"] = "live"
     save()
     await ask_rps(bot, "d", du, 1)
@@ -238,12 +260,14 @@ async def rps_pick(bot, uid, kind, gid, choice, q=None):
         raise GameError("قبلاً انتخاب کردی.")
     game["picks"][uid] = choice
     save()
-    await say_to(q, f"انتخاب: {RPS[choice]} — منتظر حریف…")
+    await say_to(q, f"انتخاب: {move_name(kind, choice)} — مخفی ماند؛ منتظر حریف…")
     if len(game["picks"]) < 2:
         return
     ca, cb = game["picks"][game["a"]], game["picks"][game["b"]]
     game["picks"] = {}
     A, B = pl(game["a"]), pl(game["b"])
+    if kind == "d":
+        await post_duel_gif(bot, A, B, ca, cb)
     if ca == cb:
         save()
         for x in (A, B):
@@ -266,7 +290,7 @@ async def rps_pick(bot, uid, kind, gid, choice, q=None):
     game.setdefault("rounds", []).append(lose["id"])
     lose["hp"] -= 10
     n = len(game["rounds"])
-    await group(bot, f"⚖️ راند {num(n)}: {A['name']} {RPS[ca]} / {B['name']} {RPS[cb]} → {lose['name']} −۱۰ اچ‌پی", None)
+    await group(bot, f"⚖️ راند {num(n)}: {A['name']} {DUEL_MOVES[ca]} / {B['name']} {DUEL_MOVES[cb]} → {lose['name']} −۱۰ اچ‌پی", None)
     if lose["hp"] <= 0:
         actions.kill(g, lose, "duel")
         game["status"] = "done"
