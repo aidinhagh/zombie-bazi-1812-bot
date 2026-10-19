@@ -291,12 +291,10 @@ def test_monastery_die_before_lock_and_war_balloon_after_lock(monkeypatch):
         await next_step(w)
         await place(w, 1, "wagram"); await place(w, 2, "paris")
         await w.press(1, "p:home")
-        assert "p:wroll" in w.last_to(1).buttons()            # no need to wait for 20:00
-        w.forced_dice = [4]
-        await w.press(1, "p:wroll")
-        assert P(w, 1)["double_act"]
+        assert "p:wroll" not in w.last_to(1).buttons()        # the monastery die comes after 20:00
         await gm_ui.do_lock(w.bot)
-        assert P(w, 1)["double_act"] and P(w, 1)["flags"]["wagram_roll"] == 4   # kept at the lock
+        await w.press(1, "p:home")
+        assert "p:wroll" in w.last_to(1).buttons()
         await w.press(2, "p:ubt:war:milan")                     # after 20:00 a war balloon still flies
         b = w.g["balloons"][-1]
         assert b["result"] == "await_pct"

@@ -97,7 +97,7 @@ def home_rows(p):
         extra.append((L(lang, "🚕 تاکسی", "🚕 Taxi"), "p:taxi"))
     if g["phase"] == "night" and g["locked"] and set(flags_at(here)) & {"vienna_slots", "berlin_slots"} and not (p.get("slots") or {}).get("done"):
         extra.append((L(lang, "🎰 اسلات", "🎰 Slots"), "p:slots"))
-    if (g["phase"] == "night" and "double_act_50" in flags_at(here)
+    if (g["phase"] == "night" and g["locked"] and "double_act_50" in flags_at(here)
             and p["flags"].get("wagram_roll") is None):
         extra.append(("🎲 تاس خانقاه", "p:wroll"))
     if g["phase"] == "day" and p["bullets"]:
