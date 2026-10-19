@@ -61,7 +61,7 @@ BODY = """<div id="gTop"><div id="gWho"><b id="gName">…</b><span class="role" 
 GAME = r"""
 /* ================= Zombie Bazi game layer ================= */
 const TG = window.Telegram && Telegram.WebApp; if (TG) { try { TG.ready(); TG.expand(); } catch (e) {} }
-const INIT = (TG && TG.initData) || new URLSearchParams(location.search).get("init") || "";
+const INIT = (TG && TG.initData) || new URLSearchParams(location.hash.slice(1)).get('tgWebAppData') || new URLSearchParams(location.search).get("init") || "";
 const FA = n => String(n).replace(/\d/g, d => "۰۱۲۳۴۵۶۷۸۹"[d]);
 const G = {S: null, markers: [], token: null, chosen: null, busy: false};
 async function gApi(path, opts = {}) {

@@ -2119,7 +2119,7 @@ const TG = window.Telegram && window.Telegram.WebApp;
 if (TG) { try { TG.ready(); TG.expand(); } catch (e) { /* ignore */ } }
 const NET = { b: new URLSearchParams(location.search).get('b'), S: null, rec: null, myTurn: false, status: 'live', applied: 0, deadline: 0, sending: false, playing: false };
 const FA = n => String(n).replace(/\d/g, d => '۰۱۲۳۴۵۶۷۸۹'[d]);
-function netInitData() { return (TG && TG.initData) || new URLSearchParams(location.search).get('init') || ''; }
+function netInitData() { return (TG && TG.initData) || new URLSearchParams(location.hash.slice(1)).get('tgWebAppData') || new URLSearchParams(location.search).get('init') || ''; }
 async function netApi(path, body) {
   const opt = { headers: { 'X-Init-Data': netInitData() } };
   if (body) { opt.method = 'POST'; opt.headers['Content-Type'] = 'application/json'; opt.body = JSON.stringify(body); }

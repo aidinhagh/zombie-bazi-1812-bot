@@ -78,7 +78,7 @@ svg{width:100%;height:100%;display:block;user-select:none}
 <div id="msg"><div class="card"><h3 id="mTitle"></h3><p id="mText"></p><button class="btn gold" id="mBtn">بستن</button></div></div>
 <script>
 const tg = window.Telegram && Telegram.WebApp; if (tg) { tg.ready(); tg.expand(); }
-const INIT = (tg && tg.initData) || new URLSearchParams(location.search).get("init") || "";
+const INIT = (tg && tg.initData) || new URLSearchParams(location.hash.slice(1)).get('tgWebAppData') || new URLSearchParams(location.search).get("init") || "";
 const FA = n => String(n).replace(/\d/g, d => "۰۱۲۳۴۵۶۷۸۹"[d]);
 const LON0=-11.5, LON1=41.5, LAT0=37.0, LAT1=62.4, W=1800, K=Math.cos(50*Math.PI/180);
 const H = W*(LAT1-LAT0)/((LON1-LON0)*K);
