@@ -214,7 +214,8 @@ def viewer_from(request, data=None):
     init = request.headers.get("X-Init-Data") or (data or {}).get("init") or request.query.get("init", "")
     user = verify_init_data(init, _token)
     if not user:
-        raise web.HTTPUnauthorized(text="لطفاً صفحه را از داخل ربات باز کنید.")
+        logger.warning("web app auth failed on %s: %s", request.path, "no initData" if not init else "bad initData (%d chars)" % len(init))
+        raise web.HTTPUnauthorized(text="لطفاً صفحه را از دکمه داخل ربات باز کنید (نه از لینک).")
     from .common import is_gm
     uid = int(user["id"])
     p = pl(acting_uid(uid))

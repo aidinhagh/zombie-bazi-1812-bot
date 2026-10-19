@@ -24,10 +24,10 @@ NET = r"""
  sb.disabled=true;note.textContent='⏳ در حال گرفتن مأموریت از ربات…';
  let sent=false;
  api('/api/balloon?b='+encodeURIComponent(bid||'')).then(S=>{
-  if(S.done){note.textContent='این بمباران قبلاً انجام شده: '+S.done;return;}
+  if(S.done){note.textContent='⛔ '+(S.done.indexOf('٪')>=0?'این بمباران قبلاً انجام شده: '+S.done:S.done);sb.textContent='فعلاً نمی‌شود پرواز کرد';return;}
   SEL.city=S.city;SEL.t=S.time;SEL.w=S.weather;SEL.d='normal';$('prevDmg').value=S.prev;
   renderTitle();build();note.textContent=`🎯 هدف: ${S.city_fa} · ویرانی فعلی ${fa(S.prev)}٪ · فقط یک بار می‌توانی پرواز کنی.`;sb.disabled=false;
- }).catch(e=>{note.textContent='⚠️ '+e.message;});
+ }).catch(e=>{note.textContent='⚠️ '+e.message;sb.textContent='خطا — صفحه را از دکمه ربات باز کن';});
  const _end=endGame;
  endGame=function(){const was=G.state;_end();if(was!=='play'||sent)return;sent=true;
   api('/api/balloon/result',{b:bid,pct:raidPct(),shot:G.reason==='shot'}).then(()=>{$('reportText').textContent='✅ نتیجه به ربات رسید.\n\n'+$('reportText').textContent;})
