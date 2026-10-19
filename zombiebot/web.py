@@ -27,6 +27,7 @@ from .data.roles import ROLES
 HERE = os.path.dirname(__file__)
 PAGE = os.path.join(HERE, "webapp", "map.html")        # the 3D campaign map (built by tools/build_map_webapp.py)
 PAGE_2D = os.path.join(HERE, "webapp", "map2d.html")   # flat fallback for phones without WebGL
+PAGE_BALLOON = os.path.join(HERE, "webapp", "balloon.html")   # the war-balloon raid (tools/build_balloon_webapp.py)
 PAGE_BATTLE = os.path.join(HERE, "webapp", "battle.html")   # the cannon duel (built by tools/build_battle_webapp.py)
 FONT = os.path.join(HERE, "Vazirmatn-Bold.ttf")
 _bot = None
@@ -260,6 +261,63 @@ async def h_battle_shot(request):
     return web.json_response(artillery.view(g, b, p))
 
 
+def balloon_time(city):
+    import time as _t
+    from .board import CITIES as _C
+    h = (_t.time() / 3600.0 + _C[city]["lon"] / 15.0) % 24
+    for lo, hi, k in ((5, 7.5, "dawn"), (7.5, 11.5, "morning"), (11.5, 14.5, "noon"), (14.5, 17, "afternoon"), (17, 19.5, "sunset")):
+        if lo <= h < hi:
+            return k
+    return "night"
+
+
+def _my_balloon(request, data=None):
+    p, gm = viewer_from(request, data)
+    bid = (data or {}).get("b") or request.query.get("b", "")
+    b = next((x for x in G()["balloons"] if x["id"] == str(bid) and x["kind"] == "war"), None)
+    if not b:
+        raise web.HTTPNotFound(text="این بالن پیدا نشد.")
+    if not gm and (not p or str(b["owner"]) != str(p["id"])):
+        raise web.HTTPForbidden(text="این بالن مال تو نیست.")
+    return p, b
+
+
+async def h_balloon_page(request):
+    return web.FileResponse(PAGE_BALLOON, headers={"Cache-Control": "no-cache"})
+
+
+async def h_balloon(request):
+    from . import artillery
+    from .data.locations import CITY_SHORT
+    p, b = _my_balloon(request)
+    g = G()
+    city = b["target"] if b["target"] in CITIES else artillery.city_for(b["target"])
+    if not b.get("weather"):
+        b["weather"] = artillery.roll_weather(city)
+        save()
+    done = f"{num(b['pct'])}٪" if b.get("pct") is not None else (None if b["result"] == "await_pct" else "هنوز وقتش نرسیده (بعد از ساعت ۸)")
+    return web.json_response({"city": city, "city_fa": CITY_SHORT[city][0], "prev": min(95, g["loc_damage"].get(b["target"], 0)),
+                              "time": balloon_time(city), "weather": b["weather"], "done": done})
+
+
+async def h_balloon_result(request):
+    from . import events
+    data = await request.json()
+    p, b = _my_balloon(request, data)
+    try:
+        pct = max(0, min(100, int(data.get("pct") or 0)))
+    except (TypeError, ValueError):
+        pct = 0
+    if b["result"] != "await_pct":
+        return web.json_response({"error": "نتیجه این بالن قبلاً ثبت شده."}, status=400)
+    if _bot is not None:
+        await events.war_balloon_done(_bot, b, pct)
+    else:
+        actions.apply_war_balloon(G(), b, pct)
+        save()
+    return web.json_response({"ok": True, "pct": pct})
+
+
 async def h_root(request):
     raise web.HTTPFound("/map")
 
@@ -279,6 +337,9 @@ def make_app():
     app.router.add_post("/api/move", h_move)
     app.router.add_get("/health", h_health)
     app.router.add_get("/battle", h_battle_page)
+    app.router.add_get("/balloon", h_balloon_page)
+    app.router.add_get("/api/balloon", h_balloon)
+    app.router.add_post("/api/balloon/result", h_balloon_result)
     app.router.add_get("/api/battle", h_battle)
     app.router.add_post("/api/battle/shot", h_battle_shot)
     return app

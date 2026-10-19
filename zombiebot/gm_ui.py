@@ -183,6 +183,7 @@ async def do_lock(bot):
     save()
     await mapview.post_public_map(bot)
     await events.legend_after_lock(bot)
+    await events.invite_war_balloons(bot)
     fresh = artillery.start_battles(g)        # cannons sharing a square fight until the next lock
     save()
     await artillery_bot.announce_new(bot, fresh)
@@ -825,16 +826,7 @@ async def handle(update, ctx, uid, head, args):
     if head == "wb":
         b = next((x for x in g["balloons"] if x["id"] == args[0]), None)
         if b and b["result"] == "await_pct":
-            hit = actions.apply_war_balloon(g, b, int(args[1]))
-            save()
-            await group(bot, f"💣 بالن جنگی {board.square_name(b['target'])} را بمباران کرد: {num(int(args[1]))}٪ تخریب.",
-                        f"💣 A war balloon bombed {board.square_name(b['target'], 'en')}: {args[1]}% destroyed.")
-            for P, loss in hit:
-                await dm(bot, P["id"], f"بمباران! {num(loss)} اچ‌پی از دست دادی.", f"Bombing! You lost {loss} HP.")
-                if P["hp"] <= 0:
-                    actions.kill(g, P, "bombing")
-                    save()
-                    await events.announce_death(bot, P)
+            await events.war_balloon_done(bot, b, int(args[1]), by_gm=True)
         return await edit_or_send(q, *balloons_screen(lang))
     if head == "bf":
         f = next((x for x in g["battles"] if x["id"] == args[0]), None)

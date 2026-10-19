@@ -321,6 +321,12 @@ async def handle(update, ctx, p, head, args):
     # ----- bag: items and units -----
     if head == "bag":
         return await edit_or_send(q, *bag_view(p, lang))
+    if head == "rn":
+        pool = g["balloons"] if args[0] == "balloon" else g["units_on_map"]
+        obj = next((x for x in pool if x["id"] == args[1] and str(x["owner"]) == str(p["id"])), None)
+        if not obj:
+            raise GameError("پیدا نشد.")
+        return await ask_name(q, p, args[0], obj, "✏️ تغییر اسم")
     if head == "iu":
         key = args[0]
         if key not in p["items"]:
@@ -549,6 +555,23 @@ def bag_view(p, lang):
         for k in p["items"]:
             lines.append("• " + item_line(k, lang))
         rows += chunks([(f"✨ {ITEMS[k][lang][:22]}", f"p:iu:{k}") for k in dict.fromkeys(p["items"])], 2)
+    g_ = G()
+    mine_b = [b for b in g_["balloons"] if str(b["owner"]) == str(p["id"]) and b["result"] in (None, "await_pct")]
+    mine_u = [u for u in g_["units_on_map"] if str(u["owner"]) == str(p["id"])]
+    if mine_b or mine_u:
+        lines.append("\n📍 در راه / روی نقشه:")
+        for b in mine_b:
+            st = "منتظر بمباران (بعد از ساعت ۸)" if b["result"] is None else "آماده بمباران — مینی‌گیم را باز کن"
+            lines.append(f"🎈 {'بالن جنگی' if b['kind'] == 'war' else 'بالن جاسوسی'} «{b.get('name') or '?'}» → {board.square_name(b['target'])} · {st}")
+            rows.append([(f"✏️ اسم «{(b.get('name') or '?')[:14]}»", f"p:rn:balloon:{b['id']}")])
+            if b["kind"] == "war" and b["result"] == "await_pct":
+                from .events import balloon_url
+                url = balloon_url(b)
+                if url:
+                    rows.append([("🎈 پرواز و بمباران", "webapp:" + url)])
+        for u in mine_u:
+            lines.append(f"{'💣' if u['kind'] == 'cannon' else '⛵'} «{u.get('name') or '?'}» · {board.square_name(u['square'])}")
+            rows.append([(f"✏️ اسم «{(u.get('name') or '?')[:14]}»", f"p:rn:unit:{u['id']}")])
     eff = actions.active_effects(p)
     if eff:
         lines.append("\n⏳ اثرهای فعال: " + " · ".join(eff))

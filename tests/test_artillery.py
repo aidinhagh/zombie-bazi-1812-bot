@@ -229,3 +229,55 @@ def test_roles_go_out_only_on_publish_and_zombies_know_each_other():
         await w.press(GM, "g:next")
         assert w.g["phase"] == "night"
     run(go())
+
+
+def test_war_balloon_minigame_cooldown_and_repair(monkeypatch):
+    async def go():
+        from zombiebot import actions
+        monkeypatch.setenv("WEBAPP_URL", "https://example.up.railway.app/map")
+        w = World(seed=96)
+        await setup(w, ["hero", "doctor"])
+        await next_step(w)
+        await place(w, 1, "stpetersburg"); await place(w, 2, "paris")
+        P(w, 1)["coins"] = 50
+        await w.press(1, "p:bu:war_balloon")
+        assert P(w, 1)["units"]["war_balloon"] == 2       # the hero's own + the bought one
+        await w.press(1, "p:ubt:war:paris")
+        await w.dm_text(1, "آسمان‌خراش")
+        b = w.g["balloons"][-1]
+        assert b["name"] == "آسمان‌خراش"
+        await w.press(1, "p:bag")
+        assert "آسمان‌خراش" in w.last_to(1).text and f"p:rn:balloon:{b['id']}" in w.last_to(1).buttons()
+        ans = await w.press(1, "p:ubt:war:milan")          # one-night cooldown
+        assert any("استراحت" in (a or "") for a in ans)
+        await gm_ui.do_lock(w.bot)
+        assert b["result"] == "await_pct"
+        inv = [m for m in w.sent if m.chat_id == 1 and "بمباران" in m.text and m.buttons()]
+        assert inv and inv[-1].buttons()[0].startswith("webapp:https://example.up.railway.app/balloon?b=")
+        web._token = "123:TEST"; web._bot = w.bot
+        client = TestClient(TestServer(web.make_app()))
+        await client.start_server()
+        try:
+            me = web.sign_init_data({"id": 1}, "123:TEST")
+            other = web.sign_init_data({"id": 2}, "123:TEST")
+            st = await (await client.get("/api/balloon?b=" + b["id"], headers={"X-Init-Data": me})).json()
+            assert st["city"] == "paris" and st["prev"] == 0 and st["done"] is None
+            r = await client.get("/api/balloon?b=" + b["id"], headers={"X-Init-Data": other})
+            assert r.status == 403
+            r = await client.post("/api/balloon/result", json={"b": b["id"], "pct": 60}, headers={"X-Init-Data": me})
+            assert r.status == 200 and w.g["loc_damage"]["paris"] == 60
+            r = await client.post("/api/balloon/result", json={"b": b["id"], "pct": 60}, headers={"X-Init-Data": me})
+            assert r.status == 400
+            assert (await client.get("/balloon")).status == 200
+        finally:
+            await client.close(); web._bot = None
+        # repair: no repair the night right after the attack, then 25% a night
+        actions.start_phase(w.g, "day")
+        actions.start_phase(w.g, "night")
+        assert w.g["loc_damage"]["paris"] == 60
+        actions.start_phase(w.g, "day")
+        actions.start_phase(w.g, "night")
+        assert w.g["loc_damage"]["paris"] == 35
+        w.g["phase"] = "day"; w.g["locked"] = False
+        actions.launch_balloon(w.g, P(w, 1), "war", "milan")   # cooldown over
+    run(go())

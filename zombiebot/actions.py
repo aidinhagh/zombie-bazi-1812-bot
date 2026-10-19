@@ -479,6 +479,12 @@ def launch_balloon(g, p, kind, target):
         raise GameError("بالن نداری.", "You have no balloon.")
     if target not in SQUARES:
         raise GameError("مکان نامعتبر.", "Unknown place.")
+    if kind == "war":
+        last = p.get("war_cycle")
+        if last is not None and g["cycle"] - last < 2:
+            raise GameError("بالن جنگی یک شب استراحت لازم دارد؛ شب بعد دوباره می‌توانی بفرستی.",
+                            "The war balloon needs a night's rest.")
+        p["war_cycle"] = g["cycle"]
     origin = p.get("unit_origin", {}).get(key, "bought")
     p["units"][key] -= 1
     if p["units"][key] == 0:
@@ -581,11 +587,20 @@ def lock_map(g, rng=random):
     return {"gm_notes": gm_notes, "private": private}
 
 
+def repair_places(g):
+    """Each new night, a damaged place rebuilds 25% — unless it was bombed in the cycle just gone."""
+    hit = g.setdefault("loc_hit", {})
+    for sq, pct in list(g["loc_damage"].items()):
+        if pct and hit.get(sq, -9) < g["cycle"]:
+            g["loc_damage"][sq] = max(0, pct - 25)
+
+
 def apply_war_balloon(g, b, pct):
     """GM enters how much of the place the bombing destroyed."""
     pct = max(0, min(100, int(pct)))
     sq = b["target"]
     g["loc_damage"][sq] = min(100, g["loc_damage"].get(sq, 0) + pct)
+    g.setdefault("loc_hit", {})[sq] = g["cycle"]       # no repair the night after an attack
     b["pct"] = pct
     b["result"] = "done"
     hit = []
@@ -717,6 +732,8 @@ def end_night(g):
 def start_phase(g, phase):
     g["phase"] = phase
     give_characters(g)
+    if phase == "night":
+        repair_places(g)
     g["locked"] = False
     if phase == "night":
         g["cycle"] += 1

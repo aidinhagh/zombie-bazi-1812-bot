@@ -719,3 +719,47 @@ async def legend_close(bot):
             await dm(bot, pl(b)["id"], f"🌟 مزایده «{it['fa']}» تمام شد و تو نبردی.")
     await gm_notes(bot, [(f"🌟 {win['name']} «{it['fa']}» را با {num(best)} سکه برد.", "")])
     return True
+
+
+# ---------------- war balloon (the bombing minigame) ----------------
+
+def balloon_url(b):
+    from .web import webapp_url
+    base = webapp_url()
+    if not base:
+        return None
+    root = base.rsplit("/map", 1)[0] if "/map" in base else base.rstrip("/")
+    return f"{root}/balloon?b={b['id']}"
+
+
+async def invite_war_balloons(bot):
+    """After the 20:00 lock each war balloon's owner flies the bombing raid in the Mini App."""
+    g = G()
+    for b in g["balloons"]:
+        if b["kind"] != "war" or b["result"] != "await_pct" or b.get("invited"):
+            continue
+        b["invited"] = True
+        url = balloon_url(b)
+        rows = [[("🎈 پرواز و بمباران", "webapp:" + url)]] if url else None
+        await dm(bot, b["owner"], f"🎈 بالن جنگی «{b.get('name') or '?'}» بالای {board.square_name(b['target'])} رسید! "
+                 "مینی‌گیم را باز کن و بمباران کن؛ درصد ویرانی خودکار ثبت می‌شود (فقط یک بار).",
+                 reply_markup=kb(rows) if rows else None)
+    save()
+
+
+async def war_balloon_done(bot, b, pct, by_gm=False):
+    g = G()
+    if b["result"] != "await_pct":
+        return False
+    hit = actions.apply_war_balloon(g, b, int(pct))
+    save()
+    await group(bot, f"💣 بالن جنگی «{b.get('name') or '?'}» {board.square_name(b['target'])} را بمباران کرد: {num(int(pct))}٪ تخریب.", None)
+    if not by_gm:
+        await gm_notes(bot, [(f"🎈 بالن جنگی {name_of(b['owner'])} بر فراز {board.square_name(b['target'])}: {num(int(pct))}٪ ویرانی (مینی‌گیم).", "")])
+    for P, loss in hit:
+        await dm(bot, P["id"], f"بمباران! {num(loss)} اچ‌پی از دست دادی.")
+        if P["hp"] <= 0:
+            actions.kill(g, P, "bombing")
+            save()
+            await announce_death(bot, P)
+    return True
