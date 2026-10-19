@@ -462,6 +462,17 @@ async def _post_init(app):
         logger.warning("repair check failed: %s", e)
     from . import web
     await web.start(app)
+    # live duels get their current round's buttons again (new attack/defend/trick buttons)
+    try:
+        g = G()
+        for du in g["duels"]:
+            if du["status"] == "live" and not du.get("resent_v2"):
+                du["resent_v2"] = True
+                du["picks"] = {}
+                save()
+                await events.ask_rps(app.bot, "d", du, len(du.get("rounds", [])) + 1)
+    except Exception as e:
+        logger.warning("duel resend failed: %s", e)
 
 
 def build_app(token):
