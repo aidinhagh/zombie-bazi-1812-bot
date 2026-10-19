@@ -56,6 +56,9 @@ def night_stats(g, p):
     if p.get("perm"):   # the factory's slot result: permanent, survives death and revival
         for pw in POWERS:
             s[pw] += p["perm"]
+    for k, v in (p.get("perm_stats") or {}).items():   # powers bought in the shop: permanent
+        if k in s:
+            s[k] += v
     for k, v in p.get("boost", {}).items():
         if k == "all":
             for pw in POWERS:

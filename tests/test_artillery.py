@@ -300,3 +300,18 @@ def test_monastery_die_before_lock_and_war_balloon_after_lock(monkeypatch):
         assert b["result"] == "await_pct"
         assert any("بمباران" in m.text and m.buttons() and m.buttons()[0].startswith("webapp:") for m in w.sent if m.chat_id == 2)
     run(go())
+
+
+def test_bought_powers_are_permanent():
+    from zombiebot import actions
+    from zombiebot.engine import night_stats
+    from zombiebot.state import new_game, new_player, assign_role
+    g = new_game(); g["phase"] = "day"
+    p = new_player(1, "a"); assign_role(p, "doctor"); p["pos"] = "n15"; p["coins"] = 99; g["players"]["1"] = p
+    base = night_stats(g, p)[0]["attack"]
+    actions.buy_power(g, p, "attack", 2)                 # day purchase works too
+    actions.end_night(g)
+    assert night_stats(g, p)[0]["attack"] == base + 2
+    p["bought"] = {"spy": 1}                              # an old one-night purchase becomes permanent at night's end
+    actions.end_night(g)
+    assert p["perm_stats"] == {"attack": 2, "spy": 1}

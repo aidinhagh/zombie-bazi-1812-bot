@@ -246,14 +246,12 @@ def buy_power(g, p, stat, n=1):
     cost = POWER_PRICES[stat] * n
     if p["coins"] < cost:
         raise GameError(f"سکه کافی نداری ({cost} لازمه).", f"Not enough coins ({cost} needed).")
-    if stat != "hp" and g["phase"] != "night":
-        raise GameError("قدرت شبانه رو فقط در فاز شب می‌شه خرید.", "Night powers can only be bought during the night phase.")
     p["coins"] -= cost
     if stat == "hp":
         p["hp"] += n
-    else:
-        p["boost"][stat] = p["boost"].get(stat, 0) + n
-        p["bought"][stat] = p["bought"].get(stat, 0) + n
+    else:                                    # bought powers are permanent
+        ps = p.setdefault("perm_stats", {})
+        ps[stat] = ps.get(stat, 0) + n
     return cost
 
 
@@ -358,6 +356,8 @@ def active_effects(p):
         out.append(f"{names.get(k, k)} {v:+d} امشب")
     if p.get("perm"):
         out.append(f"همه قدرت‌ها {p['perm']:+d} (دائمی، کارخانه)")
+    for k, v in (p.get("perm_stats") or {}).items():
+        out.append(f"{names.get(k, k)} {v:+d} (خریده‌شده، دائمی)")
     if p.get("legend"):
         from .data.legendary import LEGENDARY
         for k in p["legend"]:
@@ -717,6 +717,8 @@ def set_fake_pos(g, p, sq):
 
 def end_night(g):
     for p in g["players"].values():
+        for k, v in (p.get("bought") or {}).items():    # purchases made before powers became permanent
+            p.setdefault("perm_stats", {})[k] = p["perm_stats"].get(k, 0) + v
         p["boost"] = {}
         p["bought"] = {}
         for k in ("ignore_neg", "hide", "taxi_used") + TONIGHT_FLAGS:

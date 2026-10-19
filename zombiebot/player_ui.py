@@ -533,12 +533,9 @@ def shop_view(p, lang):
     g = G()
     lines = [L(lang, f"🛒 خرید · 💰 {num(p['coins'])} سکه", f"🛒 Shop · 💰 {p['coins']} coins")]
     rows = []
-    if g["phase"] == "night":
-        lines.append(L(lang, "قدرت برای همین شب (هر بار +۱). عدد داخل پرانتز = قیمت.", "Power for tonight (+1 each tap). Price in brackets."))
-        btns = [(f"{stat_name(s, lang)} +1 ({num(price, lang)})", f"p:bp:{s}") for s, price in POWER_PRICES.items() if s != "hp"]
-        rows += chunks(btns, 2)
-    else:
-        lines.append(L(lang, "قدرت شبانه رو فقط شب می‌شه خرید.", "Night powers are sold only at night."))
+    lines.append("قدرت‌ها دائمی‌اند (تا آخر بازی، هر بار +۱). عدد داخل پرانتز = قیمت.")
+    btns = [(f"{stat_name(s, lang)} +1 دائمی ({num(price, lang)})", f"p:bp:{s}") for s, price in POWER_PRICES.items() if s != "hp"]
+    rows += chunks(btns, 2)
     rows.append([(L(lang, f"❤️ اچ‌پی +۱ دائمی ({num(POWER_PRICES['hp'])})", f"❤️ HP +1 permanent ({POWER_PRICES['hp']})"), "p:bp:hp")])
     shop = LOCATIONS.get(p["pos"], {}).get("shop")
     if shop:
