@@ -97,7 +97,7 @@ def home_rows(p):
         extra.append((L(lang, "🚕 تاکسی", "🚕 Taxi"), "p:taxi"))
     if g["phase"] == "night" and g["locked"] and set(flags_at(here)) & {"vienna_slots", "berlin_slots"} and not (p.get("slots") or {}).get("done"):
         extra.append((L(lang, "🎰 اسلات", "🎰 Slots"), "p:slots"))
-    if (g["phase"] == "night" and g["locked"] and "double_act_50" in flags_at(here)
+    if (g["phase"] == "night" and "double_act_50" in flags_at(here)
             and p["flags"].get("wagram_roll") is None):
         extra.append(("🎲 تاس خانقاه", "p:wroll"))
     if g["phase"] == "day" and p["bullets"]:
@@ -392,6 +392,10 @@ async def handle(update, ctx, p, head, args):
                                        f"Send the balloon over which place? Result at {LOCK_HOUR}:00."), rows + [back(lang, "p:bag")])
     if head == "ubt":
         b = actions.launch_balloon(g, p, args[0], args[1])
+        if b["result"] == "await_pct":
+            await ask_name(q, p, "balloon", b, f"🎈 بالن جنگی به سمت {LOCATIONS[args[1]]['fa']} رفت. همین حالا می‌توانی بمباران کنی.")
+            await events.invite_war_balloons(bot)
+            return
         return await ask_name(q, p, "balloon", b, f"🎈 بالن به سمت {LOCATIONS[args[1]]['fa']} رفت. نتیجه ساعت {num(LOCK_HOUR)}:۰۰.")
 
     # ----- clown / godfather settings -----

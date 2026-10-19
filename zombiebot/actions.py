@@ -50,6 +50,8 @@ def do_move(g, p, dest, path):
     p["moved"] = True
     p["flags"].pop("move_plus", None)
     p["flags"].pop("move_minus", None)
+    p["flags"].pop("wagram_roll", None)     # left (or arrived at) the monastery: a fresh die
+    p["double_act"] = False
     p["flags"].pop("free_move", None)
     log(g, f"{p['name']} → {dest}")
     return notes
@@ -473,7 +475,7 @@ def dig_route(g, a, b, kind="road", owner=None):
 
 def launch_balloon(g, p, kind, target):
     key = kind + "_balloon"
-    if g["locked"]:
+    if g["locked"] and kind != "war":
         raise GameError("نقشه قفل شده.", "The map is locked.")
     if p["units"].get(key, 0) < 1:
         raise GameError("بالن نداری.", "You have no balloon.")
@@ -496,6 +498,8 @@ def launch_balloon(g, p, kind, target):
             b["publish"] = True
         elif p["role"] == "zombie_doctor" and origin == "start":
             b["publish"] = False
+    if kind == "war" and g["locked"]:
+        b["result"] = "await_pct"           # after 20:00 the raid can be flown straight away
     g["balloons"].append(b)
     return b
 
@@ -542,7 +546,7 @@ def lock_map(g, rng=random):
             p["coins"] += coins
             private.append((p["id"], f"بانک: {coins} سکه گرفتی؛ امشب اچ‌پی‌ات نصف حساب می‌شه.",
                             f"Bank: you got {coins} coins; your hp counts as half tonight."))
-        if "double_act_50" in fl and dmg < 100:
+        if "double_act_50" in fl and dmg < 100 and p["flags"].get("wagram_roll") is None:
             p["double_act"] = False
             p["flags"]["wagram_roll"] = None    # the player throws a die: even = two acts tonight
             private.append((p["id"], "🎲 در خانقاه هستی: از منو تاس بریز — زوج بیاید امشب دو اکت داری.", ""))
@@ -815,8 +819,10 @@ def winner_check(g):
 
 def wagram_roll(g, p, value):
     """The monastery die: an even number gives two acts tonight."""
-    if g["phase"] != "night" or not g["locked"] or "double_act_50" not in flags_at(loc_of(p)):
-        raise GameError("این تاس فقط شب و بعد از قفل نقشه در خانقاه است.", "")
+    if g["phase"] != "night" or "double_act_50" not in flags_at(loc_of(p) if g["locked"] else p["pos"]):
+        raise GameError("این تاس فقط شب و در خانقاه است.", "")
+    if ruined(g, "wagram"):
+        raise GameError("خانقاه کاملاً ویران شده.", "")
     if p["flags"].get("wagram_roll") is not None:
         raise GameError("تاس خانقاه را ریخته‌ای.", "")
     p["flags"]["wagram_roll"] = int(value)

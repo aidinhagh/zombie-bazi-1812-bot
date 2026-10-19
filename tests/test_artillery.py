@@ -281,3 +281,24 @@ def test_war_balloon_minigame_cooldown_and_repair(monkeypatch):
         w.g["phase"] = "day"; w.g["locked"] = False
         actions.launch_balloon(w.g, P(w, 1), "war", "milan")   # cooldown over
     run(go())
+
+
+def test_monastery_die_before_lock_and_war_balloon_after_lock(monkeypatch):
+    async def go():
+        monkeypatch.setenv("WEBAPP_URL", "https://example.up.railway.app/map")
+        w = World(seed=97)
+        await setup(w, ["cultist", "hero"])
+        await next_step(w)
+        await place(w, 1, "wagram"); await place(w, 2, "paris")
+        await w.press(1, "p:home")
+        assert "p:wroll" in w.last_to(1).buttons()            # no need to wait for 20:00
+        w.forced_dice = [4]
+        await w.press(1, "p:wroll")
+        assert P(w, 1)["double_act"]
+        await gm_ui.do_lock(w.bot)
+        assert P(w, 1)["double_act"] and P(w, 1)["flags"]["wagram_roll"] == 4   # kept at the lock
+        await w.press(2, "p:ubt:war:milan")                     # after 20:00 a war balloon still flies
+        b = w.g["balloons"][-1]
+        assert b["result"] == "await_pct"
+        assert any("بمباران" in m.text and m.buttons() and m.buttons()[0].startswith("webapp:") for m in w.sent if m.chat_id == 2)
+    run(go())
