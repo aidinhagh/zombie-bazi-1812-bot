@@ -140,12 +140,12 @@ def antidote_rows(po):
 async def antidote(bot, uid, pid, yes, q=None):
     g = G()
     po = next((x for x in g["poisons"] if x["id"] == pid), None)
-    if not po or str(po["by"]) != str(uid) or po["status"] != "pending":
+    if not po or str(po["by"]) != str(uid) or po["status"] not in ("pending", "doomed"):
         raise GameError("این تصمیم دیگر باز نیست.")
     po["antidote"] = yes
-    po["status"] = "cured" if yes else "doomed"
+    po["status"] = "cured" if yes else "doomed"      # «نه» can still be changed to «بده» until the night begins
     save()
-    await say_to(q, "✅ تصمیم ثبت شد: " + ("پادزهر داده شد." if yes else "پادزهر داده نشد."))
+    await say_to(q, "✅ تصمیم ثبت شد: " + ("پادزهر داده شد." if yes else "فعلاً پادزهر نمی‌دهی؛ تا شروع شب می‌توانی نظرت را عوض کنی."))
     if yes:
         await group(bot, f"🧪 {name_of(po['target'])} پادزهر گرفت.", None)
 
@@ -593,7 +593,7 @@ def pending_for(p):
     out = []
     if g["phase"] == "day":
         for po in g["poisons"]:
-            if str(po["by"]) == pid and po["status"] == "pending":
+            if str(po["by"]) == pid and po["status"] in ("pending", "doomed"):
                 out.append((f"🧪 پادزهر برای {name_of(po['target'])}؟", antidote_rows(po)))
     for d in g["duels"]:
         if d["status"] == "live" and pid in (d["a"], d["b"]) and pid not in d["picks"]:
