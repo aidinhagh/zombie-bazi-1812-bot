@@ -440,16 +440,18 @@ def strike_route(g, p, unit, rid):
     r, status = rmap[rid], board.route_status(g, rid)
     if p["units"].get(unit, 0) < 1:
         raise GameError("این واحد رو نداری.", "You don't have that unit.")
+    used = p["flags"].setdefault("unit_used", {})
+    if used.get(unit, 0) >= p["units"][unit]:      # units are kept: each one can be used once a phase
+        raise GameError("این واحد را در همین فاز استفاده کردی؛ فاز بعد دوباره.", "Already used this phase.")
+    used[unit] = used.get(unit, 0) + 1
     if unit == "cannon":
         if r["kind"] != "road" or status != "ok":
             raise GameError("فقط مسیر زمینی سالم.", "Only an intact land route.")
         g["route_state"][rid] = "broken"
-        p["units"]["cannon"] -= 1
     elif unit == "mine":
         if r["kind"] != "sea" or status != "ok":
             raise GameError("فقط مسیر دریایی سالم.", "Only an open sea route.")
         g["route_state"][rid] = "mined"
-        p["units"]["mine"] -= 1
     elif unit == "ship":
         if status != "mined":
             raise GameError("این مسیر مین ندارد.", "That route isn't mined.")
@@ -458,7 +460,6 @@ def strike_route(g, p, unit, rid):
         if r["kind"] != "road" or status != "broken":
             raise GameError("فقط جاده خراب را می‌شه تعمیر کرد.", "Only a broken road can be repaired.")
         g["route_state"][rid] = "ok"
-        p["units"]["shovel"] -= 1
     log(g, f"{p['name']} {unit} on {rid}")
 
 
@@ -473,8 +474,6 @@ def dig_route(g, a, b, kind="road", owner=None):
 
 def launch_balloon(g, p, kind, target):
     key = kind + "_balloon"
-    if g["locked"] and kind != "war":
-        raise GameError("نقشه قفل شده.", "The map is locked.")
     if p["units"].get(key, 0) < 1:
         raise GameError("بالن نداری.", "You have no balloon.")
     if target not in SQUARES:
@@ -486,11 +485,13 @@ def launch_balloon(g, p, kind, target):
                             "The war balloon needs a night's rest.")
         p["war_cycle"] = g["cycle"]
     origin = p.get("unit_origin", {}).get(key, "bought")
-    p["units"][key] -= 1
-    if p["units"][key] == 0:
-        p.setdefault("unit_origin", {})[key] = "bought"
+    flying = [x for x in g["balloons"] if str(x["owner"]) == str(p["id"]) and x["kind"] == kind
+              and x["cycle"] == g["cycle"] and x.get("phase") == g["phase"]]
+    if len(flying) >= p["units"][key]:          # balloons come back: each flies once a phase
+        raise GameError("بالنت در همین فاز پرواز کرده؛ فاز بعد دوباره می‌توانی بفرستی.", "Your balloon already flew this phase.")
+    old = [x for x in g["balloons"] if str(x["owner"]) == str(p["id"]) and x["kind"] == kind and x.get("name")]
     b = {"id": next_id(g, "b"), "kind": kind, "owner": p["id"], "target": target, "origin": origin,
-         "cycle": g["cycle"], "phase": g["phase"], "result": None, "publish": None, "pct": None, "name": random_unit_name()}
+         "cycle": g["cycle"], "phase": g["phase"], "result": None, "publish": None, "pct": None, "name": old[-1]["name"] if old else random_unit_name()}
     if kind == "spy":
         if p["role"] == "spy" and origin == "start":
             b["publish"] = True
@@ -498,6 +499,8 @@ def launch_balloon(g, p, kind, target):
             b["publish"] = False
     if kind == "war" and g["locked"]:
         b["result"] = "await_pct"           # after 20:00 the raid can be flown straight away
+    if kind == "spy" and g["locked"]:
+        b["result"] = balloon_sees(g, target)   # after 20:00 a spy balloon reports straight away
     g["balloons"].append(b)
     return b
 
@@ -676,6 +679,24 @@ def apply_effects(g, result):
     return out
 
 
+def restore_used_units(g):
+    """Units used to be spent when used; now they're kept. Give back the balloons people already flew (once)."""
+    if g.get("units_restored_v1"):
+        return 0
+    g["units_restored_v1"] = True
+    n = 0
+    for b in g["balloons"]:
+        P = g["players"].get(str(b["owner"]))
+        if not P:
+            continue
+        key = b["kind"] + "_balloon"
+        launched = len([x for x in g["balloons"] if str(x["owner"]) == str(P["id"]) and x["kind"] == b["kind"]])
+        if P["units"].get(key, 0) < launched:
+            n += launched - P["units"].get(key, 0)
+            P["units"][key] = launched
+    return n
+
+
 def repair_half_applied(g):
     """Undo a night result that was applied but crashed before finishing (the GM can then apply it once).
     Counts how many times the damage went in, from the 'before' hp written in each damage line."""
@@ -796,6 +817,7 @@ def start_phase(g, phase):
         p["moved"] = False
         p["move_roll"] = None
         p["flags"].pop("passed", None)
+        p["flags"].pop("unit_used", None)
         p["flags"].pop("wagram_roll", None)
         p["double_act"] = False
         p["darts"] = {"money": False, "item": False}

@@ -340,3 +340,22 @@ def test_apply_with_old_purchases_and_repair_of_a_half_applied_night():
                 g2["players"][str(e["pid"])]["hp"] -= e["amount"]
     assert actions.repair_half_applied(g2) == 2 and g2["players"]["2"]["hp"] == hp0
     assert actions.repair_half_applied(copy.deepcopy(clean)) == 0
+
+
+def test_units_are_kept_and_balloons_fly_once_a_phase_even_by_day():
+    async def go():
+        from zombiebot import actions
+        w = World(seed=98)
+        await setup(w, ["spy", "doctor"])
+        await next_step(w)
+        await place(w, 1, "paris"); await place(w, 2, "berlin")
+        await w.press(1, "p:ubt:spy:berlin")
+        assert P(w, 1)["units"]["spy_balloon"] == 1                 # not used up
+        ans = await w.press(1, "p:ubt:spy:milan")
+        assert any("پرواز کرده" in (a or "") for a in ans)          # once a phase
+        await gm_ui.do_lock(w.bot)
+        await w.press(GM, "g:next"); await w.press(GM, "g:apply"); await w.press(GM, "g:next")   # day
+        assert w.g["phase"] == "day"
+        await w.press(1, "p:ubt:spy:paris")                         # flies again by day
+        assert w.g["balloons"][-1]["name"] == w.g["balloons"][0]["name"]   # same balloon, same name
+    run(go())

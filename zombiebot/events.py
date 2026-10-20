@@ -786,3 +786,20 @@ async def war_balloon_done(bot, b, pct, by_gm=False):
             save()
             await announce_death(bot, P)
     return True
+
+
+async def deliver_spy_now(bot, b):
+    """A spy balloon sent after 20:00 reports at once (same as at the lock)."""
+    from .common import lang_of
+    from .texts import L
+    b["delivered"] = True
+    names = "، ".join(b["result"]) or "—"
+    text = f"🎈 بالن جاسوسی «{b.get('name') or '?'}» بر فراز {board.square_name(b['target'])}: {names}"
+    if b["publish"] is None:
+        await dm(bot, b["owner"], text + "\nمنتشر بشه؟", reply_markup=kb(balloon_rows(b)))
+    else:
+        await dm(bot, b["owner"], text)
+        if b["publish"] and not b.get("published"):
+            b["published"] = True
+            await publish_balloon(bot, b)
+    save()

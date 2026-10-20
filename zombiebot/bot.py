@@ -454,6 +454,8 @@ async def on_error(update, ctx):
 
 async def _post_init(app):
     try:
+        if actions.restore_used_units(G()):
+            save()
         n = actions.repair_half_applied(G())
         if n:
             save()

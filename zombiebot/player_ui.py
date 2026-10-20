@@ -392,6 +392,10 @@ async def handle(update, ctx, p, head, args):
                                        f"Send the balloon over which place? Result at {LOCK_HOUR}:00."), rows + [back(lang, "p:bag")])
     if head == "ubt":
         b = actions.launch_balloon(g, p, args[0], args[1])
+        if b["kind"] == "spy" and isinstance(b["result"], list):
+            await ask_name(q, p, "balloon", b, f"🎈 بالن جاسوسی بالای {LOCATIONS[args[1]]['fa']} رفت و همین حالا گزارش می‌دهد.")
+            await events.deliver_spy_now(bot, b)
+            return
         if b["result"] == "await_pct":
             await ask_name(q, p, "balloon", b, f"🎈 بالن جنگی به سمت {LOCATIONS[args[1]]['fa']} رفت. همین حالا می‌توانی بمباران کنی.")
             await events.invite_war_balloons(bot)
