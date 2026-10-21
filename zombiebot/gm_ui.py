@@ -161,8 +161,13 @@ async def do_lock(bot):
     g = G()
     if g["phase"] == "lobby" or g["locked"]:
         return
+    from .night_window import before
+    if before(g, "move_until"):
+        return
     from . import artillery, artillery_bot
-    await artillery_bot.end_all(bot)          # yesterday's cannon duels end at this lock
+    relock = g.get("relock_positions_only", False)
+    if not relock:
+        await artillery_bot.end_all(bot)          # yesterday's cannon duels end at this lock
     summary = actions.lock_map(g)
     save()
     for pid, fa, en in summary["private"]:
@@ -184,7 +189,7 @@ async def do_lock(bot):
     await mapview.post_public_map(bot)
     await events.legend_after_lock(bot)
     await events.invite_war_balloons(bot)
-    fresh = artillery.start_battles(g)        # cannons sharing a square fight until the next lock
+    fresh = [] if relock else artillery.start_battles(g)        # cannons sharing a square fight until the next lock
     save()
     await artillery_bot.announce_new(bot, fresh)
     for b in g["balloons"]:
@@ -254,6 +259,9 @@ def control_text(uid):
     lines.append(L(lang, f"👥 زنده {num(len(alive))} از {num(len(total))} · ثبت‌نام {num(len(g['players']))}",
                    f"👥 alive {len(alive)} of {len(total)} · registered {len(g['players'])}"))
     if g["phase"] == "night":
+        from .night_window import window
+        if window(g):
+            lines.append("⏰ فقط امشب: مکان تا ۲۳:۰۰؛ اکت تا ۰۱:۰۰ روز بعد (تهران).")
         moved = sum(1 for p in alive if p["moved"])
         acted = sum(1 for p in alive if g["acts"].get(str(p["id"])))
         lines.append(L(lang, f"🎲 حرکت کرده {num(moved)} · 🌙 اکت داده {num(acted)} از {num(len(alive))}",
@@ -286,6 +294,8 @@ def control_rows(uid):
             [(L(lang, "🎈 بالن و نبرد", "🎈 Balloons & battles"), "g:bal"), (L(lang, "🧪 آزمایشگاه", "🧪 Test lab"), "g:lab")],
             [(f"📨 پیام‌های منتظر تأیید ({num(len([m for m in g.get('outbox', []) if m['status'] == 'waiting']))})", "g:obls")],
             [(L(lang, "⚙️ تنظیمات", "⚙️ Setup"), "g:setup"), (L(lang, "🔄 تازه کن", "🔄 Refresh"), "g:home")]]
+    if legendary.state(g).get("active"):
+        rows.append([("🌟 تغییر مکان لجندری", "g:legendmove")])
     if g.get("test_mode") and g["phase"] != "lobby":
         rows.insert(1, [(L(lang, "⏩ اجرای خودکار تا شب بعد", "⏩ Auto-run to the next night"), "g:ff")])
     if playing_as(uid):
@@ -567,6 +577,16 @@ async def handle(update, ctx, uid, head, args):
     bot = ctx.bot
     jq = ctx.job_queue
 
+    if head == "legendmove":
+        a = legendary.state(g)["active"]
+        if not a:
+            raise GameError("الان آیتم لجندری روی نقشه نیست.")
+        if not args:
+            rows = chunks([(board.square_name(c), f"g:legendmove:{c}") for c in CITIES], 2)
+            return await edit_or_send(q, "🌟 مقصد جدید آیتم لجندری (فقط برای گاد):", rows + [home_btn(lang)])
+        a = legendary.move_active(g, args[0])
+        save()
+        return await edit_or_send(q, "✅ آیتم لجندری به " + board.square_name(a["where"]) + " منتقل شد (مخفی).", [home_btn(lang)])
     if head == "home":
         return await send_control_room(bot, uid, q)
     if head == "lang":
@@ -770,6 +790,15 @@ async def handle(update, ctx, uid, head, args):
             await q.answer("محاسبه لغو شد؛ بازیکن‌ها دوباره می‌توانند اکت بزنند.")
         return await send_control_room(bot, uid, q)
     if head == "apply":
+        from .night_window import before, fingerprint
+        if before(g, "acts_until"):
+            raise GameError("این فقط پیش‌نمایش است؛ اعمال نتیجه تا ۰۱:۰۰ تهران بسته است.")
+        if not g["locked"]:
+            raise GameError("اول باید نقشه قفل شود؛ دوباره محاسبه کن.")
+        if g.get("pending_fingerprint") and fingerprint(g) != g["pending_fingerprint"]:
+            g["pending"] = None
+            save()
+            raise GameError("بازی پس از محاسبه تغییر کرده؛ دوباره محاسبه کن.")
         res = g.get("pending")
         if not res:
             return await send_control_room(bot, uid, q)
@@ -940,7 +969,14 @@ async def resolve(bot, q, lang):
     g = G()
     if g["phase"] != "night":
         raise GameError("فقط در شب.", "Night only.")
-    g["pending"] = resolve_night(g)
+    import copy
+    from .night_window import fingerprint
+    preview = copy.deepcopy(g)
+    if not g["locked"]:
+        for p in preview["players"].values():
+            p["night_pos"] = p.get("pos")
+    g["pending"] = resolve_night(preview)
+    g["pending_fingerprint"] = fingerprint(g)
     save()
     await send_results(bot, q, lang)
 

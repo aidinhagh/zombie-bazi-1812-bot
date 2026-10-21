@@ -46,7 +46,10 @@ def do_move(g, p, dest, path):
     if start is not None:
         notes += _tolls(g, p, [start] + list(path))
     p.setdefault("flags", {})["passed"] = list(path)   # squares crossed this phase (a unit can be planted on any of them)
+    p.setdefault("move_history", []).append({"cycle": g["cycle"], "phase": g["phase"], "start": start, "dest": dest, "path": list(path), "routes": routes_used(g, [start] + list(path)) if start else []})
     p["pos"] = dest
+    if g["phase"] == "night":
+        p["night_pos"] = dest
     p["moved"] = True
     p["flags"].pop("move_plus", None)
     p["flags"].pop("move_minus", None)
@@ -447,7 +450,6 @@ def strike_route(g, p, unit, rid):
     used = p["flags"].setdefault("unit_used", {})
     if used.get(unit, 0) >= p["units"][unit]:      # units are kept: each one can be used once a phase
         raise GameError("این واحد را در همین فاز استفاده کردی؛ فاز بعد دوباره.", "Already used this phase.")
-    used[unit] = used.get(unit, 0) + 1
     if unit == "cannon":
         if r["kind"] != "road" or status != "ok":
             raise GameError("فقط مسیر زمینی سالم.", "Only an intact land route.")
@@ -466,6 +468,8 @@ def strike_route(g, p, unit, rid):
             raise GameError("فقط جاده خراب را می‌شه تعمیر کرد.", "Only a broken road can be repaired.")
         g["route_state"][rid] = "ok"
         p["units"]["shovel"] -= 1                  # a shovel is used up
+    if unit != "shovel":
+        used[unit] = used.get(unit, 0) + 1
     log(g, f"{p['name']} {unit} on {rid}")
 
 
@@ -516,6 +520,8 @@ def launch_balloon(g, p, kind, target):
 def lock_map(g, rng=random):
     """Freeze positions, run lock-time location rules, resolve balloons, detect battles.
     Returns a summary dict used for the public map post and GM notes."""
+    relock = g.pop("relock_positions_only", False)
+    settled = g.pop("relock_settled_positions", {}) if relock else {}
     g["locked"] = True
     night = g["phase"] == "night"
     gm_notes, private = [], []
@@ -531,6 +537,8 @@ def lock_map(g, rng=random):
         if not night:
             continue
         p["night_pos"] = p["pos"]
+        if relock and settled.get(str(p["id"]), p["pos"]) == p["pos"]:
+            continue  # Unchanged locations already settled; never charge/pay twice.
         loc = p["pos"]
         if loc is None:
             gm_notes.append((f"{p['name']} جایی روی نقشه انتخاب نکرده.", f"{p['name']} has no position."))
@@ -593,7 +601,9 @@ def lock_map(g, rng=random):
         # two cannons on one square fight their own duel (artillery.py); the GM settles the rest
         fight = (kinds.count("ship") >= 2 or
                  (any(k in ("ship", "cannon") for k in kinds) and any(k.endswith("balloon") for k in kinds)))
-        if fight and len(owners) >= 2:
+        existing = any(f.get("cycle") == g["cycle"] and f.get("square") == sq
+                       and {u["id"] for u in f.get("units", [])} == {u["id"] for u in lst} for f in g["battles"])
+        if fight and len(owners) >= 2 and not existing:
             g["battles"].append({"id": next_id(g, "f"), "square": sq, "units": lst, "status": "open", "cycle": g["cycle"]})
     return {"gm_notes": gm_notes, "private": private}
 
@@ -835,6 +845,8 @@ def end_night(g):
 # ---------------- phases ----------------
 
 def start_phase(g, phase):
+    g.pop("relock_positions_only", None)
+    g.pop("relock_settled_positions", None)
     g["phase"] = phase
     give_characters(g)
     if phase == "night":

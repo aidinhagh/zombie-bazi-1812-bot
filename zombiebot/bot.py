@@ -134,6 +134,20 @@ async def job_lock(ctx):
     await gm_ui.do_lock(ctx.bot)
 
 
+async def job_night_window(ctx):
+    from .night_window import window, expired
+    g = G()
+    w = window(g)
+    if not w:
+        return
+    if expired(g, "move_until") and not g["locked"]:
+        await gm_ui.do_lock(ctx.bot)
+    if expired(g, "acts_until") and not w.get("closed_notified"):
+        w["closed_notified"] = True
+        save()
+        await to_gms(ctx.bot, "⏰ مهلت اکت شب تمدیدشده تمام شد؛ اکنون می‌توانید نتیجه نهایی را محاسبه و تأیید کنید.")
+
+
 async def job_midnight(ctx):
     g = G()
     if g["phase"] == "lobby":
@@ -547,6 +561,7 @@ def build_app(token):
     app.add_handler(MessageHandler(filters.Dice.ALL & filters.ChatType.PRIVATE, on_manual_dice))
     app.add_error_handler(on_error)
     jq = app.job_queue
+    jq.run_repeating(job_night_window, interval=10, first=1, name="night-window")
     jq.run_daily(job_lock, time=datetime.time(LOCK_HOUR, 0, tzinfo=TZ), name="lock")
     jq.run_daily(job_midnight, time=datetime.time(0, 0, tzinfo=TZ), name="midnight")
     from . import artillery_bot

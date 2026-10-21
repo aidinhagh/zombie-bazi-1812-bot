@@ -35,6 +35,9 @@ def move_active(g, where=None, rng=random):
     a = L["active"]
     if not a:
         return None
+    if where is not None and where not in CITIES:
+        from .actions import GameError
+        raise GameError("آیتم لجندری فقط در شهر قرار می‌گیرد.")
     if not where:
         from .actions import ruined
         cities = [c for c in CITIES if c != a["where"] and not ruined(g, c)] or [c for c in CITIES if c != a["where"]]

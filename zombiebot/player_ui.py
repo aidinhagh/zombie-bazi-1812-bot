@@ -59,6 +59,9 @@ def home_text(p):
         lock = L(lang, "🔒 نقشه قفل است" if g["locked"] else f"🔓 نقشه باز {lock_eta(lang)}",
                  "🔒 map locked" if g["locked"] else f"🔓 map open {lock_eta(lang)}")
         lines.append(f"{'🌙' if g['phase'] == 'night' else '☀️'} {phase_label(lang, g)} · {lock}")
+    from .night_window import window
+    if window(g):
+        lines.append("⏰ فقط امشب: مکان تا ۲۳:۰۰؛ اکت تا ۰۱:۰۰ روز بعد، به وقت تهران.")
     if p["alive"]:
         lines.append("")
         lines.append(checklist(g, p, lang))
@@ -176,6 +179,11 @@ async def handle(update, ctx, p, head, args):
     g = G()
     lang = p["lang"]
     bot = ctx.bot
+    from .night_window import check_actions, expired
+    if head in ("act", "a", "t", "tg", "tb", "td", "bl", "bn", "bx", "acx", "dice", "wroll"):
+        check_actions(g)
+    if head in ("move", "roll", "dest", "go", "mv", "nodes", "fc", "fcn", "fcg") and expired(g, "move_until"):
+        raise GameError("مهلت جابه‌جایی امشب تمام شده است.")
 
     if head == "home":
         return await send_home(bot, p, q)
@@ -429,8 +437,8 @@ async def handle(update, ctx, p, head, args):
         i = int(args[0])
         if i >= len(lst) or lst[i].get("dice"):
             raise GameError("تاس این اکت ریخته شده.")
-        if g.get("pending"):
-            raise GameError("گاد در حال محاسبه شب است.")
+        from .night_window import check_actions
+        check_actions(g)
         pool = p.setdefault("night_dice", {"cycle": g["cycle"], "list": []})
         if pool.get("cycle") != g["cycle"]:
             pool.update({"cycle": g["cycle"], "list": []})
@@ -659,8 +667,8 @@ def add_act(p, act):
     g = G()
     if g["phase"] != "night":
         raise GameError("اکت فقط در شب.", "Acts only at night.")
-    if g.get("pending"):
-        raise GameError("گاد در حال محاسبه شب است.", "The GM is already resolving the night.")
+    from .night_window import check_actions
+    check_actions(g)
     lst = g["acts"].setdefault(str(p["id"]), [])
     if len(lst) >= act_limit(p):
         raise GameError("به سقف اکت‌هات رسیدی؛ اول پاکشون کن.", "You've reached your act limit; clear first.")
