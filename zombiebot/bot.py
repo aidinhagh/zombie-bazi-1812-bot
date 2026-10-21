@@ -472,6 +472,21 @@ async def _post_init(app):
         logger.warning("repair check failed: %s", e)
     from . import web
     await web.start(app)
+    # dug roads that don't join two cities are removed; the players who may have used them are told
+    try:
+        g = G()
+        dropped = actions.drop_bad_dug_roads(g)
+        if dropped:
+            save()
+            for name, near in dropped:
+                for p in near:
+                    await common.dm(app.bot, p["id"], f"⛏ جاده «{name}» نامعتبر بود و حذف شد (جاده فقط بین دو شهر ساخته می‌شود). "
+                                                    "اگر از این جاده جابه‌جا شده‌ای، گاد جایت را بررسی می‌کند.")
+                await common.gm_notes(app.bot, [(f"⛏ جاده نامعتبر «{name}» حذف شد. بازیکن‌هایی که روی دو سر آن بودند یا از آن رد شدند: "
+                                                 + ("، ".join(f"{p['name']} ({board.square_name(p['pos']) if p.get('pos') else '—'})" for p in near) or "هیچ‌کس")
+                                                 + " — اگر کسی از این جاده رفته، از کارت بازیکن جابه‌جایش کن.", "")])
+    except Exception as e:
+        logger.warning("dug road check failed: %s", e)
     # live duels get their current round's buttons again (new attack/defend/trick buttons)
     try:
         g = G()

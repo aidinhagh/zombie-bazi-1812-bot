@@ -251,3 +251,21 @@ def test_musketeer_cannot_war_bullet_himself():
     act(g, 1, "bullets", None, targets=["1", "2"], war="1")
     res = resolve_night(g, FixedRng())
     assert [e["kind"] for e in effects(res, "bullet") if e["pid"] == "1"] == ["practice"]
+
+
+def test_bad_dug_road_is_removed_and_cannon_breaks_once():
+    g = make([("doctor", "copenhagen"), ("zombie", "n15")])
+    g["extra_routes"].append({"id": "x1", "from": "n37", "to": "copenhagen", "kind": "road", "nodes": [], "km": 0, "owner": 1})
+    dropped = actions.drop_bad_dug_roads(g)
+    assert dropped and g["extra_routes"] == [] and dropped[0][1][0]["id"] == 1
+    with pytest.raises(actions.GameError):
+        actions.dig_route(g, "n37", "copenhagen")
+    Z = g["players"]["2"]
+    Z["units"]["cannon"] = 1
+    rid = board.routes_touching(g, "n15", kind="road")[0]
+    g["phase"] = "day"
+    actions.strike_route(g, Z, "cannon", rid)
+    actions.start_phase(g, "night")
+    g["route_state"][rid] = "ok"
+    with pytest.raises(actions.GameError):
+        actions.strike_route(g, Z, "cannon", rid)

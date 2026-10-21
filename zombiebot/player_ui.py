@@ -380,6 +380,8 @@ async def handle(update, ctx, p, head, args):
     if head == "udt":
         if p["units"].get("shovel", 0) < 1:
             raise GameError("بیل نداری.", "You have no shovel.")
+        if p["pos"] not in CITIES:
+            raise GameError("جاده جدید را فقط از داخل یک شهر می‌شود کند.")
         await to_gms(bot, f"⛏ {p['name']}: {board.square_name(p['pos'])} → {LOCATIONS[args[0]]['fa']}",
                      reply_markup=kb([[("✅", f"g:dig:{p['id']}:{p['pos']}:{args[0]}"), ("❌", f"g:dig:{p['id']}:0:0")]]))
         return await edit_or_send(q, L(lang, "درخواست برای گاد فرستاده شد.", "Request sent to the GM."), [back(lang)])

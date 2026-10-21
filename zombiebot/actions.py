@@ -440,6 +440,10 @@ def strike_route(g, p, unit, rid):
     r, status = rmap[rid], board.route_status(g, rid)
     if p["units"].get(unit, 0) < 1:
         raise GameError("این واحد رو نداری.", "You don't have that unit.")
+    if unit == "cannon":
+        owned = p["units"].get("cannon", 0) + sum(1 for u in g["units_on_map"] if u["kind"] == "cannon" and str(u["owner"]) == str(p["id"]))
+        if p.get("cannon_strikes", 0) >= owned:
+            raise GameError("هر توپ فقط یک بار می‌تواند جاده خراب کند.", "Each cannon can break a road only once.")
     used = p["flags"].setdefault("unit_used", {})
     if used.get(unit, 0) >= p["units"][unit]:      # units are kept: each one can be used once a phase
         raise GameError("این واحد را در همین فاز استفاده کردی؛ فاز بعد دوباره.", "Already used this phase.")
@@ -448,6 +452,7 @@ def strike_route(g, p, unit, rid):
         if r["kind"] != "road" or status != "ok":
             raise GameError("فقط مسیر زمینی سالم.", "Only an intact land route.")
         g["route_state"][rid] = "broken"
+        p["cannon_strikes"] = p.get("cannon_strikes", 0) + 1
     elif unit == "mine":
         if r["kind"] != "sea" or status != "ok":
             raise GameError("فقط مسیر دریایی سالم.", "Only an open sea route.")
@@ -460,13 +465,14 @@ def strike_route(g, p, unit, rid):
         if r["kind"] != "road" or status != "broken":
             raise GameError("فقط جاده خراب را می‌شه تعمیر کرد.", "Only a broken road can be repaired.")
         g["route_state"][rid] = "ok"
+        p["units"]["shovel"] -= 1                  # a shovel is used up
     log(g, f"{p['name']} {unit} on {rid}")
 
 
 def dig_route(g, a, b, kind="road", owner=None):
     """GM adds a shovel-made route between two squares."""
-    if a not in SQUARES or b not in SQUARES:
-        raise GameError("خانه نامعتبر.", "Unknown square.")
+    if a not in CITIES or b not in CITIES:
+        raise GameError("جاده جدید فقط از یک شهر به شهر دیگر ساخته می‌شود.", "New roads join two cities.")
     rid = next_id(g, "x")
     g["extra_routes"].append({"id": rid, "from": a, "to": b, "kind": kind, "nodes": [], "km": 0, "owner": owner})
     return rid
@@ -705,6 +711,25 @@ def fix_self_war_bullets(g):
             P["bullets"] = [b for b in P["bullets"] if b != "war"]
             n += 1
     return n
+
+
+def drop_bad_dug_roads(g):
+    """Remove dug roads that start from a square between cities (e.g. one dug across a mined sea lane).
+    Returns [(route_name, [players who were on its ends])]."""
+    out = []
+    keep = []
+    for r in g.get("extra_routes", []):
+        if r["from"] in CITIES and r["to"] in CITIES:
+            keep.append(r)
+            continue
+        name = board.route_name(g, r["id"])
+        ends = {r["from"], r["to"]}
+        near = [p for p in alive_players(g) if p.get("pos") in ends or ends & set(p["flags"].get("passed", []))
+                or p.get("night_pos") in ends]
+        g["route_state"].pop(r["id"], None)
+        out.append((name, near))
+    g["extra_routes"] = keep
+    return out
 
 
 def repair_half_applied(g):
