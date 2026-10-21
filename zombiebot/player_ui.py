@@ -82,7 +82,7 @@ def dice_rows(p):
             and p["flags"].get("wagram_roll") is None):
         rows.append([("🎲 تاس خانقاه — شانس اکت دوم", "p:wroll")])
     rows += [[(f"🎲🎲 ریختن ۲ تاس برای «{act_name(a['type'], p['lang'])}»", f"p:dice:{i}")]
-             for i, a in enumerate(g["acts"].get(str(p["id"]), [])) if not a.get("dice")]
+             for i, a in enumerate(g["acts"].get(str(p["id"]), [])) if not a.get("dice") and not a.get("dice_total")]
     return rows
 
 
@@ -461,7 +461,7 @@ async def handle(update, ctx, p, head, args):
     if head == "dice":
         lst = g["acts"].get(str(p["id"]), [])
         i = int(args[0])
-        if i >= len(lst) or lst[i].get("dice"):
+        if i >= len(lst) or lst[i].get("dice") or lst[i].get("dice_total"):
             raise GameError("تاس این اکت ریخته شده.")
         from .night_window import check_actions
         check_actions(g)
@@ -685,7 +685,8 @@ def acts_text(p, lang):
         if a["type"] == "duel" and ex.get("target2") and pl(ex["target2"]):
             t += " ⚔️ " + pl(ex["target2"])["name"]
         tag = f" (به‌جای {role_name(a['as_role'])})" if a.get("as_role") else ""
-        dice = f" · 🎲 {num(a['dice'][0])}+{num(a['dice'][1])}" if a.get("dice") else " · 🎲 تاس نریخته"
+        dice = (f" · 🎲 {num(a['dice'][0])}+{num(a['dice'][1])}" if a.get("dice") else
+                f" · 🎲 جمع {num(a['dice_total'])} (گاد)" if a.get("dice_total") else " · 🎲 تاس نریخته")
         out.append(f"• {act_name(a['type'], lang)}{tag} → {t}{dice}")
     return "\n".join(out)
 

@@ -154,7 +154,11 @@ class Night:
                 a["stat"], a["stat_val"] = stat, base
                 a["stat_raw"] = ROLES[a.get("as_role") or alive[pid]["role"]][stat]
                 thrown = a.get("dice")
-                if isinstance(thrown, (list, tuple)) and len(thrown) == 2 and all(1 <= int(v) <= 6 for v in thrown):
+                total_override = a.get("dice_total")
+                if a.get("gm_override") and type(total_override) is int and 2 <= total_override <= 12:
+                    tot, d = total_override, None
+                    a["note"].append("جمع تاس با اصلاح گاد ثبت شد")
+                elif isinstance(thrown, (list, tuple)) and len(thrown) == 2 and all(1 <= int(v) <= 6 for v in thrown):
                     d = (int(thrown[0]), int(thrown[1]))          # the player's own 2d6
                     tot = d[0] + d[1]
                 else:
@@ -181,6 +185,13 @@ class Night:
                           f"{self.nm(a['by'])} is in the church and cannot attack.")
 
         # ---- 1. thief ----
+        # Priest counts distinct submitted attackers, including attempts later cancelled
+        # by theft/defuse. Cancelling an attempt must not make its teammate act alone.
+        self.zombie_attack_attempts = {}
+        for a in acts:
+            if a["type"] == "attack" and a["active"] and team(self.P(a["by"])) == ZOMBIE:
+                self.zombie_attack_attempts.setdefault(a["target"], set()).add(a["by"])
+
         # The steal itself always happens (it can't be defused); only the borrowed act can be.
         stolen_ok = set()
         for a in [x for x in acts if x["type"] == "steal" and x["active"]]:
@@ -454,7 +465,21 @@ class Night:
                          f"Duel tomorrow: {self.nm(a['target'])} vs {self.nm(b)}", a=a["target"], b=b)
 
         # act-by-act report for the GM
-        report = [("🌙 اکت‌ها، یکی‌یکی:", "")]
+        report = []
+        from .data.legendary import LEGENDARY
+        from .texts import stat_name
+        for p in alive.values():
+            for key in p.get("legend", []):
+                item = LEGENDARY.get(key)
+                if not item:
+                    continue
+                bonuses = [f"{stat_name(k, 'fa')} +{v} (پیش از تعدیل مکان)" for k, v in item.get("stats", {}).items()]
+                if item.get("hp"):
+                    bonuses.append(f"اچ‌پی +{item['hp']} (قبلاً در اچ‌پی فعلی لحاظ شده)")
+                report.append((f"🌟 {p['name']}: {item['fa']} — " + "، ".join(bonuses), ""))
+        if report:
+            report.append(("", ""))
+        report.append(("🌙 اکت‌ها، یکی‌یکی:", ""))
         for a in acts:
             A = self.P(a["by"])
             if a["type"] == "bullets":
@@ -467,8 +492,8 @@ class Night:
             who = f"{A['name']} ({role_name(a.get('as_role') or A['role'])}{' — قرضی از دزدی' if a.get('as_role') else ''})"
             mod = a["stat_val"] - a["stat_raw"]
             modtxt = f" ({'+' if mod > 0 else '−'}{abs(mod)} مکان/خرید/آیتم)" if mod else ""
-            d1, d2 = a["dice"]
-            calc = f"تاس {d1}+{d2} + {STAT_FA.get(a['stat'], a['stat'])} {a['stat_raw']}{modtxt} = {a['power0']}" + (f" → {a['power']}" if a["power"] != a["power0"] else "")
+            dice_text = "+".join(str(v) for v in a["dice"]) if a["dice"] else f"جمع {a['dice_total']} (گاد)"
+            calc = f"تاس {dice_text} + {STAT_FA.get(a['stat'], a['stat'])} {a['stat_raw']}{modtxt} = {a['power0']}" + (f" → {a['power']}" if a["power"] != a["power0"] else "")
             extra = ""
             if a["type"] == "guess":
                 extra = f" · حدس: {role_name(a.get('extra', {}).get('role', '?'))}"
@@ -492,6 +517,12 @@ class Night:
                 by_target.setdefault(a["target"], []).append(a)
         for tid, lst in by_target.items():
             T = self.P(tid)
+            if T["role"] == "priest" and kind == "attack":
+                if len(self.zombie_attack_attempts.get(tid, set())) == 1:
+                    for a in lst:
+                        a["power"] //= 2
+                        a["note"].append("نصف شد (کاهن)")
+                continue
             if len(lst) != 1:
                 continue
             a = lst[0]
