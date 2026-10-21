@@ -678,6 +678,16 @@ async def legend_tell_bidders(bot, g, au, skip=None):
             await dm(bot, P["id"], legend_bid_text(g, au, P), reply_markup=kb(legend_bid_rows(g, au, P)))
 
 
+async def legend_spawn_next(bot):
+    """As soon as no legendary item is out, the next one appears somewhere (only the GM is told)."""
+    g = G()
+    a = legendary.spawn_next(g)
+    save()
+    if a:
+        await gm_notes(bot, [(legendary.spawn_text(a), "")])
+    return a
+
+
 async def legend_after_lock(bot):
     """At the lock: hand the legendary item to the one person standing on it, or open the secret auction."""
     g = G()
@@ -687,6 +697,7 @@ async def legend_after_lock(bot):
         it = LEGENDARY[info["legend"][-1]]
         await dm(bot, info["id"], f"🌟 آیتم لجندری «{it['fa']}» را پیدا کردی! {it['desc_fa']}\n(به کسی اعلام نمی‌شود.)")
         await gm_notes(bot, [(f"🌟 {info['name']} آیتم لجندری «{it['fa']}» را برداشت.", "")])
+        await legend_spawn_next(bot)
     elif kind == "auction":
         au = legendary.state(g)["auction"]
         await legend_tell_bidders(bot, g, au)
@@ -741,6 +752,7 @@ async def legend_close(bot):
         if b != str(win["id"]):
             await dm(bot, pl(b)["id"], f"🌟 مزایده «{it['fa']}» تمام شد و تو نبردی.")
     await gm_notes(bot, [(f"🌟 {win['name']} «{it['fa']}» را با {num(best)} سکه برد.", "")])
+    await legend_spawn_next(bot)
     return True
 
 

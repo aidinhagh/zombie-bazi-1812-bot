@@ -475,6 +475,12 @@ async def _post_init(app):
     # dug roads that don't join two cities are removed; the players who may have used them are told
     try:
         g = G()
+        try:
+            from .events import legend_spawn_next
+            if g.get("phase") in ("day", "night"):
+                await legend_spawn_next(app.bot)     # an item was taken and nothing new is out yet
+        except Exception as e:
+            logger.warning("legend spawn at startup failed: %s", e)
         dropped = actions.drop_bad_dug_roads(g)
         if dropped:
             save()
