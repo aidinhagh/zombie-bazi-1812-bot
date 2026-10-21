@@ -567,7 +567,7 @@ async def pull_slot(bot, ctx, p, chat_id):
         dead = [x for x in roster(g) if not x["alive"] and x["role"] and not x.get("unrevivable")]
         rows = [[(x["name"], f"p:rv:{x['id']}")] for x in dead] or [back(lang)]
         ctx.job_queue.run_once(job_result_rows, DICE_WAIT, data=(p["id"], "🎰 سه‌تای یکسان! یک نفر رو زنده کن:",
-                                                                 "🎰 Three of a kind! Revive someone:", rows))
+                                                                 "🎰 Three of a kind! Revive someone:", rows, chat_id))
         return
     if s["hit"]:
         res = (f"🎰 جک‌پات! همه قدرت‌ها و اچ‌پی +{num(s.get('change', 20))} — برای همیشه (حتی بعد از مرگ و زنده شدن).",
@@ -578,7 +578,7 @@ async def pull_slot(bot, ctx, p, chat_id):
                "🎰 Out of pulls, no three of a kind." + (" All powers −20 permanently." if vienna else ""))
     else:
         res = (f"🎰 نشد. {num(s['left'])} بار دیگه.", f"🎰 No luck. {s['left']} pulls left.")
-    ctx.job_queue.run_once(job_result, DICE_WAIT, data=(p["id"], *res, q.message.chat_id))
+    ctx.job_queue.run_once(job_result, DICE_WAIT, data=(p["id"], *res, chat_id))
 
 
 def shop_view(p, lang):

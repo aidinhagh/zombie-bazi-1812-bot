@@ -57,3 +57,18 @@ def test_gm_gets_action_dice_result_in_originating_chat():
         assert any('ثبت شد' in m.text and m.chat_id==GM for m in w.sent)
         assert not [m for m in w.sent if m.chat_id==1]
     run(go())
+
+
+def test_slot_results_use_supplied_chat_for_miss_and_berlin_hit():
+    async def go():
+        w=World(seed=115);await setup(w,['zombie','doctor']);await next_step(w)
+        p=P(w,1);p['pos']=p['night_pos']='vienna';w.g['locked']=True;w.g['as']={str(GM):'1'}
+        w.forced_dice=[2];w.sent.clear()
+        await player_ui.pull_slot(w.bot,w.ctx(GM),p,GM);await w.flush_jobs()
+        assert any(m.chat_id==GM and 'بار دیگه' in m.text for m in w.sent)
+        assert not [m for m in w.sent if m.chat_id==1]
+        p['pos']=p['night_pos']='berlin';p['slots']=None;P(w,2)['alive']=False;w.forced_dice=[1];w.sent.clear()
+        await player_ui.pull_slot(w.bot,w.ctx(GM),p,GM);await w.flush_jobs()
+        assert any(m.chat_id==GM and 'p:rv:2' in m.buttons() for m in w.sent)
+        assert not [m for m in w.sent if m.chat_id==1]
+    run(go())
