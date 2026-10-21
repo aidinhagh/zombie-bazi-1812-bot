@@ -141,6 +141,8 @@ def test_thief_steals_and_spy_kills_thief():
 def test_spy_colors_and_roles():
     g = make([("spy", "n15"), ("zombie", "n17"), ("doctor", "n19"), ("godfather", "n21"), ("clown", "n23")])
     g["players"]["5"]["disguise"] = "zombie"
+    for i in ("1", "3"):
+        g["players"][i]["boost"] = {"spy": 30}     # spying must beat plain stealth
     act(g, 1, "spy", 2)
     act(g, 3, "spy", 4)
     act(g, 3, "spy", 5)
@@ -234,3 +236,18 @@ def test_vote_weights():
     g["players"]["3"]["flags"].pop("hotel_immune")
     ranked, _ = actions.tally(g)
     assert ranked[0] == ("3", 2)   # paris 2 + petersburg 0
+
+
+def test_spy_fails_against_higher_stealth():
+    g = make([("spy", "n15"), ("zombie", "n17")])
+    act(g, 1, "spy", 2)               # 15 + 6 = 21 vs stealth 30
+    res = resolve_night(g, FixedRng())
+    assert any("شکست" in e["fa"] for e in effects(res, "private"))
+
+
+def test_musketeer_cannot_war_bullet_himself():
+    g = make([("musketeer", "n15"), ("doctor", "n17")])
+    g["players"]["1"]["boost"] = {"stealth": -20}
+    act(g, 1, "bullets", None, targets=["1", "2"], war="1")
+    res = resolve_night(g, FixedRng())
+    assert [e["kind"] for e in effects(res, "bullet") if e["pid"] == "1"] == ["practice"]

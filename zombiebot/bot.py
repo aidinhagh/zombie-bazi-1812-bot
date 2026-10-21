@@ -266,6 +266,12 @@ async def cmd_export(update, ctx):
                                     caption="💾 کل داده‌های بازی. برای برگرداندن: همین فایل را با کپشن /import بفرست.")
 
 
+async def on_manual_dice(update, ctx):
+    """A 🎲/🎰 sent by hand doesn't count — only the bot's own buttons throw dice for the game."""
+    await update.message.reply_text("⚠️ تاس یا اسلاتی که خودت بفرستی حساب نمی‌شود. از دکمه‌های منوی ربات استفاده کن "
+                                    "(اسلات کارخانه/قبرستان فقط شب و بعد از ساعت ۸).")
+
+
 async def on_document(update, ctx):
     """GM sends a game file with the caption /import → it replaces the current game (the old one is backed up)."""
     m = update.message
@@ -456,6 +462,8 @@ async def _post_init(app):
     try:
         if actions.restore_used_units(G()):
             save()
+        if actions.fix_self_war_bullets(G()):
+            save()
         n = actions.repair_half_applied(G())
         if n:
             save()
@@ -503,6 +511,7 @@ def build_app(token):
                                    votes.on_group_text))
     app.add_handler(MessageHandler(filters.TEXT & filters.ChatType.PRIVATE & ~filters.COMMAND, player_ui.on_private_text))
     app.add_handler(MessageHandler(filters.Document.ALL & filters.ChatType.PRIVATE, on_document))
+    app.add_handler(MessageHandler(filters.Dice.ALL & filters.ChatType.PRIVATE, on_manual_dice))
     app.add_error_handler(on_error)
     jq = app.job_queue
     jq.run_daily(job_lock, time=datetime.time(LOCK_HOUR, 0, tzinfo=TZ), name="lock")

@@ -79,7 +79,7 @@ def test_control_room_walks_the_whole_cycle():
         await w.press(GM, f"g:ef:{eid}", message=res)
         await w.press(GM, "g:apply")
         assert w.g["applied_cycle"] == 1
-        assert any("Your spy result" in t or "نتیجه جاسوسی" in t for t in w.texts_to(4))
+        assert any("Your spy result" in t or "نتیجه جاسوسی" in t or "جاسوسی تو روی" in t for t in w.texts_to(4))
         # day: votes in the group
         await next_step(w)
         assert w.g["phase"] == "day"

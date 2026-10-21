@@ -697,6 +697,16 @@ def restore_used_units(g):
     return n
 
 
+def fix_self_war_bullets(g):
+    """A musketeer can't hold his own war bullet (only he hands bullets out): turn it back into a charge."""
+    n = 0
+    for P in g["players"].values():
+        if P.get("role") == "musketeer" and "war" in P.get("bullets", []):
+            P["bullets"] = [b for b in P["bullets"] if b != "war"]
+            n += 1
+    return n
+
+
 def repair_half_applied(g):
     """Undo a night result that was applied but crashed before finishing (the GM can then apply it once).
     Counts how many times the damage went in, from the 'before' hp written in each damage line."""

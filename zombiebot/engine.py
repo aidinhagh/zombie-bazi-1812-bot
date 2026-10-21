@@ -358,6 +358,14 @@ class Night:
         # ---- 6. spy ----
         for a in [x for x in acts if x["type"] == "spy" and x["active"]]:
             A, T = self.P(a["by"]), self.P(a["target"])
+            if a["target"] != a["by"]:
+                hide = stats[a["target"]][0]["stealth"]          # spy act (2d6 + spy) must beat the target's plain stealth
+                ok = a["power"] > hide
+                self.line(f"🔍 جاسوسی {A['name']} روی {T['name']}: {a['power']} در برابر مخفی‌کاری {hide} → {'موفق' if ok else 'شکست'}", "")
+                if not ok:
+                    self.eff("private", f"🔍 جاسوسی تو روی {T['name']} شکست خورد ({a['power']} در برابر مخفی‌کاری {hide}).",
+                             f"Your spying on {T['name']} failed.", pid=a["by"])
+                    continue
             is_spy = (a.get("as_role") or A["role"]) == "spy"
             vf, ve = spy_view(self.g, T, is_spy, "fa"), spy_view(self.g, T, is_spy, "en")
             if T["flags"].get("spy_mask"):      # Venetian mask: looks like a harmless human tonight
@@ -430,7 +438,7 @@ class Night:
                 t = str(t)
                 if t not in alive:
                     continue
-                kind = "war" if (str(war) == t and not defused and self.P(a["by"])["charges"].get("war_bullet", 0) > 0) else "practice"
+                kind = "war" if (str(war) == t and t != str(a["by"]) and not defused and self.P(a["by"])["charges"].get("war_bullet", 0) > 0) else "practice"
                 self.eff("bullet", f"تیر به {self.nm(t)} داده شد ({'جنگی' if kind == 'war' else 'مشقی'}).",
                          f"Bullet given to {self.nm(t)} ({kind}).", pid=t, by=a["by"], kind=kind)
                 if kind == "war":

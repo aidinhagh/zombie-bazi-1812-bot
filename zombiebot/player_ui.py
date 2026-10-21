@@ -429,9 +429,20 @@ async def handle(update, ctx, p, head, args):
             raise GameError("تاس این اکت ریخته شده.")
         if g.get("pending"):
             raise GameError("گاد در حال محاسبه شب است.")
+        pool = p.setdefault("night_dice", {"cycle": g["cycle"], "list": []})
+        if pool.get("cycle") != g["cycle"]:
+            pool.update({"cycle": g["cycle"], "list": []})
+        k = sum(1 for a in lst if a.get("dice"))
+        if k < len(pool["list"]):          # already thrown tonight: clearing the act doesn't give a new throw
+            lst[i]["dice"] = list(pool["list"][k])
+            save()
+            d = lst[i]["dice"]
+            return await edit_or_send(q, f"🎲 تاس این شب را قبلاً ریختی: {num(d[0])} + {num(d[1])} = {num(d[0] + d[1])} — همان حساب شد "
+                                         f"برای «{act_name(lst[i]['type'], lang)}».", [[("🌙 اکت‌ها", "p:act")], back(lang)])
         d1 = await bot.send_dice(q.message.chat_id, emoji="🎲")
         d2 = await bot.send_dice(q.message.chat_id, emoji="🎲")
         lst[i]["dice"] = [d1.dice.value, d2.dice.value]
+        pool["list"].append(lst[i]["dice"])
         save()
         text = (f"🎲 {num(d1.dice.value)} + {num(d2.dice.value)} = {num(d1.dice.value + d2.dice.value)} "
                 f"برای «{act_name(lst[i]['type'], lang)}» ثبت شد.")
@@ -759,12 +770,14 @@ async def act_flow(update, ctx, p, head, args):
         sel = ctx.user_data.get("bul", [])
         if not sel:
             raise GameError("هیچ‌کس انتخاب نشده.", "Nobody selected.")
-        rows = [[(pl(x)["name"], f"p:bx:{x}")] for x in sel] if p["charges"].get("war_bullet", 0) > 0 else []
+        rows = [[(pl(x)["name"], f"p:bx:{x}")] for x in sel if str(x) != str(p["id"])] if p["charges"].get("war_bullet", 0) > 0 else []
         rows.append([(L(lang, "بدون تیر جنگی", "No war bullet"), "p:bx:0")])
         return await edit_or_send(q, L(lang, f"تیر جنگی به کی؟ (باقی‌مانده: {num(p['charges'].get('war_bullet', 0))})",
                                        f"War bullet to whom? (left: {p['charges'].get('war_bullet', 0)})"), rows)
     if head == "bx":
         sel = ctx.user_data.get("bul", [])
+        if args[0] != "0" and str(args[0]) == str(p["id"]):
+            raise GameError("تیر جنگی را نمی‌توانی به خودت بدهی.")
         add_act(p, {"type": "bullets", "target": None, "extra": {"targets": sel, "war": None if args[0] == "0" else args[0]}})
         ctx.user_data["bul"] = []
         return await act_done(q, p, lang)
