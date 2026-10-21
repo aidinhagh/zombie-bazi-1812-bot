@@ -29,6 +29,21 @@ def spawn_next(g, where=None, rng=random):
     return L["active"]
 
 
+def move_active(g, where=None, rng=random):
+    """GM: move the legendary item that is on the map to another city (random if none given)."""
+    L = state(g)
+    a = L["active"]
+    if not a:
+        return None
+    if not where:
+        from .actions import ruined
+        cities = [c for c in CITIES if c != a["where"] and not ruined(g, c)] or [c for c in CITIES if c != a["where"]]
+        where = rng.choice(cities)
+    a["where"] = where
+    log(g, f"legendary {a['key']} moved to {where}")
+    return a
+
+
 def spawn_text(a):
     it = LEGENDARY[a["key"]]
     return (f"🌟 (فقط برای گاد) آیتم لجندری «{it['fa']}» مخفیانه در {board.square_name(a['where'])} ظاهر شد.\n{it['desc_fa']}\n"

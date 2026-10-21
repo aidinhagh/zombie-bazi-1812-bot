@@ -220,7 +220,7 @@ async def cmd_fakechar(update, ctx):
 
 @gm_cmd
 async def cmd_legend(update, ctx):
-    """/legend · /legend spawn [city] · /legend close · /legend give <who> <1|2|3>"""
+    """/legend · /legend spawn [city] · /legend move [city] · /legend close · /legend give <who> <1|2|3>"""
     from . import legendary, events
     from .data.legendary import LEGENDARY
     g = G()
@@ -242,6 +242,18 @@ async def cmd_legend(update, ctx):
         if not a:
             return await update.message.reply_text("الان نمی‌شه (یکی روی نقشه یا در مزایده است، یا همه ظاهر شده‌اند).")
         return await update.message.reply_text("✅ " + legendary.spawn_text(a))
+    if args[0] == "move":
+        want = " ".join(args[1:]).strip()
+        where = None
+        if want:
+            where = want if want in board.SQUARES else next((k for k in board.SQUARES if board.square_name(k) == want), None)
+            if not where:
+                return await update.message.reply_text("شهر پیدا نشد. اسم یا کد شهر را درست بنویس، یا خالی بگذار تا تصادفی جابه‌جا شود.")
+        a = legendary.move_active(g, where)
+        save()
+        if not a:
+            return await update.message.reply_text("الان آیتم لجندری‌ای روی نقشه نیست.")
+        return await update.message.reply_text(f"✅ (فقط برای گاد) «{LEGENDARY[a['key']]['fa']}» به {board.square_name(a['where'])} منتقل شد.")
     if args[0] == "close":
         ok = await events.legend_close(ctx.bot)
         return await update.message.reply_text("✅" if ok else "مزایده‌ای باز نیست.")
