@@ -105,6 +105,8 @@ def home_rows(p):
         rows.append([(L(lang, "🌙 اکت شب", "🌙 Night act"), "p:act"), (L(lang, "🛒 خرید", "🛒 Shop"), "p:shop")])
     elif g["phase"] == "day":
         rows.append([(L(lang, "🛒 خرید", "🛒 Shop"), "p:shop")])
+        if p['role'] == 'apothecary':
+            rows.append([("🧪 پادزهر — اکت روز", "p:antidotes")])
     else:
         rows.append([(L(lang, "🛒 خرید", "🛒 Shop"), "p:shop")])
     bag = "🎒 کوله و آیتم‌ها" + (f" ({num(len(p['items']))})" if p["items"] else "")
@@ -206,6 +208,9 @@ async def handle(update, ctx, p, head, args):
     lang = p["lang"]
     bot = ctx.bot
     from .night_window import check_actions, expired
+    # An old night-act button should still lead the apothecary to their day decision.
+    if head == 'act' and g['phase'] == 'day' and p.get('role') == 'apothecary':
+        head = 'antidotes'
     if head in ("act", "a", "t", "tg", "tb", "td", "bl", "bn", "bx", "acx", "dice", "wroll"):
         check_actions(g)
     if head in ("move", "roll", "dest", "go", "mv", "nodes", "fc", "fcn", "fcg") and expired(g, "move_until"):
@@ -219,6 +224,22 @@ async def handle(update, ctx, p, head, args):
         return await send_home(bot, p, q)
     if head == "role":
         return await edit_or_send(q, role_card(p, lang), [back(lang)])
+    if head == 'antidotes':
+        if not p['alive']:
+            raise GameError('شما مرده‌اید.')
+        poisons = events.antidote_decisions(p)
+        lines = ['🧪 پادزهر — تصمیم روز عطار',
+                 'تا شروع شب بعد می‌توانی بین دادن و ندادن پادزهر جابه‌جا شوی؛ شارژ سم برای این تصمیم لازم نیست.']
+        rows = []
+        for po in poisons:
+            target = pl(po['target'])['name']
+            choice = ('پادزهر می‌دهی' if po.get('antidote') else 'پادزهر نمی‌دهی') if 'antidote' in po else 'هنوز انتخاب نکردی'
+            lines.append(f'• {target}: {choice}')
+            rows += [[(f"✅ پادزهر به {target}", f"x:an:{po['id']}:1"),
+                      (f"❌ پادزهر نده به {target}", f"x:an:{po['id']}:0")]]
+        if not poisons:
+            lines.append('الان تصمیم پادزهر بازی نداری؛ فقط سمِ ثبت و اعمال‌شده روی بازیکن زنده، تا شروع شب بعد قابل تغییر است.')
+        return await edit_or_send(q, '\n\n'.join(lines), rows + [back(lang)])
     if head == "pend":
         waiting = events.pending_for(p)
         if not waiting:

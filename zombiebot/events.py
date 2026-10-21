@@ -9,7 +9,7 @@ from telegram.error import TelegramError
 
 from . import legendary, actions, board
 from .actions import GameError
-from .common import G, save, store, pl, dm, group, gm_notes, kb, chunks, acting_uid, name_of, num, logger
+from .common import G, save, store, pl, dm, group, gm_notes, kb, chunks, acting_uid, name_of, num, logger, edit_or_send
 from .data.roles import role_name
 from .data.legendary import LEGENDARY
 from .state import alive_players, team
@@ -137,17 +137,38 @@ def antidote_rows(po):
     return [[("✅ پادزهر بده", f"x:an:{po['id']}:1"), ("❌ نه", f"x:an:{po['id']}:0")]]
 
 
+def antidote_open(g, po, uid):
+    """The living poisoner may revise this cycle's decision until the next night."""
+    A = g['players'].get(str(uid))
+    T = g['players'].get(str(po.get('target')))
+    revisable = po.get('status') in ('pending', 'doomed') or (
+        po.get('status') == 'cured' and po.get('antidote') is True)
+    return bool(A and A['alive'] and T and T['alive'] and str(po.get('by')) == str(uid)
+                and po.get('cycle') == g['cycle'] and revisable)
+
+
+def antidote_decisions(p):
+    return [po for po in G()['poisons'] if antidote_open(G(), po, p['id'])]
+
+
 async def antidote(bot, uid, pid, yes, q=None):
     g = G()
     po = next((x for x in g["poisons"] if x["id"] == pid), None)
-    if not po or str(po["by"]) != str(uid) or po["status"] not in ("pending", "doomed"):
+    if not po or not antidote_open(g, po, uid):
         raise GameError("این تصمیم دیگر باز نیست.")
+    changed = po.get('antidote') is not yes
     po["antidote"] = yes
-    po["status"] = "cured" if yes else "doomed"      # «نه» can still be changed to «بده» until the night begins
+    po["status"] = "cured" if yes else "doomed"
     save()
-    await say_to(q, "✅ تصمیم ثبت شد: " + ("پادزهر داده شد." if yes else "فعلاً پادزهر نمی‌دهی؛ تا شروع شب می‌توانی نظرت را عوض کنی."))
-    if yes:
-        await group(bot, f"🧪 {name_of(po['target'])} پادزهر گرفت.", None)
+    text = ("✅ تصمیم ثبت شد: " + ("پادزهر می‌دهی." if yes else "پادزهر نمی‌دهی.") +
+            " تا شروع شب بعد می‌توانی هر دو تصمیم را عوض کنی.")
+    if q:
+        await edit_or_send(q, text, antidote_rows(po) + [[("🧪 پادزهرها", "p:antidotes"), ("↩️ منو", "p:home")]])
+    else:
+        await dm(bot, uid, text, reply_markup=kb(antidote_rows(po)))
+    if changed:
+        await group(bot, f"🧪 تصمیم فعلی عطار برای {name_of(po['target'])}: " +
+                    ("دادن پادزهر." if yes else "ندادن پادزهر.") + " (تا شروع شب بعد قابل تغییر است.)", None)
 
 
 async def resolve_poisons(bot):
@@ -592,7 +613,7 @@ def pending_for(p):
     pid = str(p["id"])
     out = []
     for po in g["poisons"]:      # from the moment the poison lands until the next night begins
-        if str(po["by"]) == pid and po["status"] in ("pending", "doomed"):
+        if antidote_open(g, po, pid):
             out.append((f"🧪 پادزهر برای {name_of(po['target'])}؟", antidote_rows(po)))
     for d in g["duels"]:
         if d["status"] == "live" and pid in (d["a"], d["b"]) and pid not in d["picks"]:
