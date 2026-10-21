@@ -931,12 +931,17 @@ def winner_check(g):
     return res
 
 
-def wagram_roll(g, p, value):
-    """The monastery die: an even number gives two acts tonight."""
+def validate_wagram_roll(g, p):
+    """Validate before asking Telegram to animate a die."""
     if g["phase"] != "night" or not g["locked"] or "double_act_50" not in flags_at(loc_of(p)):
         raise GameError("این تاس فقط شب و بعد از قفل نقشه در خانقاه است.", "")
     if p["flags"].get("wagram_roll") is not None:
         raise GameError("تاس خانقاه را ریخته‌ای.", "")
+
+
+def wagram_roll(g, p, value):
+    """The monastery die: an even number gives two acts tonight."""
+    validate_wagram_roll(g, p)
     p["flags"]["wagram_roll"] = int(value)
     p["double_act"] = int(value) % 2 == 0
     return p["double_act"]

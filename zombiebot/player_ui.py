@@ -70,6 +70,22 @@ def home_text(p):
     return "\n".join(lines)
 
 
+def dice_rows(p):
+    """Keep outstanding dice reachable even after the original confirmation is gone."""
+    g = G()
+    from .night_window import expired
+    if (g["phase"] != "night" or not p.get("alive")
+            or g.get("applied_cycle") == g["cycle"] or expired(g, "acts_until")):
+        return []
+    rows = []
+    if (g["locked"] and "double_act_50" in flags_at(loc_of(p))
+            and p["flags"].get("wagram_roll") is None):
+        rows.append([("🎲 تاس خانقاه — شانس اکت دوم", "p:wroll")])
+    rows += [[(f"🎲🎲 ریختن ۲ تاس برای «{act_name(a['type'], p['lang'])}»", f"p:dice:{i}")]
+             for i, a in enumerate(g["acts"].get(str(p["id"]), [])) if not a.get("dice")]
+    return rows
+
+
 def home_rows(p):
     g = G()
     lang = p["lang"]
@@ -100,9 +116,6 @@ def home_rows(p):
         extra.append((L(lang, "🚕 تاکسی", "🚕 Taxi"), "p:taxi"))
     if g["phase"] == "night" and g["locked"] and set(flags_at(here)) & {"vienna_slots", "berlin_slots"} and not (p.get("slots") or {}).get("done"):
         extra.append((L(lang, "🎰 اسلات", "🎰 Slots"), "p:slots"))
-    if (g["phase"] == "night" and g["locked"] and "double_act_50" in flags_at(here)
-            and p["flags"].get("wagram_roll") is None):
-        extra.append(("🎲 تاس خانقاه", "p:wroll"))
     if g["phase"] == "day" and p["bullets"]:
         extra.append((L(lang, f"🔫 شلیک ({num(len(p['bullets']))})", f"🔫 Shoot ({len(p['bullets'])})"), "p:shoot"))
     if p["pos"] == "stockholm" and not actions.ruined(g, "stockholm"):
@@ -113,6 +126,7 @@ def home_rows(p):
         extra.append((L(lang, "🃏 نقش جعلی", "🃏 Fake role"), "p:fk"))
     if needs_fake_char(p):
         extra.append(("👤 شخصیت جعلی", "p:fc"))
+    rows += dice_rows(p)
     rows += chunks(extra, 2)
     rows.append([(L(lang, "🎴 نقش من", "🎴 My role"), "p:role")])
     if p.get("fake"):
@@ -162,15 +176,15 @@ async def job_after_roll(ctx):
 
 
 async def job_result(ctx):
-    pid, fa, en = ctx.job.data
+    pid, fa, en, *destination = ctx.job.data
     p = pl(pid)
     if p:
-        await dm(ctx.bot, pid, fa, en, reply_markup=kb(home_rows(p)))
+        await dm(ctx.bot, pid, fa, en, reply_markup=kb(home_rows(p)), destination=destination[0] if destination else None)
 
 
 async def job_result_rows(ctx):
-    pid, fa, en, rows = ctx.job.data
-    await dm(ctx.bot, pid, fa, en, reply_markup=kb(rows))
+    pid, fa, en, rows, *destination = ctx.job.data
+    await dm(ctx.bot, pid, fa, en, reply_markup=kb(rows), destination=destination[0] if destination else None)
 
 
 # ---------------- the dispatcher for p:* buttons ----------------
@@ -319,7 +333,7 @@ async def handle(update, ctx, p, head, args):
             res = ((f"🎯 آیتم گرفتی: {item_line(it, 'fa')}", f"🎯 You found: {item_line(it, 'en')}") if it else
                    (f"🎯 چیزی پیدا نکردی (لازم بود {num(max(2, 7 - power))} یا بیشتر).", f"🎯 Nothing found (needed {max(2, 7 - power)}+)."))
         save()
-        ctx.job_queue.run_once(job_result, DICE_WAIT, data=(p["id"], *res))
+        ctx.job_queue.run_once(job_result, DICE_WAIT, data=(p["id"], *res, q.message.chat_id))
         return
 
     # ----- shop -----
@@ -468,14 +482,15 @@ async def handle(update, ctx, p, head, args):
         save()
         text = (f"🎲 {num(d1.dice.value)} + {num(d2.dice.value)} = {num(d1.dice.value + d2.dice.value)} "
                 f"برای «{act_name(lst[i]['type'], lang)}» ثبت شد.")
-        ctx.job_queue.run_once(job_result_rows, DICE_WAIT, data=(p["id"], text, text, [[("🌙 اکت‌ها", "p:act")], back(lang)]))
+        ctx.job_queue.run_once(job_result_rows, DICE_WAIT, data=(p["id"], text, text, [[("🌙 اکت‌ها", "p:act")], back(lang)], q.message.chat_id))
         return
     if head == "wroll":
+        actions.validate_wagram_roll(g, p)
         msg = await bot.send_dice(q.message.chat_id, emoji="🎲")
         two = actions.wagram_roll(g, p, msg.dice.value)
         save()
         text = (f"🎲 {num(msg.dice.value)} — " + ("زوج! امشب دو اکت داری. 🙏" if two else "فرد؛ امشب یک اکت."))
-        ctx.job_queue.run_once(job_result, DICE_WAIT, data=(p["id"], text, text))
+        ctx.job_queue.run_once(job_result, DICE_WAIT, data=(p["id"], text, text, q.message.chat_id))
         return
     if head == "nm":
         p["flags"].pop("naming", None)
@@ -563,7 +578,7 @@ async def pull_slot(bot, ctx, p, chat_id):
                "🎰 Out of pulls, no three of a kind." + (" All powers −20 permanently." if vienna else ""))
     else:
         res = (f"🎰 نشد. {num(s['left'])} بار دیگه.", f"🎰 No luck. {s['left']} pulls left.")
-    ctx.job_queue.run_once(job_result, DICE_WAIT, data=(p["id"], *res))
+    ctx.job_queue.run_once(job_result, DICE_WAIT, data=(p["id"], *res, q.message.chat_id))
 
 
 def shop_view(p, lang):
@@ -705,7 +720,7 @@ def add_act(p, act):
 
 async def act_done(q, p, lang):
     lst = G()["acts"].get(str(p["id"]), [])
-    rows = [[(f"🎲🎲 ریختن ۲ تاس برای «{act_name(a['type'], lang)}»", f"p:dice:{i}")] for i, a in enumerate(lst) if not a.get("dice")]
+    rows = dice_rows(p)
     note = "\n\n🎲 حالا تاس‌های اکتت را بریز: قدرت اکت = جمع ۲ تاس + استت تو. (اگر نریزی، ربات موقع محاسبه می‌ریزد.)" if rows else ""
     await edit_or_send(q, "✅ " + acts_text(p, lang) + note, rows + [[("🌙 اکت‌ها", "p:act")], back(lang)])
 
@@ -726,14 +741,14 @@ async def act_flow(update, ctx, p, head, args):
             text = (f"🦹 دزدی ثبت شد. نقش {victim}: {role_name(borrow)}{warn}\n\n"
                     f"حالا به‌جای {role_name(borrow)} یک اکت انتخاب کن.\n"
                     f"این اکت با استت‌های {role_name(borrow)} انجام می‌شود (و فقط همین اکت قابل خنثی شدن است).")
-            return await edit_or_send(q, text, rows + [[("🗑 لغو دزدی", "p:acx")], back(lang)])
+            return await edit_or_send(q, text, dice_rows(p) + rows + [[("🗑 لغو دزدی", "p:acx")], back(lang)])
         types = ["attack", "protect", "defuse", "spy"] + SPECIALS.get(p["role"], [])
         rows = chunks([(act_name(t, lang), f"p:a:{t}") for t in types], 2)
         if g["acts"].get(str(p["id"])):
             rows.append([(L(lang, "🗑 پاک کردن اکت‌ها", "🗑 Clear my acts"), "p:acx")])
         lim = L(lang, f"\n\nامشب {num(act_limit(p))} اکت داری. قدرت هر اکت = ۲ تاس + استت تو.",
                 f"\n\nYou have {act_limit(p)} act(s) tonight. Power = 2 dice + your stat.")
-        return await edit_or_send(q, acts_text(p, lang) + lim, rows + [back(lang)])
+        return await edit_or_send(q, acts_text(p, lang) + lim, dice_rows(p) + rows + [back(lang)])
     if head == "acx":
         g["acts"].pop(str(p["id"]), None)
         p["flags"].pop("borrow", None)

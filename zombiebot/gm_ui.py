@@ -171,7 +171,14 @@ async def do_lock(bot):
     summary = actions.lock_map(g)
     save()
     for pid, fa, en in summary["private"]:
-        await dm(bot, pid, fa, en)
+        p = pl(pid)
+        rows = [[("🎲 تاس خانقاه — شانس اکت دوم", "p:wroll")]] if p and p.get("night_pos") == "wagram" and p["flags"].get("wagram_roll") is None else None
+        await dm(bot, pid, fa, en, **({"reply_markup": kb(rows)} if rows else {}))
+    if relock:
+        for p in alive_players(g):
+            if p.get("night_pos") == "wagram" and p["flags"].get("wagram_roll") is None:
+                await dm(bot, p["id"], "🎲 نقشه بسته شد؛ برای شانس اکت دوم خانقاه، دکمه زیر را بزن. زوج = دو اکت. تاس دستی حساب نمی‌شود.",
+                         reply_markup=kb([[("🎲 تاس خانقاه — شانس اکت دوم", "p:wroll")]]))
     for b in g["balloons"]:
         if b["kind"] != "spy" or b["cycle"] != g["cycle"] or b.get("phase") != g["phase"] or b.get("delivered"):
             continue
