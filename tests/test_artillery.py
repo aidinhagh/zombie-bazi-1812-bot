@@ -359,3 +359,18 @@ def test_units_are_kept_and_balloons_fly_once_a_phase_even_by_day():
         await w.press(1, "p:ubt:spy:paris")                         # flies again by day
         assert w.g["balloons"][-1]["name"] == w.g["balloons"][0]["name"]   # same balloon, same name
     run(go())
+
+
+def test_gm_can_peek_at_results_and_reopen_acts():
+    async def go():
+        w = World(seed=99)
+        await setup(w, ["zombie", "doctor"])
+        await next_step(w)
+        await place(w, 1, "paris"); await place(w, 2, "berlin")
+        await next_step(w); await next_step(w)          # lock, resolve
+        assert w.g["pending"] and "g:unresolve" in w.last_to(GM).buttons()
+        await w.press(GM, "g:unresolve")
+        assert w.g["pending"] is None and w.g["phase"] == "night"
+        await w.press(1, "p:act")
+        assert "محاسبه" not in w.last_to(1).text
+    run(go())

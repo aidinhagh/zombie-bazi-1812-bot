@@ -437,6 +437,7 @@ def results_rows(res, lang):
     rows = chunks(btns, 5)
     rows.append([(L(lang, "✔️ اعمال و اعلام", "✔️ Apply and announce"), "g:apply")])
     rows.append([(L(lang, "🎲 تاس دوباره", "🎲 Re-roll"), "g:resolve"), ("📋 گزارش کامل دوباره", "g:details")])
+    rows.append([("↩️ فقط دیدم — لغو محاسبه (اکت‌ها دوباره باز شوند)", "g:unresolve")])
     rows.append(home_btn(lang))
     return rows
 
@@ -762,6 +763,12 @@ async def handle(update, ctx, uid, head, args):
             for part in split_text("📋 " + report_text(res)):
                 await bot.send_message(q.message.chat_id, part)
         return
+    if head == "unresolve":
+        if g.get("pending") and g.get("applied_cycle") != g["cycle"]:
+            g["pending"] = None          # nothing was applied: players can act again
+            save()
+            await q.answer("محاسبه لغو شد؛ بازیکن‌ها دوباره می‌توانند اکت بزنند.")
+        return await send_control_room(bot, uid, q)
     if head == "apply":
         res = g.get("pending")
         if not res:
