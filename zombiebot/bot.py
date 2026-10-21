@@ -246,7 +246,7 @@ async def cmd_legend(update, ctx):
         want = " ".join(args[1:]).strip()
         where = None
         if want:
-            where = want if want in board.SQUARES else next((k for k in board.SQUARES if board.square_name(k) == want), None)
+            where = want if want in board.SQUARES else next((k for k in board.SQUARES if board.square_name(k) == want), None) or next((k for k in board.SQUARES if board.square_name(k).split(' (')[0] == want), None)
             if not where:
                 return await update.message.reply_text("شهر پیدا نشد. اسم یا کد شهر را درست بنویس، یا خالی بگذار تا تصادفی جابه‌جا شود.")
         a = legendary.move_active(g, where)
