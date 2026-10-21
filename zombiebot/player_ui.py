@@ -144,9 +144,21 @@ def alive_others(p, include_self=False):
 # ---------------- jobs (after a dice animation) ----------------
 
 async def job_after_roll(ctx):
-    p = pl(ctx.job.data)
-    if p:
-        await mapview.send_move_map(ctx.bot, p)
+    data = ctx.job.data
+    if isinstance(data, dict):
+        p = pl(data["player_id"])
+        g = G()
+        if (not p or p.get("moved") or g.get("locked")
+                or (g["cycle"], g["phase"]) != (data["cycle"], data["phase"])):
+            return
+        from .night_window import expired
+        if expired(g, "move_until"):
+            return
+        await mapview.send_move_map(ctx.bot, p, destination=data["chat_id"])
+    else:  # Compatibility with an already queued job.
+        p = pl(data)
+        if p:
+            await mapview.send_move_map(ctx.bot, p)
 
 
 async def job_result(ctx):
@@ -247,16 +259,16 @@ async def handle(update, ctx, p, head, args):
             raise GameError("در این فاز حرکت کردی.", "You've already moved this phase.")
         if p["pos"] is None:
             return await mapview.send_city_pick(bot, p, "📍 اولین حرکت: هر جای نقشه، بدون تاس — یک شهر، یا «خانه‌های خالی» را بزن.",
-                                                "", "p:go", first=True)
+                                                "", "p:go", first=True, destination=q.message.chat_id)
         if p["flags"].get("free_move"):
-            return await mapview.send_city_pick(bot, p, "🗺 نقشه قاچاقچی: بدون تاس به هر شهری برو.", "🗺 Smuggler's chart: go to any city, no dice.", "p:go")
+            return await mapview.send_city_pick(bot, p, "🗺 نقشه قاچاقچی: بدون تاس به هر شهری برو.", "🗺 Smuggler's chart: go to any city, no dice.", "p:go", destination=q.message.chat_id)
         if p["move_roll"] is None:
             msg = await bot.send_dice(q.message.chat_id, emoji="🎲")
             p["move_roll"] = msg.dice.value
             save()
-            ctx.job_queue.run_once(job_after_roll, DICE_WAIT, data=p["id"])
+            ctx.job_queue.run_once(job_after_roll, DICE_WAIT, data={"player_id": p["id"], "chat_id": q.message.chat_id, "cycle": g["cycle"], "phase": g["phase"]})
             return
-        return await mapview.send_move_map(bot, p)
+        return await mapview.send_move_map(bot, p, destination=q.message.chat_id)
     if head == "go":
         dest = args[0]
         if g["locked"] or p["moved"]:

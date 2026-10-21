@@ -167,9 +167,9 @@ def banner(uid):
     return ""
 
 
-async def dm(bot, uid, fa, en=None, **kw):
+async def dm(bot, uid, fa, en=None, *, destination=None, **kw):
     text = fa
-    chat = chat_for(uid)
+    chat = destination if destination is not None else chat_for(uid)
     if chat is None:
         return None
     try:
@@ -178,8 +178,8 @@ async def dm(bot, uid, fa, en=None, **kw):
         logger.warning("DM to %s failed: %s", uid, e)
 
 
-async def dm_photo(bot, uid, photo, caption=None, **kw):
-    chat = chat_for(uid)
+async def dm_photo(bot, uid, photo, caption=None, *, destination=None, **kw):
+    chat = destination if destination is not None else chat_for(uid)
     if chat is None:
         return None
     try:
