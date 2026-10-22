@@ -209,7 +209,7 @@ def slot_pull(g, p, value):
     elif s["tries"] >= limit:
         s["done"] = True
     s["left"] = limit - s["tries"]
-    p["slo = s
+    p["slots"] = s
     if kind == "vienna" and s["done"] and not s.get("applied"):
         # the factory's result is permanent (it stays after death and revival, and stacks with later visits)
         s["applied"] = True
@@ -388,7 +388,7 @@ def place_spots(g, p, unit):
     """Placeable nodes: current/passed squares, plus neighbors of the current city."""
     cands = [p["pos"]] + [x for x in p["flags"].get("passed", []) if x != p["pos"]]
     if p['pos'] in board.CITIES:
-        cands += [sq for sq, _ in board.adjacency(g, include_bloTrue).get(p['pos'], [])]
+        cands += [sq for sq, _ in board.adjacency(g, include_blocked=True).get(p['pos'], [])]
     want_sea = unit == "ship"
     return [x for x in dict.fromkeys(cands) if x in SQUARES and SQUARES[x]["kind"] == "node" and SQUARES[x]["sea"] == want_sea]
 
@@ -540,7 +540,7 @@ def lock_map(g, rng=random):
         if not night:
             continue
         p["night_pos"] = p["pos"]
-        if relock and settled.get(str(p["id"]),p["pos"]) == p["pos"]:
+        if relock and settled.get(str(p["id"]), p["pos"]) == p["pos"]:
             continue  # Unchanged locations already settled; never charge/pay twice.
         loc = p["pos"]
         if loc is None:
@@ -687,7 +687,7 @@ def apply_effects(g, result):
                         "You received a bullet (type unknown). Fire it during the day with /shoot."))
         elif t == "duel":
             du = {"id": next_id(g, "d"), "a": e["a"], "b": e["b"], "status": "pending", "rounds": [], "picks": {}}
-          g["duels"].append(du)
+            g["duels"].append(du)
             out.append(("duel", du))
         elif t == "private":
             if e.get("to_team"):
@@ -893,7 +893,7 @@ def tally(g):
     """Returns (sorted [(pid, weighted_votes)], notes)."""
     totals = {}
     notes = []
-    for voter, target in gvotes"].items():
+    for voter, target in g["votes"].items():
         V = g["players"].get(voter)
         if not V or not V["alive"] or target is None:
             continue
