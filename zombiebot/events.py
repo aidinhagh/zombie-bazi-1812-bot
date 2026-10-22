@@ -363,8 +363,8 @@ async def execute(bot, P):
     if not P or not P["alive"]:
         return "این بازیکن زنده نیست."
     if P["flags"].get("hotel_immune") and g["loc_damage"].get("barcelona", 0) == 0:
-        await group(bot, f"🏨 {P['name']} در هتل است و اعدام نمی‌شود.", None)
-        return f"{P['name']} در هتل است و اعدام نمی‌شود."
+        await group(bot, f"🏨 {P['name']} در هتل بود و با وجود حکم اعدام زنده ماند.", None)
+        return None
     if P["flags"].pop("pardon", None):
         save()
         await group(bot, f"📜 {P['name']} فرمان عفو امپراتور را نشان داد؛ اعدامش لغو شد.", None)

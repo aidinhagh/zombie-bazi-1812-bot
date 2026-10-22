@@ -903,10 +903,6 @@ def tally(g):
         if T["flags"].get("vote_guard"):
             totals[tid] = max(0, totals[tid] - T["flags"]["vote_guard"])
             notes.append((f"{T['name']} آیتم دفاع در رأی‌گیری دارد (−{T['flags']['vote_guard']}).", ""))
-        if T["flags"].get("hotel_immune"):
-            pct = g["loc_damage"].get("barcelona", 0)
-            totals[tid] = totals[tid] * pct / 100
-            notes.append((f"{T['name']} در هتل است؛ رأی‌هایش ×{pct}٪.", f"{T['name']} is in the hotel; votes ×{pct}%."))
     ranked = sorted(totals.items(), key=lambda kv: -kv[1])
     return ranked, notes
 

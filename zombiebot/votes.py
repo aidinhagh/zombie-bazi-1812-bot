@@ -3,9 +3,8 @@
   #رای <name>   in the group — vote for someone (Persian, English, nickname or reply)
   #رایگیری      in the group — the running tally
 
-One vote per player per day: the first one counts. A vote for someone the hotel
-protects is struck by lightning and doesn't count (and doesn't use up the vote);
-if the hotel has been bombed, those votes count by the destroyed percentage.
+One vote per player per day: the first one counts. Hotel protection is checked
+only when the chosen execution is carried out; it does not invalidate votes.
 """
 import asyncio
 import io
@@ -103,11 +102,6 @@ def cast(voter, target):
     prev = g["votes"].get(str(voter["id"]))
     if prev:
         return "already", pl(prev)
-    if target["flags"].get("hotel_immune") and hotel_pct() == 0:
-        g.setdefault("vote_log", []).append({"voter": str(voter["id"]), "target": str(target["id"]), "counted": False,
-                                             "why": "hotel", "cycle": g["cycle"], "t": time.time()})
-        save()
-        return "lightning", None
     g["votes"][str(voter["id"])] = str(target["id"])
     g.setdefault("vote_log", []).append({"voter": str(voter["id"]), "target": str(target["id"]), "counted": True,
                                          "cycle": g["cycle"], "t": time.time()})

@@ -156,12 +156,12 @@ def test_vote_rules_matching_hotel_dead_and_delete():
         await w.cmd(GM, "nick", "رضا", "رضی‌جون")
         await w.say(1, "#رای رضی‌جون")
         assert w.g["votes"]["1"] == "4"
-        # hotel: lightning, vote not used up
+        # Hotel votes count normally and consume the voter's daily vote.
         await w.say(2, "#رای سارا")
-        assert "2" not in w.g["votes"]
-        assert "⚡" in [m for m in w.sent if m.chat_id == GROUP and m.animation][-1].text
+        assert w.g['votes']['2'] == '3'
+        assert '⚡' not in [m for m in w.sent if m.chat_id == GROUP and m.animation][-1].text
         await w.say(2, "#رای Reza")
-        assert w.g["votes"]["2"] == "4"
+        assert w.g["votes"]["2"] == "3"
         # a reply counts as naming the person
         target_msg = w.sent[-1]
         target_msg.from_user = w.user(5, "نگار", "negar")
@@ -180,9 +180,10 @@ def test_vote_rules_matching_hotel_dead_and_delete():
         voter_msg.from_user = w.user(1, "مریم", "maryam")
         await w.cmd(GM, "delete", chat_type="supergroup", chat_id=GROUP)
         await w.cmd(GM, "delete", "رضا", chat_type="supergroup", chat_id=GROUP)
+        await w.cmd(GM, "delete", "سارا", chat_type="supergroup", chat_id=GROUP)
         assert "1" not in w.g["votes"] and "2" not in w.g["votes"]
         # vote screen: remove one vote via buttons
-        await w.say(1, "#رای سارا")   # lightning again (still in hotel)
+        await w.say(1, "#رای سارا")   # normal vote despite hotel protection
         await w.say(1, "#رای علی")
         await w.press(GM, "g:votes")
         await w.press(GM, "g:vdel")
