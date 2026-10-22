@@ -406,10 +406,10 @@ async def handle(update, ctx, p, head, args):
         spots = actions.place_spots(g, p, unit) if len(args) < 2 else [args[1]]
         if not spots:
             raise GameError("باید روی یک خانه خالی " + ("دریایی" if unit == "ship" else "زمینی") +
-                            " باشی یا در همین فاز از آن رد شده باشی.")
+                            " باشی، در همین فاز از آن رد شده باشی، یا در شهر متصل به آن باشی.")
         if len(spots) > 1:
             rows = [[(board.square_name(x)[:40], f"p:up:{unit}:{x}")] for x in spots]
-            return await edit_or_send(q, f"{unit_name(unit, 'fa')} را کجا بکارم؟ (جایی که هستی یا از آن رد شدی)", rows + [back(lang, "p:bag")])
+            return await edit_or_send(q, f"{unit_name(unit, 'fa')} را کجا بکارم؟ (خانه فعلی، مسیر این فاز، یا اطراف شهرت)", rows + [back(lang, "p:bag")])
         u = actions.place_unit(g, p, unit, spots[0])
         return await ask_name(q, p, "unit", u, f"✅ {unit_name(unit, 'fa')} در {board.square_name(spots[0])} مستقر شد.")
     if head == "us":
@@ -655,9 +655,9 @@ def bag_view(p, lang):
     if u:
         lines.append(L(lang, "\nواحدها: ", "\nUnits: ") + ", ".join(f"{unit_name(k, lang)}×{num(v, lang)}" for k, v in u.items()))
         if u.get("cannon"):
-            rows.append([("💣 توپ: کاشتن (همین‌جا یا مسیرم)", "p:up:cannon"), (L(lang, "💣 توپ: خراب کردن جاده", "💣 Cannon: destroy road"), "p:us:cannon")])
+            rows.append([("💣 توپ: کاشتن (اطراف شهر/مسیرم)", "p:up:cannon"), (L(lang, "💣 توپ: خراب کردن جاده", "💣 Cannon: destroy road"), "p:us:cannon")])
         if u.get("ship"):
-            rows.append([("⛵ کشتی: کاشتن (همین‌جا یا مسیرم)", "p:up:ship"), (L(lang, "⛵ کشتی: پاک کردن مین", "⛵ Ship: clear mine"), "p:us:ship")])
+            rows.append([("⛵ کشتی: کاشتن (اطراف شهر/مسیرم)", "p:up:ship"), (L(lang, "⛵ کشتی: پاک کردن مین", "⛵ Ship: clear mine"), "p:us:ship")])
         if u.get("mine"):
             rows.append([(L(lang, "🌊 مین: بستن مسیر دریایی", "🌊 Mine: block a sea lane"), "p:us:mine")])
         if u.get("shovel"):

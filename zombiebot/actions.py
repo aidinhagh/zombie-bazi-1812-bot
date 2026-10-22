@@ -385,8 +385,10 @@ def active_effects(p):
 # ---------------- units on the board ----------------
 
 def place_spots(g, p, unit):
-    """Empty squares where this unit can be planted: where you stand, or any you crossed this phase."""
+    """Placeable nodes: current/passed squares, plus neighbors of the current city."""
     cands = [p["pos"]] + [x for x in p["flags"].get("passed", []) if x != p["pos"]]
+    if p['pos'] in board.CITIES:
+        cands += [sq for sq, _ in board.adjacency(g, include_blocked=True).get(p['pos'], [])]
     want_sea = unit == "ship"
     return [x for x in dict.fromkeys(cands) if x in SQUARES and SQUARES[x]["kind"] == "node" and SQUARES[x]["sea"] == want_sea]
 
@@ -397,14 +399,15 @@ def place_unit(g, p, unit, where=None, name=None):
     if p["units"].get(unit, 0) < 1:
         raise GameError("این واحد رو نداری.", "You don't have that unit.")
     sq = SQUARES.get(where or p["pos"])
-    if where and where != p["pos"] and where not in p["flags"].get("passed", []):
-        raise GameError("فقط جایی که هستی یا از آن رد شدی.", "")
     if not sq or sq["kind"] != "node":
         raise GameError("فقط روی خانه خالی (بین شهرها) می‌شه کاشت.", "You can only place it on an empty square between cities.")
     if unit == "cannon" and sq["sea"]:
         raise GameError("توپ جنگی فقط روی مسیر زمینی.", "Cannons go on land routes only.")
     if unit == "ship" and not sq["sea"]:
         raise GameError("کشتی فقط روی مسیر دریایی.", "Ships go on sea routes only.")
+    if (where or p['pos']) not in place_spots(g, p, unit):
+        raise GameError("فقط خانه فعلی، مسیر طی‌شده در همین فاز، یا خانه متصل به شهری که در آن هستی.",
+                        "Place on your current square, this phase's path, or a node directly next to your city.")
     spot = where or p["pos"]
     if any(u["square"] == spot and u["kind"] == unit and str(u["owner"]) == str(p["id"]) for u in g["units_on_map"]):
         raise GameError("قبلاً اینجا گذاشتی.", "You already have one here.")
@@ -535,49 +538,7 @@ def lock_map(g, rng=random):
                                 "Your fake character was placed for you."))
             p["fake_public_pos"] = p["fake_pos"]
         if not night:
-            continue
-        p["night_pos"] = p["pos"]
-        if relock and settled.get(str(p["id"]), p["pos"]) == p["pos"]:
-            continue  # Unchanged locations already settled; never charge/pay twice.
-        loc = p["pos"]
-        if loc is None:
-            gm_notes.append((f"{p['name']} جایی روی نقشه انتخاب نکرده.", f"{p['name']} has no position."))
-            continue
-        if loc == p.get("last_night_pos"):
-            gm_notes.append((f"{p['name']} دو شب پشت سر هم در {board.square_name(loc)} است!",
-                             f"{p['name']} is in {board.square_name(loc,'en')} two nights in a row!"))
-        fl = flags_at(loc)
-        dmg = g["loc_damage"].get(loc, 0)
-        if "hotel" in fl and dmg < 100:
-            before = p["hp"]
-            p["hp"] = p["hp"] // 2 - 10 if p["hp"] > 20 else p["hp"] - 10
-            p["flags"]["hotel_immune"] = True
-            private.append((p["id"], f"هتل: اچ‌پی {before}→{p['hp']}، فردا اعدام نمی‌شی.",
-                            f"Hotel: hp {before}→{p['hp']}; you can't be executed tomorrow."))
-            if p["hp"] <= 0:
-                gm_notes.append((f"{p['name']} با هزینه هتل به اچ‌پی {p['hp']} رسید.", f"{p['name']} hit {p['hp']} hp from the hotel cost."))
-        if "bank" in fl and dmg < 100:
-            coins = BANK_COINS * (100 - dmg) // 100
-            p["coins"] += coins
-            private.append((p["id"], f"بانک: {coins} سکه گرفتی؛ امشب اچ‌پی‌ات نصف حساب می‌شه.",
-                            f"Bank: you got {coins} coins; your hp counts as half tonight."))
-        if "double_act_50" in fl and dmg < 100:
-            p["double_act"] = False
-            p["flags"]["wagram_roll"] = None    # the player throws a die: even = two acts tonight
-            private.append((p["id"], "🎲 در خانقاه هستی: از منو تاس بریز — زوج بیاید امشب دو اکت داری.", ""))
-        if "vote_plus" in fl:
-            # Paris: +1 vote, minus the destroyed share (20% destroyed → +0.8)
-            p["flags"]["vote_mod"] = round(p["flags"].get("vote_mod", 0) + intact(g, loc), 2)
-        if "vote_minus" in fl:
-            p["flags"]["vote_mod"] = p["flags"].get("vote_mod", 0) - 1
-        if ("vienna_slots" in fl or "berlin_slots" in fl) and not ruined(g, loc):
-            private.append((p["id"], "ماشین اسلات منتظرته: /slots", "The slot machine awaits: /slots"))
-        if "taxi" in fl and not ruined(g, loc):
-            private.append((p["id"], "می‌تونی امشب مخفیانه با تاکسی جابه‌جا بشی: /taxi", "You may secretly take a taxi tonight: /taxi"))
-        if "radio" in fl and not ruined(g, loc):
-            gm_notes.append((f"{p['name']} به رادیو دسترسی دارد.", f"{p['name']} has radio access."))
-        if "casino" in fl and not ruined(g, loc):
-            private.append((p["id"], "در کازینو هستی: با /bet شرط ببند.", "You're in the casino: challenge someone with /bet."))
+      …786 tokens truncated…    private.append((p["id"], "در کازینو هستی: با /bet شرط ببند.", "You're in the casino: challenge someone with /bet."))
 
     # balloons launched this phase
     for b in g["balloons"]:
