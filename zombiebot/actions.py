@@ -567,7 +567,7 @@ def lock_map(g, rng=random):
         if "double_act_50" in fl and dmg < 100:
             p["double_act"] = False
             p["flags"]["wagram_roll"] = None    # the player throws a die: even = two acts tonight
-            private.append((p["id"], "🎲 در خانقاه هستی: از منو تاس بریز — زوج بیاید امشب دو اکت داری.", ""))
+            private.append((p["id"], LOCATIONS['wagram']['desc_fa'], LOCATIONS['wagram']['desc_en']))
         if "vote_plus" in fl:
             # Paris: +1 vote, minus the destroyed share (20% destroyed → +0.8)
             p["flags"]["vote_mod"] = round(p["flags"].get("vote_mod", 0) + intact(g, loc), 2)

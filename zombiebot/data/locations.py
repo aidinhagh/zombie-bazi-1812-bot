@@ -50,8 +50,8 @@ LOCATIONS = {
     "wagram": {
         "fa": "واگرام (خانقاه)", "en": "Wagram (Monastery)", "place_fa": "خانقاه", "place_en": "Monastery",
         "mods": {}, "flags": ["indep_safe", "double_act_50", "no_convert", "no_steal"], "shop": None,
-        "desc_fa": "مستقل‌ها اینجا نمی‌میرن. ۵۰٪ شانس دو اکت. فرقه‌گر و دزد اینجا کار نمی‌کنن.",
-        "desc_en": "Independents can't die here. 50% chance of two acts. Cultist and thief can't target you here.",
+        "desc_fa": "مستقل‌ها اینجا نمی‌میرن؛ فرقه‌گر و دزد اینجا کار نمی‌کنن.\n🎲 شانس اکت دوم فقط شب است: هنگام قفل نقشه همان شب باید در خانقاه باشی. بعد از قفل، دکمه «🎲 تاس خانقاه — شانس اکت دوم» در پیام قفل، منوی اصلی و «🌙 اکت شب» ظاهر می‌شود. خودکار تاس نمی‌ریزد؛ دکمه را بزن تا ربات یک تاس بریزد. فقط یک‌بار در شب: زوج (۲، ۴، ۶) = دو اکت؛ فرد (۱، ۳، ۵) = یک اکت. تاس دستی و تاس حرکت حساب نمی‌شوند. در یک شب فقط یک اکت ویژه داری؛ اکت دیگر باید حمله، محافظت، خنثی یا جاسوسی باشد.",
+        "desc_en": "Independents can't die here. Cultist and thief can't target you here.\nSecond-act chance is night only: be here when that night's map locks. After locking, the monastery die button appears in the lock message, home menu and Night act menu. Press it for the bot to roll once: even (2,4,6) gives two acts; odd (1,3,5) gives one. Manual and movement dice do not count. Only one special act per night; the other must be attack, protect, defuse or spy.",
     },
     "berlin": {
         "fa": "برلین (قبرستان)", "en": "Berlin (Graveyard)", "place_fa": "قبرستان", "place_en": "Graveyard",

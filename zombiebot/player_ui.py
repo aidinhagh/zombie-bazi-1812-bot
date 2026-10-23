@@ -62,6 +62,8 @@ def home_text(p):
     from .night_window import window
     if window(g):
         lines.append("⏰ فقط امشب: مکان تا ۲۳:۰۰؛ اکت تا ۰۱:۰۰ روز بعد، به وقت تهران.")
+    if p.get('pos') == 'wagram':
+        lines.append('ℹ️ ' + LOCATIONS['wagram']['desc_' + lang])
     if p["alive"]:
         lines.append("")
         lines.append(checklist(g, p, lang))
@@ -540,7 +542,8 @@ async def handle(update, ctx, p, head, args):
         actions.taxi(g, p, args[0])
         save()
         await gm_notes(bot, [(f"🚕 {p['name']} با تاکسی رفت به {args[0]}", f"🚕 {p['name']} took the taxi to {args[0]}")])
-        return await edit_or_send(q, L(lang, f"🚕 مخفیانه رفتی به {LOCATIONS[args[0]]['fa']}", f"🚕 You secretly rode to {LOCATIONS[args[0]]['en']}"),
+        info = '\nℹ️ ' + LOCATIONS['wagram']['desc_' + lang] if args[0] == 'wagram' else ''
+        return await edit_or_send(q, L(lang, f"🚕 مخفیانه رفتی به {LOCATIONS[args[0]]['fa']}", f"🚕 You secretly rode to {LOCATIONS[args[0]]['en']}") + info,
                                   [back(lang)])
     if head == "slots":
         return await pull_slot(bot, ctx, p, q.message.chat_id)
