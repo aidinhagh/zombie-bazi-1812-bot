@@ -16,7 +16,7 @@ from .common import G, save, pl, is_gm, lang_of, playing_as, kb, split_text, to_
 from .data.items import ITEMS
 from .data.locations import UNIT_PRICES
 from .data.roles import ROLES, role_name
-from .state import new_player, assign_role, give_characters, needs_fake_char
+from .state import new_player, assign_role, give_characters, needs_fake_char, alive_players
 from .texts import L, bi, role_card, GM_HELP, help_text
 
 logging.basicConfig(format="%(asctime)s %(levelname)s %(name)s: %(message)s", level=logging.INFO)
@@ -73,6 +73,20 @@ async def cmd_whoami(update: Update, ctx):
 
 
 # ---------------- group ----------------
+
+async def cmd_alive(update: Update, ctx):
+    """Public game-group roster: names only, with no role or character data."""
+    chat = update.effective_chat
+    if chat.type not in ('group', 'supergroup') or chat.id != G().get('group_id'):
+        return
+    players = alive_players(G())
+    lines = [f'🟢 بازیکن‌های زنده ({common.num(len(players))} نفر):']
+    lines += [f'{common.num(i)}. {p["name"]}' for i, p in enumerate(players, 1)]
+    if not players:
+        lines.append('هیچ بازیکن زنده‌ای نیست.')
+    for part in split_text('\n'.join(lines)):
+        await update.message.reply_text(part)
+
 
 async def cmd_setgroup(update: Update, ctx):
     if not is_gm(update.effective_user.id) or update.effective_chat.type == "private":
@@ -544,7 +558,7 @@ def build_app(token):
     # a post waiting for its turn in the group must never hold up everyone else's buttons
     from . import web
     app = builder.concurrent_updates(True).post_init(_post_init).build()
-    cmds = {"start": cmd_start, "menu": player_ui.cmd_menu, "gm": cmd_gm, "lang": player_ui.cmd_lang, "help": cmd_help,
+    cmds = {"start": cmd_start, "menu": player_ui.cmd_menu, "gm": cmd_gm, "lang": player_ui.cmd_lang, "help": cmd_help, "alive": cmd_alive,
             "whoami": cmd_whoami, "setgroup": cmd_setgroup, "setchannel": cmd_setchannel, "nick": gm_ui.cmd_nick,
             "delete": votes.cmd_delete, "assign": cmd_assign, "char": cmd_char, "legend": cmd_legend, "approve": cmd_approve, "export": cmd_export, "backups": cmd_backups, "fakechar": cmd_fakechar, "hp": cmd_hp, "coins": cmd_coins, "pos": cmd_pos,
             "give": cmd_give, "unit": cmd_unit, "charge": cmd_charge, "route": cmd_route, "dig": cmd_dig,
