@@ -59,12 +59,33 @@ def home_text(p):
         lock = L(lang, "🔒 نقشه قفل است" if g["locked"] else f"🔓 نقشه باز {lock_eta(lang)}",
                  "🔒 map locked" if g["locked"] else f"🔓 map open {lock_eta(lang)}")
         lines.append(f"{'🌙' if g['phase'] == 'night' else '☀️'} {phase_label(lang, g)} · {lock}")
+    from .night_window import window
+    if window(g):
+        lines.append("⏰ فقط امشب: مکان تا ۲۳:۰۰؛ اکت تا ۰۱:۰۰ روز بعد، به وقت تهران.")
+    if p.get('pos') == 'wagram':
+        lines.append('ℹ️ ' + LOCATIONS['wagram']['desc_' + lang])
     if p["alive"]:
         lines.append("")
         lines.append(checklist(g, p, lang))
     else:
         lines.append(L(lang, "\nشما مرده‌اید. ⚰️", "\nYou are dead. ⚰️"))
     return "\n".join(lines)
+
+
+def dice_rows(p):
+    """Keep outstanding dice reachable even after the original confirmation is gone."""
+    g = G()
+    from .night_window import expired
+    if (g["phase"] != "night" or not p.get("alive")
+            or g.get("applied_cycle") == g["cycle"] or expired(g, "acts_until")):
+        return []
+    rows = []
+    if (g["locked"] and "double_act_50" in flags_at(loc_of(p))
+            and p["flags"].get("wagram_roll") is None):
+        rows.append([("🎲 تاس خانقاه — شانس اکت دوم", "p:wroll")])
+    rows += [[(f"🎲🎲 ریختن ۲ تاس برای «{act_name(a['type'], p['lang'])}»", f"p:dice:{i}")]
+             for i, a in enumerate(g["acts"].get(str(p["id"]), [])) if not a.get("dice") and not a.get("dice_total")]
+    return rows
 
 
 def home_rows(p):
@@ -86,6 +107,8 @@ def home_rows(p):
         rows.append([(L(lang, "🌙 اکت شب", "🌙 Night act"), "p:act"), (L(lang, "🛒 خرید", "🛒 Shop"), "p:shop")])
     elif g["phase"] == "day":
         rows.append([(L(lang, "🛒 خرید", "🛒 Shop"), "p:shop")])
+        if p['role'] == 'apothecary':
+            rows.append([("🧪 پادزهر — اکت روز", "p:antidotes")])
     else:
         rows.append([(L(lang, "🛒 خرید", "🛒 Shop"), "p:shop")])
     bag = "🎒 کوله و آیتم‌ها" + (f" ({num(len(p['items']))})" if p["items"] else "")
@@ -97,9 +120,6 @@ def home_rows(p):
         extra.append((L(lang, "🚕 تاکسی", "🚕 Taxi"), "p:taxi"))
     if g["phase"] == "night" and g["locked"] and set(flags_at(here)) & {"vienna_slots", "berlin_slots"} and not (p.get("slots") or {}).get("done"):
         extra.append((L(lang, "🎰 اسلات", "🎰 Slots"), "p:slots"))
-    if (g["phase"] == "night" and g["locked"] and "double_act_50" in flags_at(here)
-            and p["flags"].get("wagram_roll") is None):
-        extra.append(("🎲 تاس خانقاه", "p:wroll"))
     if g["phase"] == "day" and p["bullets"]:
         extra.append((L(lang, f"🔫 شلیک ({num(len(p['bullets']))})", f"🔫 Shoot ({len(p['bullets'])})"), "p:shoot"))
     if p["pos"] == "stockholm" and not actions.ruined(g, "stockholm"):
@@ -110,6 +130,7 @@ def home_rows(p):
         extra.append((L(lang, "🃏 نقش جعلی", "🃏 Fake role"), "p:fk"))
     if needs_fake_char(p):
         extra.append(("👤 شخصیت جعلی", "p:fc"))
+    rows += dice_rows(p)
     rows += chunks(extra, 2)
     rows.append([(L(lang, "🎴 نقش من", "🎴 My role"), "p:role")])
     if p.get("fake"):
@@ -141,21 +162,33 @@ def alive_others(p, include_self=False):
 # ---------------- jobs (after a dice animation) ----------------
 
 async def job_after_roll(ctx):
-    p = pl(ctx.job.data)
-    if p:
-        await mapview.send_move_map(ctx.bot, p)
+    data = ctx.job.data
+    if isinstance(data, dict):
+        p = pl(data["player_id"])
+        g = G()
+        if (not p or p.get("moved") or g.get("locked")
+                or (g["cycle"], g["phase"]) != (data["cycle"], data["phase"])):
+            return
+        from .night_window import expired
+        if expired(g, "move_until"):
+            return
+        await mapview.send_move_map(ctx.bot, p, destination=data["chat_id"])
+    else:  # Compatibility with an already queued job.
+        p = pl(data)
+        if p:
+            await mapview.send_move_map(ctx.bot, p)
 
 
 async def job_result(ctx):
-    pid, fa, en = ctx.job.data
+    pid, fa, en, *destination = ctx.job.data
     p = pl(pid)
     if p:
-        await dm(ctx.bot, pid, fa, en, reply_markup=kb(home_rows(p)))
+        await dm(ctx.bot, pid, fa, en, reply_markup=kb(home_rows(p)), destination=destination[0] if destination else None)
 
 
 async def job_result_rows(ctx):
-    pid, fa, en, rows = ctx.job.data
-    await dm(ctx.bot, pid, fa, en, reply_markup=kb(rows))
+    pid, fa, en, rows, *destination = ctx.job.data
+    await dm(ctx.bot, pid, fa, en, reply_markup=kb(rows), destination=destination[0] if destination else None)
 
 
 # ---------------- the dispatcher for p:* buttons ----------------
@@ -176,6 +209,14 @@ async def handle(update, ctx, p, head, args):
     g = G()
     lang = p["lang"]
     bot = ctx.bot
+    from .night_window import check_actions, expired
+    # An old night-act button should still lead the apothecary to their day decision.
+    if head == 'act' and g['phase'] == 'day' and p.get('role') == 'apothecary':
+        head = 'antidotes'
+    if head in ("act", "a", "t", "tg", "tb", "td", "bl", "bn", "bx", "acx", "dice", "wroll"):
+        check_actions(g)
+    if head in ("move", "roll", "dest", "go", "mv", "nodes", "fc", "fcn", "fcg") and expired(g, "move_until"):
+        raise GameError("مهلت جابه‌جایی امشب تمام شده است.")
 
     if head == "home":
         return await send_home(bot, p, q)
@@ -185,6 +226,22 @@ async def handle(update, ctx, p, head, args):
         return await send_home(bot, p, q)
     if head == "role":
         return await edit_or_send(q, role_card(p, lang), [back(lang)])
+    if head == 'antidotes':
+        if not p['alive']:
+            raise GameError('شما مرده‌اید.')
+        poisons = events.antidote_decisions(p)
+        lines = ['🧪 پادزهر — تصمیم روز عطار',
+                 'تا شروع شب بعد می‌توانی بین دادن و ندادن پادزهر جابه‌جا شوی؛ شارژ سم برای این تصمیم لازم نیست.']
+        rows = []
+        for po in poisons:
+            target = pl(po['target'])['name']
+            choice = ('پادزهر می‌دهی' if po.get('antidote') else 'پادزهر نمی‌دهی') if 'antidote' in po else 'هنوز انتخاب نکردی'
+            lines.append(f'• {target}: {choice}')
+            rows += [[(f"✅ پادزهر به {target}", f"x:an:{po['id']}:1"),
+                      (f"❌ پادزهر نده به {target}", f"x:an:{po['id']}:0")]]
+        if not poisons:
+            lines.append('الان تصمیم پادزهر بازی نداری؛ فقط سمِ ثبت و اعمال‌شده روی بازیکن زنده، تا شروع شب بعد قابل تغییر است.')
+        return await edit_or_send(q, '\n\n'.join(lines), rows + [back(lang)])
     if head == "pend":
         waiting = events.pending_for(p)
         if not waiting:
@@ -239,16 +296,16 @@ async def handle(update, ctx, p, head, args):
             raise GameError("در این فاز حرکت کردی.", "You've already moved this phase.")
         if p["pos"] is None:
             return await mapview.send_city_pick(bot, p, "📍 اولین حرکت: هر جای نقشه، بدون تاس — یک شهر، یا «خانه‌های خالی» را بزن.",
-                                                "", "p:go", first=True)
+                                                "", "p:go", first=True, destination=q.message.chat_id)
         if p["flags"].get("free_move"):
-            return await mapview.send_city_pick(bot, p, "🗺 نقشه قاچاقچی: بدون تاس به هر شهری برو.", "🗺 Smuggler's chart: go to any city, no dice.", "p:go")
+            return await mapview.send_city_pick(bot, p, "🗺 نقشه قاچاقچی: بدون تاس به هر شهری برو.", "🗺 Smuggler's chart: go to any city, no dice.", "p:go", destination=q.message.chat_id)
         if p["move_roll"] is None:
             msg = await bot.send_dice(q.message.chat_id, emoji="🎲")
             p["move_roll"] = msg.dice.value
             save()
-            ctx.job_queue.run_once(job_after_roll, DICE_WAIT, data=p["id"])
+            ctx.job_queue.run_once(job_after_roll, DICE_WAIT, data={"player_id": p["id"], "chat_id": q.message.chat_id, "cycle": g["cycle"], "phase": g["phase"]})
             return
-        return await mapview.send_move_map(bot, p)
+        return await mapview.send_move_map(bot, p, destination=q.message.chat_id)
     if head == "go":
         dest = args[0]
         if g["locked"] or p["moved"]:
@@ -299,7 +356,7 @@ async def handle(update, ctx, p, head, args):
             res = ((f"🎯 آیتم گرفتی: {item_line(it, 'fa')}", f"🎯 You found: {item_line(it, 'en')}") if it else
                    (f"🎯 چیزی پیدا نکردی (لازم بود {num(max(2, 7 - power))} یا بیشتر).", f"🎯 Nothing found (needed {max(2, 7 - power)}+)."))
         save()
-        ctx.job_queue.run_once(job_result, DICE_WAIT, data=(p["id"], *res))
+        ctx.job_queue.run_once(job_result, DICE_WAIT, data=(p["id"], *res, q.message.chat_id))
         return
 
     # ----- shop -----
@@ -351,10 +408,10 @@ async def handle(update, ctx, p, head, args):
         spots = actions.place_spots(g, p, unit) if len(args) < 2 else [args[1]]
         if not spots:
             raise GameError("باید روی یک خانه خالی " + ("دریایی" if unit == "ship" else "زمینی") +
-                            " باشی یا در همین فاز از آن رد شده باشی.")
+                            " باشی، در همین فاز از آن رد شده باشی، یا در شهر متصل به آن باشی.")
         if len(spots) > 1:
             rows = [[(board.square_name(x)[:40], f"p:up:{unit}:{x}")] for x in spots]
-            return await edit_or_send(q, f"{unit_name(unit, 'fa')} را کجا بکارم؟ (جایی که هستی یا از آن رد شدی)", rows + [back(lang, "p:bag")])
+            return await edit_or_send(q, f"{unit_name(unit, 'fa')} را کجا بکارم؟ (خانه فعلی، مسیر این فاز، یا اطراف شهرت)", rows + [back(lang, "p:bag")])
         u = actions.place_unit(g, p, unit, spots[0])
         return await ask_name(q, p, "unit", u, f"✅ {unit_name(unit, 'fa')} در {board.square_name(spots[0])} مستقر شد.")
     if head == "us":
@@ -362,6 +419,8 @@ async def handle(update, ctx, p, head, args):
         kind = "sea" if unit in ("mine", "ship") else "road"
         rids = board.routes_touching(g, p["pos"], kind=kind)
         if not rids:
+            if unit == 'ship':
+                raise GameError(f"از {board.square_name(p['pos'])} مسیر دریایی متصل نداری. کشتی فقط مینِ مسیر دریایی متصل به مکان فعلی‌ات را پاک می‌کند؛ مسیرهای قبلی بعد از جابه‌جایی یا تاکسی قابل پاک‌کردن نیستند.")
             raise GameError("مسیر مناسبی به خانه‌ات وصل نیست.", "No suitable route touches your square.")
         st = {"ok": ("باز", "open"), "broken": ("خراب", "broken"), "mined": ("مین", "mined")}
         rows = [[(f"{board.route_name(g, r, lang)} · {L(lang, *st[board.route_status(g, r)])}", f"p:ur:{unit}:{r}")] for r in rids]
@@ -427,10 +486,10 @@ async def handle(update, ctx, p, head, args):
     if head == "dice":
         lst = g["acts"].get(str(p["id"]), [])
         i = int(args[0])
-        if i >= len(lst) or lst[i].get("dice"):
+        if i >= len(lst) or lst[i].get("dice") or lst[i].get("dice_total"):
             raise GameError("تاس این اکت ریخته شده.")
-        if g.get("pending"):
-            raise GameError("گاد در حال محاسبه شب است.")
+        from .night_window import check_actions
+        check_actions(g)
         pool = p.setdefault("night_dice", {"cycle": g["cycle"], "list": []})
         if pool.get("cycle") != g["cycle"]:
             pool.update({"cycle": g["cycle"], "list": []})
@@ -448,14 +507,15 @@ async def handle(update, ctx, p, head, args):
         save()
         text = (f"🎲 {num(d1.dice.value)} + {num(d2.dice.value)} = {num(d1.dice.value + d2.dice.value)} "
                 f"برای «{act_name(lst[i]['type'], lang)}» ثبت شد.")
-        ctx.job_queue.run_once(job_result_rows, DICE_WAIT, data=(p["id"], text, text, [[("🌙 اکت‌ها", "p:act")], back(lang)]))
+        ctx.job_queue.run_once(job_result_rows, DICE_WAIT, data=(p["id"], text, text, [[("🌙 اکت‌ها", "p:act")], back(lang)], q.message.chat_id))
         return
     if head == "wroll":
+        actions.validate_wagram_roll(g, p)
         msg = await bot.send_dice(q.message.chat_id, emoji="🎲")
         two = actions.wagram_roll(g, p, msg.dice.value)
         save()
         text = (f"🎲 {num(msg.dice.value)} — " + ("زوج! امشب دو اکت داری. 🙏" if two else "فرد؛ امشب یک اکت."))
-        ctx.job_queue.run_once(job_result, DICE_WAIT, data=(p["id"], text, text))
+        ctx.job_queue.run_once(job_result, DICE_WAIT, data=(p["id"], text, text, q.message.chat_id))
         return
     if head == "nm":
         p["flags"].pop("naming", None)
@@ -484,7 +544,8 @@ async def handle(update, ctx, p, head, args):
         actions.taxi(g, p, args[0])
         save()
         await gm_notes(bot, [(f"🚕 {p['name']} با تاکسی رفت به {args[0]}", f"🚕 {p['name']} took the taxi to {args[0]}")])
-        return await edit_or_send(q, L(lang, f"🚕 مخفیانه رفتی به {LOCATIONS[args[0]]['fa']}", f"🚕 You secretly rode to {LOCATIONS[args[0]]['en']}"),
+        info = '\nℹ️ ' + LOCATIONS['wagram']['desc_' + lang] if args[0] == 'wagram' else ''
+        return await edit_or_send(q, L(lang, f"🚕 مخفیانه رفتی به {LOCATIONS[args[0]]['fa']}", f"🚕 You secretly rode to {LOCATIONS[args[0]]['en']}") + info,
                                   [back(lang)])
     if head == "slots":
         return await pull_slot(bot, ctx, p, q.message.chat_id)
@@ -532,7 +593,7 @@ async def pull_slot(bot, ctx, p, chat_id):
         dead = [x for x in roster(g) if not x["alive"] and x["role"] and not x.get("unrevivable")]
         rows = [[(x["name"], f"p:rv:{x['id']}")] for x in dead] or [back(lang)]
         ctx.job_queue.run_once(job_result_rows, DICE_WAIT, data=(p["id"], "🎰 سه‌تای یکسان! یک نفر رو زنده کن:",
-                                                                 "🎰 Three of a kind! Revive someone:", rows))
+                                                                 "🎰 Three of a kind! Revive someone:", rows, chat_id))
         return
     if s["hit"]:
         res = (f"🎰 جک‌پات! همه قدرت‌ها و اچ‌پی +{num(s.get('change', 20))} — برای همیشه (حتی بعد از مرگ و زنده شدن).",
@@ -543,7 +604,7 @@ async def pull_slot(bot, ctx, p, chat_id):
                "🎰 Out of pulls, no three of a kind." + (" All powers −20 permanently." if vienna else ""))
     else:
         res = (f"🎰 نشد. {num(s['left'])} بار دیگه.", f"🎰 No luck. {s['left']} pulls left.")
-    ctx.job_queue.run_once(job_result, DICE_WAIT, data=(p["id"], *res))
+    ctx.job_queue.run_once(job_result, DICE_WAIT, data=(p["id"], *res, chat_id))
 
 
 def shop_view(p, lang):
@@ -599,9 +660,9 @@ def bag_view(p, lang):
     if u:
         lines.append(L(lang, "\nواحدها: ", "\nUnits: ") + ", ".join(f"{unit_name(k, lang)}×{num(v, lang)}" for k, v in u.items()))
         if u.get("cannon"):
-            rows.append([("💣 توپ: کاشتن (همین‌جا یا مسیرم)", "p:up:cannon"), (L(lang, "💣 توپ: خراب کردن جاده", "💣 Cannon: destroy road"), "p:us:cannon")])
+            rows.append([("💣 توپ: کاشتن (اطراف شهر/مسیرم)", "p:up:cannon"), (L(lang, "💣 توپ: خراب کردن جاده", "💣 Cannon: destroy road"), "p:us:cannon")])
         if u.get("ship"):
-            rows.append([("⛵ کشتی: کاشتن (همین‌جا یا مسیرم)", "p:up:ship"), (L(lang, "⛵ کشتی: پاک کردن مین", "⛵ Ship: clear mine"), "p:us:ship")])
+            rows.append([("⛵ کشتی: کاشتن (اطراف شهر/مسیرم)", "p:up:ship"), (L(lang, "⛵ کشتی: پاک کردن مین", "⛵ Ship: clear mine"), "p:us:ship")])
         if u.get("mine"):
             rows.append([(L(lang, "🌊 مین: بستن مسیر دریایی", "🌊 Mine: block a sea lane"), "p:us:mine")])
         if u.get("shovel"):
@@ -650,7 +711,8 @@ def acts_text(p, lang):
         if a["type"] == "duel" and ex.get("target2") and pl(ex["target2"]):
             t += " ⚔️ " + pl(ex["target2"])["name"]
         tag = f" (به‌جای {role_name(a['as_role'])})" if a.get("as_role") else ""
-        dice = f" · 🎲 {num(a['dice'][0])}+{num(a['dice'][1])}" if a.get("dice") else " · 🎲 تاس نریخته"
+        dice = (f" · 🎲 {num(a['dice'][0])}+{num(a['dice'][1])}" if a.get("dice") else
+                f" · 🎲 جمع {num(a['dice_total'])} (گاد)" if a.get("dice_total") else " · 🎲 تاس نریخته")
         out.append(f"• {act_name(a['type'], lang)}{tag} → {t}{dice}")
     return "\n".join(out)
 
@@ -659,8 +721,8 @@ def add_act(p, act):
     g = G()
     if g["phase"] != "night":
         raise GameError("اکت فقط در شب.", "Acts only at night.")
-    if g.get("pending"):
-        raise GameError("گاد در حال محاسبه شب است.", "The GM is already resolving the night.")
+    from .night_window import check_actions
+    check_actions(g)
     lst = g["acts"].setdefault(str(p["id"]), [])
     if len(lst) >= act_limit(p):
         raise GameError("به سقف اکت‌هات رسیدی؛ اول پاکشون کن.", "You've reached your act limit; clear first.")
@@ -685,7 +747,7 @@ def add_act(p, act):
 
 async def act_done(q, p, lang):
     lst = G()["acts"].get(str(p["id"]), [])
-    rows = [[(f"🎲🎲 ریختن ۲ تاس برای «{act_name(a['type'], lang)}»", f"p:dice:{i}")] for i, a in enumerate(lst) if not a.get("dice")]
+    rows = dice_rows(p)
     note = "\n\n🎲 حالا تاس‌های اکتت را بریز: قدرت اکت = جمع ۲ تاس + استت تو. (اگر نریزی، ربات موقع محاسبه می‌ریزد.)" if rows else ""
     await edit_or_send(q, "✅ " + acts_text(p, lang) + note, rows + [[("🌙 اکت‌ها", "p:act")], back(lang)])
 
@@ -706,14 +768,14 @@ async def act_flow(update, ctx, p, head, args):
             text = (f"🦹 دزدی ثبت شد. نقش {victim}: {role_name(borrow)}{warn}\n\n"
                     f"حالا به‌جای {role_name(borrow)} یک اکت انتخاب کن.\n"
                     f"این اکت با استت‌های {role_name(borrow)} انجام می‌شود (و فقط همین اکت قابل خنثی شدن است).")
-            return await edit_or_send(q, text, rows + [[("🗑 لغو دزدی", "p:acx")], back(lang)])
+            return await edit_or_send(q, text, dice_rows(p) + rows + [[("🗑 لغو دزدی", "p:acx")], back(lang)])
         types = ["attack", "protect", "defuse", "spy"] + SPECIALS.get(p["role"], [])
         rows = chunks([(act_name(t, lang), f"p:a:{t}") for t in types], 2)
         if g["acts"].get(str(p["id"])):
             rows.append([(L(lang, "🗑 پاک کردن اکت‌ها", "🗑 Clear my acts"), "p:acx")])
         lim = L(lang, f"\n\nامشب {num(act_limit(p))} اکت داری. قدرت هر اکت = ۲ تاس + استت تو.",
                 f"\n\nYou have {act_limit(p)} act(s) tonight. Power = 2 dice + your stat.")
-        return await edit_or_send(q, acts_text(p, lang) + lim, rows + [back(lang)])
+        return await edit_or_send(q, acts_text(p, lang) + lim, dice_rows(p) + rows + [back(lang)])
     if head == "acx":
         g["acts"].pop(str(p["id"]), None)
         p["flags"].pop("borrow", None)

@@ -87,13 +87,22 @@ def character_lines(p):
 
 def role_card(p, lang):
     r = ROLES[p["role"]]
+    purchases = dict(p.get('perm_stats') or {})
+    for stat, value in (p.get('bought') or {}).items():
+        purchases[stat] = purchases.get(stat, 0) + value
     team = {"zombie": ("زامبی", "Zombie"), "human": ("انسان", "Human"), "independent": ("مستقل", "Independent")}[r["team"]]
     lines = [
         L(lang, f"🎴 نقش شما: {r['fa']}", f"🎴 Your role: {r['en']}"),
         L(lang, f"تیم: {team[0]}", f"Team: {team[1]}"),
         "",
-        " | ".join(f"{stat_name(s, lang)} {r[s]}" for s in ("attack", "protect", "defuse", "spy", "stealth", "hp", "item")),
+        L(lang, 'قدرت پایه نقش + خرید دائمی (بدون اثر مکان و آیتم):',
+          'Base role stats + permanent purchases (before location and item effects):'),
+        " | ".join(f"{stat_name(s, lang)} {p['hp'] if s == 'hp' else r[s] + purchases.get(s, 0)}" for s in ("attack", "protect", "defuse", "spy", "stealth", "hp", "item")),
     ]
+    lines.append(L(lang, 'اچ‌پی بالا، اچ‌پی فعلی توست.', 'HP above is your current HP.'))
+    if purchases:
+        lines.append(L(lang, '🛒 خریدهای دائمی: ', '🛒 Permanent purchases: ') +
+                     ' | '.join(f'{stat_name(s, lang)} {value:+d}' for s, value in purchases.items() if value))
     sp = SPECIALS.get(p["role"], [])
     if sp:
         lines.append(L(lang, "اکت‌های ویژه: ", "Special acts: ") + "، ".join(act_name(s, lang) for s in sp))

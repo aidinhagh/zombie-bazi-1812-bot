@@ -100,6 +100,9 @@ def move_mode(g, p):
         return "lobby", "بازی هنوز شروع نشده."
     if not p["alive"]:
         return "dead", "شما مرده‌اید."
+    from .night_window import expired
+    if expired(g, "move_until"):
+        return "locked", "مهلت جابه‌جایی امشب تمام شده است."
     if g["locked"]:
         return "locked", "نقشه تا فاز بعد قفل است."
     if p["moved"]:

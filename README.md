@@ -69,7 +69,7 @@ These were my interpretations where the rules left room; each one is easy to cha
 - **Vienna slots**: not playing means no effect; three pulls with no triple means −20.
 - **War balloon**: destruction % cuts the place's positive bonuses permanently; it stacks to 100%. Church/hotel protection is multiplied by the destroyed %. People there lose 10 × % HP.
 - **Tolls**: 10 coins; any shortfall is taken as HP at the shop rate (5 coins = 1 HP).
-- **Units**: cannons and ships are placed on your own blank square. Cannon/mine/shovel act on routes touching your square. A cannon or mine is used up when fired, a shovel when used; a ship can clear mines repeatedly. New shovel roads need your approval.
+- **Units**: cannons and ships can be placed on your current blank square, a blank square crossed this phase, or any directly adjacent blank square while you are in a city. Cannons use land squares and ships use sea squares; you can deploy as many as your inventory allows. Cannon/mine/shovel act on routes touching your square. A cannon or mine is used up when fired, a shovel when used; a ship can clear mines repeatedly. New shovel roads need your approval.
 - **Balloons** are single-use and resolve at the lock. The spy's starting balloon is always published, the zombie doctor's never; bought ones ask the owner.
 - **Spy results**: the Spy role sees the exact role (the godfather shows his fake role; the clown shows what he picked). Everyone else sees a colour.
 - **Thief**: the target's act is cancelled, they lose a random item to the thief, and the thief is told the role. What the thief does with a stolen role (e.g. becoming cult) is up to you.
