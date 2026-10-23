@@ -559,7 +559,10 @@ def lock_map(g, rng=random):
                             f"Hotel: hp {before}→{p['hp']}; you can't be executed tomorrow."))
             if p["hp"] <= 0:
                 gm_notes.append((f"{p['name']} با هزینه هتل به اچ‌پی {p['hp']} رسید.", f"{p['name']} hit {p['hp']} hp from the hotel cost."))
-        if "bank" in fl and dmg < 100:
+        if "bank" in fl and dmg < 100 and loc == p.get('last_night_pos'):
+            private.append((p['id'], '🏦 دو شب پشت سر هم در بانک مانده‌ای؛ امشب نه سکه بانک می‌گیری و نه اچ‌پی‌ات نصف حساب می‌شود.',
+                            'Consecutive bank nights: no bank coins and no temporary HP penalty tonight.'))
+        if "bank" in fl and dmg < 100 and loc != p.get('last_night_pos'):
             coins = BANK_COINS * (100 - dmg) // 100
             p["coins"] += coins
             private.append((p["id"], f"بانک: {coins} سکه گرفتی؛ امشب اچ‌پی‌ات نصف حساب می‌شه.",

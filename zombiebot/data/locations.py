@@ -68,8 +68,8 @@ LOCATIONS = {
     "copenhagen": {
         "fa": "کپنهاگ (بانک)", "en": "Copenhagen (Bank)", "place_fa": "بانک", "place_en": "Bank",
         "mods": {}, "flags": ["bank"], "shop": "mine",
-        "desc_fa": "۱۰ سکه می‌گیری ولی اچ‌پی نصف می‌شه. محل خرید مین دریایی.",
-        "desc_en": "Get 10 coins but your HP is halved for the night. Sea-mine shop.",
+        "desc_fa": "۱۰ سکه می‌گیری ولی اچ‌پی امشب نصف حساب می‌شود. اگر دو شب متوالی اینجا بمانی، شب دوم نه سکه می‌گیری و نه اچ‌پی‌ات نصف می‌شود. محل خرید مین دریایی.",
+        "desc_en": "Get 10 coins but your HP counts as half tonight. Consecutive nights here give neither bank coins nor the HP penalty on the repeated visit. Sea-mine shop.",
     },
     "stockholm": {
         "fa": "استکهلم (کازینو)", "en": "Stockholm (Casino)", "place_fa": "کازینو", "place_en": "Casino",

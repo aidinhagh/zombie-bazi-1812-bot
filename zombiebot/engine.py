@@ -47,7 +47,7 @@ def night_stats(g, p):
                 hp_mod += v
             else:
                 s[k] += v
-        if "bank" in L["flags"] and not ignore_neg:
+        if "bank" in L["flags"] and loc != p.get('last_night_pos') and not ignore_neg:
             hp_mod -= p["hp"] // 2
     for key in p.get("legend", []):   # legendary items: permanent
         from .data.legendary import LEGENDARY

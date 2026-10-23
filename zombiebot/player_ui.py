@@ -419,6 +419,8 @@ async def handle(update, ctx, p, head, args):
         kind = "sea" if unit in ("mine", "ship") else "road"
         rids = board.routes_touching(g, p["pos"], kind=kind)
         if not rids:
+            if unit == 'ship':
+                raise GameError(f"از {board.square_name(p['pos'])} مسیر دریایی متصل نداری. کشتی فقط مینِ مسیر دریایی متصل به مکان فعلی‌ات را پاک می‌کند؛ مسیرهای قبلی بعد از جابه‌جایی یا تاکسی قابل پاک‌کردن نیستند.")
             raise GameError("مسیر مناسبی به خانه‌ات وصل نیست.", "No suitable route touches your square.")
         st = {"ok": ("باز", "open"), "broken": ("خراب", "broken"), "mined": ("مین", "mined")}
         rows = [[(f"{board.route_name(g, r, lang)} · {L(lang, *st[board.route_status(g, r)])}", f"p:ur:{unit}:{r}")] for r in rids]
