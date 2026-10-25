@@ -444,6 +444,23 @@ async def handle(update, ctx, p, head, args):
         await to_gms(bot, f"⛏ {p['name']}: {board.square_name(p['pos'])} → {LOCATIONS[args[0]]['fa']}",
                      reply_markup=kb([[("✅", f"g:dig:{p['id']}:{p['pos']}:{args[0]}"), ("❌", f"g:dig:{p['id']}:0:0")]]))
         return await edit_or_send(q, L(lang, "درخواست برای گاد فرستاده شد.", "Request sent to the GM."), [back(lang)])
+    if head in ('ub', 'ubt') and args[0] == 'war':
+        unfinished = next((b for b in reversed(g['balloons'])
+                           if str(b['owner']) == str(p['id']) and b['kind'] == 'war'
+                           and b['result'] in (None, 'await_pct')), None)
+        if unfinished:
+            text = (f"🎈 پرواز بالن جنگی «{unfinished.get('name') or '?'}» در شب {num(unfinished['cycle'])} "
+                    f"بر فراز {board.square_name(unfinished['target'])} ثبت شده، ولی بمبارانش هنوز تمام نشده است.\n"
+                    "این همان پرواز قبلی است؛ پرواز جدیدی ثبت نشده و زمان استراحت دوباره شروع نشده است.")
+            rows = []
+            if unfinished['result'] == 'await_pct':
+                url = events.balloon_url(unfinished)
+                if url:
+                    rows.append([('🎈 ادامه پرواز و بمباران', 'webapp:' + url)])
+                text += '\nمینی‌گیم را باز کن و تا ثبت درصد بمباران ادامه بده.'
+            else:
+                text += '\nبعد از قفل نقشه، دکمه مینی‌گیم در کوله در دسترس قرار می‌گیرد.'
+            return await edit_or_send(q, text, rows + [back(lang, 'p:bag')])
     if head == "ub":
         kind = args[0]
         if p["units"].get(kind + "_balloon", 0) < 1:

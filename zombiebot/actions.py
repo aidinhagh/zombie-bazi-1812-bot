@@ -494,9 +494,8 @@ def launch_balloon(g, p, kind, target):
     if kind == "war":
         last = p.get("war_cycle")
         if last is not None and g["cycle"] - last < 2:
-            raise GameError("بالن جنگی یک شب استراحت لازم دارد؛ شب بعد دوباره می‌توانی بفرستی.",
+            raise GameError(f"آخرین پرواز بالن جنگی در شب {last} ثبت شده؛ یک شب استراحت لازم دارد. پرواز جدید از شب {last + 2} ممکن است. اگر بمباران قبلی را تمام نکرده‌ای، از کوله ادامه‌اش بده.",
                             "The war balloon needs a night's rest.")
-        p["war_cycle"] = g["cycle"]
     origin = p.get("unit_origin", {}).get(key, "bought")
     flying = [x for x in g["balloons"] if str(x["owner"]) == str(p["id"]) and x["kind"] == kind
               and x["cycle"] == g["cycle"] and x.get("phase") == g["phase"]]
@@ -515,6 +514,8 @@ def launch_balloon(g, p, kind, target):
     if kind == "spy" and g["locked"]:
         b["result"] = balloon_sees(g, target)   # after 20:00 a spy balloon reports straight away
     g["balloons"].append(b)
+    if kind == 'war':
+        p['war_cycle'] = g['cycle']  # rejected launches must not restart the cooldown
     return b
 
 
