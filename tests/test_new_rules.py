@@ -445,6 +445,9 @@ def test_planting_on_a_square_you_passed():
         w.forced_dice = [2]
         await w.press(1, "p:move"); await w.press(1, "p:go:milan")     # Paris → n21 → Milan
         await w.press(1, "p:up:cannon")
+        # Milan now also offers its other adjacent houses, so choose the crossed one.
+        assert 'p:up:cannon:n21' in w.last_to(1).buttons()
+        await w.press(1, 'p:up:cannon:n21')
         assert w.g["units_on_map"][0]["square"] == "n21"
     run(go())
 

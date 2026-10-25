@@ -25,6 +25,12 @@ def G():
 
 
 def save():
+    from .night_window import fingerprint
+    g = G()
+    if g.get("pending") and g.get("pending_fingerprint") and g.get("applied_cycle") != g.get("cycle"):
+        if fingerprint(g) != g["pending_fingerprint"]:
+            g["pending"] = None
+            g.pop("pending_fingerprint", None)
     store.save()
 
 
@@ -131,12 +137,15 @@ def now():
 def lock_eta(lang):
     """'until 20:00 (3h 10m)' for the current day."""
     n = now()
-    lock = n.replace(hour=LOCK_HOUR, minute=0, second=0, microsecond=0)
+    from .night_window import window
+    override = window(G()).get("move_until")
+    lock = datetime.datetime.fromisoformat(override).astimezone(TZ) if override else n.replace(hour=LOCK_HOUR, minute=0, second=0, microsecond=0)
+    hour = lock.hour
     if n >= lock:
-        return L(lang, f"ساعت {num(LOCK_HOUR)}:۰۰ گذشته", f"past {LOCK_HOUR}:00")
+        return L(lang, f"ساعت {num(hour)}:۰۰ گذشته", f"past {hour}:00")
     mins = int((lock - n).total_seconds() // 60)
     h, m = divmod(mins, 60)
-    return L(lang, f"تا ساعت {num(LOCK_HOUR)}:۰۰ ({num(h)} ساعت و {num(m)} دقیقه)", f"until {LOCK_HOUR}:00 ({h}h {m}m)")
+    return L(lang, f"تا ساعت {num(hour)}:۰۰ ({num(h)} ساعت و {num(m)} دقیقه)", f"until {hour}:00 ({h}h {m}m)")
 
 
 def phase_label(lang, g=None):
@@ -158,9 +167,9 @@ def banner(uid):
     return ""
 
 
-async def dm(bot, uid, fa, en=None, **kw):
+async def dm(bot, uid, fa, en=None, *, destination=None, **kw):
     text = fa
-    chat = chat_for(uid)
+    chat = destination if destination is not None else chat_for(uid)
     if chat is None:
         return None
     try:
@@ -169,8 +178,8 @@ async def dm(bot, uid, fa, en=None, **kw):
         logger.warning("DM to %s failed: %s", uid, e)
 
 
-async def dm_photo(bot, uid, photo, caption=None, **kw):
-    chat = chat_for(uid)
+async def dm_photo(bot, uid, photo, caption=None, *, destination=None, **kw):
+    chat = destination if destination is not None else chat_for(uid)
     if chat is None:
         return None
     try:

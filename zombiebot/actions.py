@@ -46,7 +46,10 @@ def do_move(g, p, dest, path):
     if start is not None:
         notes += _tolls(g, p, [start] + list(path))
     p.setdefault("flags", {})["passed"] = list(path)   # squares crossed this phase (a unit can be planted on any of them)
+    p.setdefault("move_history", []).append({"cycle": g["cycle"], "phase": g["phase"], "start": start, "dest": dest, "path": list(path), "routes": routes_used(g, [start] + list(path)) if start else []})
     p["pos"] = dest
+    if g["phase"] == "night":
+        p["night_pos"] = dest
     p["moved"] = True
     p["flags"].pop("move_plus", None)
     p["flags"].pop("move_minus", None)
@@ -382,8 +385,10 @@ def active_effects(p):
 # ---------------- units on the board ----------------
 
 def place_spots(g, p, unit):
-    """Empty squares where this unit can be planted: where you stand, or any you crossed this phase."""
+    """Placeable nodes: current/passed squares, plus neighbors of the current city."""
     cands = [p["pos"]] + [x for x in p["flags"].get("passed", []) if x != p["pos"]]
+    if p['pos'] in board.CITIES:
+        cands += [sq for sq, _ in board.adjacency(g, include_blocked=True).get(p['pos'], [])]
     want_sea = unit == "ship"
     return [x for x in dict.fromkeys(cands) if x in SQUARES and SQUARES[x]["kind"] == "node" and SQUARES[x]["sea"] == want_sea]
 
@@ -394,14 +399,15 @@ def place_unit(g, p, unit, where=None, name=None):
     if p["units"].get(unit, 0) < 1:
         raise GameError("این واحد رو نداری.", "You don't have that unit.")
     sq = SQUARES.get(where or p["pos"])
-    if where and where != p["pos"] and where not in p["flags"].get("passed", []):
-        raise GameError("فقط جایی که هستی یا از آن رد شدی.", "")
     if not sq or sq["kind"] != "node":
         raise GameError("فقط روی خانه خالی (بین شهرها) می‌شه کاشت.", "You can only place it on an empty square between cities.")
     if unit == "cannon" and sq["sea"]:
         raise GameError("توپ جنگی فقط روی مسیر زمینی.", "Cannons go on land routes only.")
     if unit == "ship" and not sq["sea"]:
         raise GameError("کشتی فقط روی مسیر دریایی.", "Ships go on sea routes only.")
+    if (where or p['pos']) not in place_spots(g, p, unit):
+        raise GameError("فقط خانه فعلی، مسیر طی‌شده در همین فاز، یا خانه متصل به شهری که در آن هستی.",
+                        "Place on your current square, this phase's path, or a node directly next to your city.")
     spot = where or p["pos"]
     if any(u["square"] == spot and u["kind"] == unit and str(u["owner"]) == str(p["id"]) for u in g["units_on_map"]):
         raise GameError("قبلاً اینجا گذاشتی.", "You already have one here.")
@@ -447,7 +453,6 @@ def strike_route(g, p, unit, rid):
     used = p["flags"].setdefault("unit_used", {})
     if used.get(unit, 0) >= p["units"][unit]:      # units are kept: each one can be used once a phase
         raise GameError("این واحد را در همین فاز استفاده کردی؛ فاز بعد دوباره.", "Already used this phase.")
-    used[unit] = used.get(unit, 0) + 1
     if unit == "cannon":
         if r["kind"] != "road" or status != "ok":
             raise GameError("فقط مسیر زمینی سالم.", "Only an intact land route.")
@@ -466,6 +471,8 @@ def strike_route(g, p, unit, rid):
             raise GameError("فقط جاده خراب را می‌شه تعمیر کرد.", "Only a broken road can be repaired.")
         g["route_state"][rid] = "ok"
         p["units"]["shovel"] -= 1                  # a shovel is used up
+    if unit != "shovel":
+        used[unit] = used.get(unit, 0) + 1
     log(g, f"{p['name']} {unit} on {rid}")
 
 
@@ -487,9 +494,8 @@ def launch_balloon(g, p, kind, target):
     if kind == "war":
         last = p.get("war_cycle")
         if last is not None and g["cycle"] - last < 2:
-            raise GameError("بالن جنگی یک شب استراحت لازم دارد؛ شب بعد دوباره می‌توانی بفرستی.",
+            raise GameError(f"آخرین پرواز بالن جنگی در شب {last} ثبت شده؛ یک شب استراحت لازم دارد. پرواز جدید از شب {last + 2} ممکن است. اگر بمباران قبلی را تمام نکرده‌ای، از کوله ادامه‌اش بده.",
                             "The war balloon needs a night's rest.")
-        p["war_cycle"] = g["cycle"]
     origin = p.get("unit_origin", {}).get(key, "bought")
     flying = [x for x in g["balloons"] if str(x["owner"]) == str(p["id"]) and x["kind"] == kind
               and x["cycle"] == g["cycle"] and x.get("phase") == g["phase"]]
@@ -508,6 +514,8 @@ def launch_balloon(g, p, kind, target):
     if kind == "spy" and g["locked"]:
         b["result"] = balloon_sees(g, target)   # after 20:00 a spy balloon reports straight away
     g["balloons"].append(b)
+    if kind == 'war':
+        p['war_cycle'] = g['cycle']  # rejected launches must not restart the cooldown
     return b
 
 
@@ -516,6 +524,8 @@ def launch_balloon(g, p, kind, target):
 def lock_map(g, rng=random):
     """Freeze positions, run lock-time location rules, resolve balloons, detect battles.
     Returns a summary dict used for the public map post and GM notes."""
+    relock = g.pop("relock_positions_only", False)
+    settled = g.pop("relock_settled_positions", {}) if relock else {}
     g["locked"] = True
     night = g["phase"] == "night"
     gm_notes, private = [], []
@@ -531,6 +541,8 @@ def lock_map(g, rng=random):
         if not night:
             continue
         p["night_pos"] = p["pos"]
+        if relock and settled.get(str(p["id"]), p["pos"]) == p["pos"]:
+            continue  # Unchanged locations already settled; never charge/pay twice.
         loc = p["pos"]
         if loc is None:
             gm_notes.append((f"{p['name']} جایی روی نقشه انتخاب نکرده.", f"{p['name']} has no position."))
@@ -548,7 +560,10 @@ def lock_map(g, rng=random):
                             f"Hotel: hp {before}→{p['hp']}; you can't be executed tomorrow."))
             if p["hp"] <= 0:
                 gm_notes.append((f"{p['name']} با هزینه هتل به اچ‌پی {p['hp']} رسید.", f"{p['name']} hit {p['hp']} hp from the hotel cost."))
-        if "bank" in fl and dmg < 100:
+        if "bank" in fl and dmg < 100 and loc == p.get('last_night_pos'):
+            private.append((p['id'], '🏦 دو شب پشت سر هم در بانک مانده‌ای؛ امشب نه سکه بانک می‌گیری و نه اچ‌پی‌ات نصف حساب می‌شود.',
+                            'Consecutive bank nights: no bank coins and no temporary HP penalty tonight.'))
+        if "bank" in fl and dmg < 100 and loc != p.get('last_night_pos'):
             coins = BANK_COINS * (100 - dmg) // 100
             p["coins"] += coins
             private.append((p["id"], f"بانک: {coins} سکه گرفتی؛ امشب اچ‌پی‌ات نصف حساب می‌شه.",
@@ -556,7 +571,7 @@ def lock_map(g, rng=random):
         if "double_act_50" in fl and dmg < 100:
             p["double_act"] = False
             p["flags"]["wagram_roll"] = None    # the player throws a die: even = two acts tonight
-            private.append((p["id"], "🎲 در خانقاه هستی: از منو تاس بریز — زوج بیاید امشب دو اکت داری.", ""))
+            private.append((p["id"], LOCATIONS['wagram']['desc_fa'], LOCATIONS['wagram']['desc_en']))
         if "vote_plus" in fl:
             # Paris: +1 vote, minus the destroyed share (20% destroyed → +0.8)
             p["flags"]["vote_mod"] = round(p["flags"].get("vote_mod", 0) + intact(g, loc), 2)
@@ -593,7 +608,9 @@ def lock_map(g, rng=random):
         # two cannons on one square fight their own duel (artillery.py); the GM settles the rest
         fight = (kinds.count("ship") >= 2 or
                  (any(k in ("ship", "cannon") for k in kinds) and any(k.endswith("balloon") for k in kinds)))
-        if fight and len(owners) >= 2:
+        existing = any(f.get("cycle") == g["cycle"] and f.get("square") == sq
+                       and {u["id"] for u in f.get("units", [])} == {u["id"] for u in lst} for f in g["battles"])
+        if fight and len(owners) >= 2 and not existing:
             g["battles"].append({"id": next_id(g, "f"), "square": sq, "units": lst, "status": "open", "cycle": g["cycle"]})
     return {"gm_notes": gm_notes, "private": private}
 
@@ -835,6 +852,8 @@ def end_night(g):
 # ---------------- phases ----------------
 
 def start_phase(g, phase):
+    g.pop("relock_positions_only", None)
+    g.pop("relock_settled_positions", None)
     g["phase"] = phase
     give_characters(g)
     if phase == "night":
@@ -888,10 +907,6 @@ def tally(g):
         if T["flags"].get("vote_guard"):
             totals[tid] = max(0, totals[tid] - T["flags"]["vote_guard"])
             notes.append((f"{T['name']} آیتم دفاع در رأی‌گیری دارد (−{T['flags']['vote_guard']}).", ""))
-        if T["flags"].get("hotel_immune"):
-            pct = g["loc_damage"].get("barcelona", 0)
-            totals[tid] = totals[tid] * pct / 100
-            notes.append((f"{T['name']} در هتل است؛ رأی‌هایش ×{pct}٪.", f"{T['name']} is in the hotel; votes ×{pct}%."))
     ranked = sorted(totals.items(), key=lambda kv: -kv[1])
     return ranked, notes
 
@@ -919,12 +934,17 @@ def winner_check(g):
     return res
 
 
-def wagram_roll(g, p, value):
-    """The monastery die: an even number gives two acts tonight."""
+def validate_wagram_roll(g, p):
+    """Validate before asking Telegram to animate a die."""
     if g["phase"] != "night" or not g["locked"] or "double_act_50" not in flags_at(loc_of(p)):
         raise GameError("این تاس فقط شب و بعد از قفل نقشه در خانقاه است.", "")
     if p["flags"].get("wagram_roll") is not None:
         raise GameError("تاس خانقاه را ریخته‌ای.", "")
+
+
+def wagram_roll(g, p, value):
+    """The monastery die: an even number gives two acts tonight."""
+    validate_wagram_roll(g, p)
     p["flags"]["wagram_roll"] = int(value)
     p["double_act"] = int(value) % 2 == 0
     return p["double_act"]

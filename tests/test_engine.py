@@ -232,7 +232,7 @@ def test_vote_weights():
     actions.start_phase(g, "day")
     g["votes"] = {"1": "3", "2": "3"}
     ranked, _ = actions.tally(g)
-    assert ranked[0] == ("3", 0)   # hotel immunity
+    assert ranked[0] == ("3", 2)   # hotel only protects against execution, not votes
     g["players"]["3"]["flags"].pop("hotel_immune")
     ranked, _ = actions.tally(g)
     assert ranked[0] == ("3", 2)   # paris 2 + petersburg 0
